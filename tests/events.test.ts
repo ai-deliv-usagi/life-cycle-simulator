@@ -21,11 +21,11 @@ const byId = (id: string): EventDef => {
 };
 
 describe('events.json', () => {
-  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ8・キャリア8・お金8・健康6・社会2 + 再就職)', () => {
+  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ20・キャリア9・お金11・健康8・社会2 + 再就職)', () => {
     expect(validateData(defaultData)).toEqual([]);
     const count: Record<string, number> = {};
     for (const e of defaultData.events) count[e.category] = (count[e.category] ?? 0) + 1;
-    expect(count).toEqual({ life: 8, career: 8, money: 8, health: 6, social: 2, system: 1 });
+    expect(count).toEqual({ life: 20, career: 9, money: 11, health: 8, social: 2, system: 1 });
   });
 });
 

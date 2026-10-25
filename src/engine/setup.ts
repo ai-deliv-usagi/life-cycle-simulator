@@ -79,6 +79,7 @@ export function createGame(
     bankrupt: false,
     blacklist: 0,
     rank: 0, // 役職 0=一般 1=主任 2=係長 3=課長 4=部長
+    pet: false,
   };
 
   const loan = roll.studentLoan;
