@@ -97,14 +97,14 @@ describe('繰上げ返済', () => {
       { studentLoan: { amount: 3_000_000, interestFree: true, annualRate: 0, monthlyPayment: 12_500 } },
       { invest: 'index', prepay: true },
     );
-    takeLoan(s, 10_000, 12);
+    takeLoan(s, 2_000, 12);
     const loanBefore = s.assets.loan!;
     const studentBefore = s.assets.studentLoan;
     applyMonthlyMoney(s, flatRng);
     expect(s.assets.loan).toBe(0);
     expect(s.assets.studentLoan).toBeLessThan(studentBefore - 12_500);
     expect(s.assets.index).toBe(0); // 返済に使い切った
-    expect(loanBefore).toBe(10_000);
+    expect(loanBefore).toBe(2_000);
   });
 
   it('繰上げ返済しない方針なら、決まった額だけ返して残りは積み立てる', () => {

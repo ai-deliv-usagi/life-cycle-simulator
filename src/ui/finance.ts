@@ -5,6 +5,7 @@ import { manYen, signedManYen } from './format';
 
 const INCOME_LABELS: Record<IncomeKey, string> = {
   salary: '給料(手取り)',
+  bonus: 'ボーナス(手取り)',
   pension: '年金(手取り)',
   unemployment: '失業給付',
   spouse: '配偶者の収入',
@@ -33,6 +34,7 @@ export function ledgerTable(l: YearLedger): HTMLElement {
     .filter((k) => l.income[k] > 0)
     .map((k) => row(INCOME_LABELS[k], manYen(l.income[k])));
   if (l.eventIn > 0) incomeRows.push(row('臨時収入(イベント)', manYen(l.eventIn)));
+  if ((l.welfare ?? 0) > 0) incomeRows.push(row('生活保護', manYen(l.welfare ?? 0)));
   const expenseRows = (Object.keys(EXPENSE_LABELS) as ExpenseKey[])
     .filter((k) => l.expenses[k] > 0)
     .map((k) => row(EXPENSE_LABELS[k], manYen(l.expenses[k])));
@@ -56,8 +58,14 @@ export function ledgerTable(l: YearLedger): HTMLElement {
         h('tr', { class: 'total' }, h('th', {}, '収支'), h('td', { class: net >= 0 ? 'up' : 'down' }, signedManYen(net))),
         l.invested > 0 ? row('うち投資に回した額', manYen(l.invested)) : null,
         l.prepaid > 0 ? row('うち繰上げ返済した額', manYen(l.prepaid)) : null,
+        l.returns !== undefined
+          ? h('tr', {}, h('th', {}, '運用損益(値動き・利息)'), h('td', { class: l.returns >= 0 ? 'up' : 'down' }, signedManYen(l.returns)))
+          : null,
       ),
     ),
+    l.returns !== undefined
+      ? h('p', { class: 'muted small' }, '収支がマイナスでも、運用益がそれを上回れば金融資産は増える。')
+      : null,
   );
 }
 

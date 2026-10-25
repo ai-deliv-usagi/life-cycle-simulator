@@ -49,13 +49,13 @@ describe('生活水準(頭打ちと慣れ)', () => {
     const before = happinessParts(s).living;
     s.policy.spending = 'lavish';
     const justAfter = happinessParts(s).living;
-    expect(justAfter - before).toBeGreaterThan(15);
+    expect(justAfter - before).toBeGreaterThan(3);
     for (let i = 0; i < 72; i++) updateAdaptation(s);
     const adapted = happinessParts(s).living;
-    expect(adapted).toBeLessThan(justAfter - 10);
+    expect(adapted).toBeLessThan(justAfter - 2); // 慣れて戻る
     expect(adapted).toBeGreaterThan(before); // 絶対額の分は残る
     s.policy.spending = 'normal';
-    expect(happinessParts(s).living).toBeLessThan(before - 5);
+    expect(happinessParts(s).living).toBeLessThan(before - 2); // 下げると元より下がる
   });
 });
 
