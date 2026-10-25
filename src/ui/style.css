@@ -468,3 +468,59 @@ input[type='number'] {
 .notice {
   border-color: var(--down);
 }
+
+/* 表示の改善(B) */
+.tile-button {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tile-button:hover {
+  border-color: var(--accent);
+}
+.tile-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tile-sub {
+  margin-top: 2px;
+}
+.status-head .date {
+  font-weight: 400;
+}
+.log {
+  grid-template-columns: 4.6em 1fr;
+}
+.assets-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.asset-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.asset-table th,
+.asset-table td {
+  white-space: nowrap;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+.asset-table th:first-child {
+  text-align: left;
+  font-weight: 400;
+}
+.asset-table thead th {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+.asset-table .total th,
+.asset-table .total td {
+  font-weight: 700;
+  border-bottom: 0;
+}

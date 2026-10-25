@@ -185,6 +185,9 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
     for (const key of targets) {
       if (key === 'debt' || key === 'studentLoan') continue; // 借金は資産ショックの対象にしない
       a[key] = roundYen(a[key] * (1 + effects.assetShock.pct));
+      if (effects.assetShock.split && state.invested && key !== 'cash') {
+        state.invested[key] = roundYen(state.invested[key] * (1 + effects.assetShock.pct));
+      }
     }
   }
   if (effects.inheritance) {

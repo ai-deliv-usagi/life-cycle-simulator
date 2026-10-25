@@ -1,24 +1,25 @@
 // キャラ作成画面: 初期ガチャ・価値観・初期方針
 import { createGame, rollCharacter, type Policy, type Values } from '../../engine/index';
 import { h, mount } from '../dom';
-import { educationLabel, familyLabel, jobLabel, manYen, regionLabel, stars, VALUE_AXES } from '../format';
+import { educationLabel, familyLabel, jobLabel, manYen, regionLabel, stars, VALUE_AXES, valueStepLabel } from '../format';
 import type { Nav } from '../nav';
 import { policyForm } from '../policyForm';
 
 const DEFAULT_POLICY: Policy = { work: 'normal', spending: 'normal', invest: 'index', health: 'normal' };
 
+/** 価値観は5段階(-2〜+2)。数字ではなく「やや安定志向」のように言葉で出す */
 function valueSlider(axis: (typeof VALUE_AXES)[number], values: Values): HTMLElement {
-  const output = h('output', { class: 'slider-value' }, String(values[axis.key]));
+  const output = h('output', { class: 'slider-value' }, valueStepLabel(axis, values[axis.key]));
   const input = h('input', {
     type: 'range',
     min: -2,
     max: 2,
-    step: 0.5,
+    step: 1,
     value: values[axis.key],
     'aria-label': `${axis.left}〜${axis.right}`,
     oninput: (e: Event) => {
       values[axis.key] = Number((e.target as HTMLInputElement).value);
-      output.textContent = String(values[axis.key]);
+      output.textContent = valueStepLabel(axis, values[axis.key]);
     },
   });
   return h(

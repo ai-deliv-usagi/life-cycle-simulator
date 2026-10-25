@@ -387,3 +387,24 @@ describe('運用リターン', () => {
     expect(s.assets.cash).toBe(12_001_000);
   });
 });
+
+describe('元本(運用成績の表示用)', () => {
+  it('積立で元本が増え、値動きでは変わらない', () => {
+    const s = makeState({}, { invest: 'index' });
+    applyMonthlyMoney(s, flatRng);
+    expect(s.invested!.index).toBe(s.assets.index);
+    expect(s.invested!.index).toBeGreaterThan(0);
+    const principal = s.invested!.index;
+    applyReturns(s, createRng(3));
+    expect(s.invested!.index).toBe(principal);
+  });
+
+  it('資金ショートで売ると、売った割合だけ元本も減る', () => {
+    const s = makeState({}, { spending: 'lavish' });
+    s.assets.stocks = 1_000_000;
+    s.invested!.stocks = 800_000;
+    const deficit = calcExpenses(s).total - calcIncome(s).total;
+    applyMonthlyMoney(s, flatRng);
+    expect(s.invested!.stocks).toBe(Math.round(800_000 * (1 - deficit / 1_000_000)));
+  });
+});

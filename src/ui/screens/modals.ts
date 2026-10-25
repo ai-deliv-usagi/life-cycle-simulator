@@ -1,7 +1,7 @@
 // イベント・選択結果・年間サマリー・方針変更のモーダル
 import { availableChoices, gameData, type GameState, type LogEntry, type Policy } from '../../engine/index';
 import { h, openModal } from '../dom';
-import { healthWord, manYen, signedManYen } from '../format';
+import { ageMonthLabel, healthWord, manYen, signedManYen, signedPercent } from '../format';
 import { policyForm } from '../policyForm';
 
 const CHOICE_RESULT_MS = 1200;
@@ -16,7 +16,7 @@ export function eventModal(state: GameState): Promise<number> {
     const content = h(
       'div',
       { class: 'event' },
-      h('p', { class: 'event-age muted' }, `${Math.floor(state.ageMonths / 12)}歳`),
+      h('p', { class: 'event-age muted' }, ageMonthLabel(state.ageMonths, state.month)),
       h('h2', {}, ev.title),
       h('p', { class: 'event-text' }, ev.text),
       h(
@@ -135,5 +135,90 @@ export function policyModal(current: Policy): Promise<Policy | null> {
       ),
     );
     close = openModal(content);
+  });
+}
+
+/** 金融資産の内訳と運用成績 */
+export function assetsModal(state: GameState): Promise<void> {
+  const a = state.assets;
+  const inv = state.invested;
+  const rows: { label: string; value: number; principal?: number }[] = [
+    { label: '預金', value: a.cash },
+    { label: '積立', value: a.index, principal: inv?.index },
+    { label: '個別株', value: a.stocks, principal: inv?.stocks },
+    { label: '信用・仮想通貨', value: a.speculative, principal: inv?.speculative },
+  ];
+  const total = rows.reduce((s, r) => s + r.value, 0);
+  const investedTotal = inv ? inv.index + inv.stocks + inv.speculative : undefined;
+  const investedValue = a.index + a.stocks + a.speculative;
+
+  const gainCell = (value: number, principal: number | undefined) => {
+    if (principal === undefined) return h('td', { class: 'muted' }, '—');
+    if (principal === 0 && value === 0) return h('td', { class: 'muted' }, '—');
+    const gain = value - principal;
+    return h(
+      'td',
+      { class: gain >= 0 ? 'up' : 'down' },
+      signedManYen(gain),
+      principal > 0 ? h('span', { class: 'small' }, ` (${signedPercent(gain / principal)})`) : '',
+    );
+  };
+
+  return new Promise((resolve) => {
+    let close = () => {};
+    const content = h(
+      'div',
+      { class: 'assets-modal' },
+      h('h2', {}, '金融資産の内訳'),
+      h(
+        'table',
+        { class: 'asset-table' },
+        h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, '残高'), h('th', {}, '元本'), h('th', {}, '損益'))),
+        h(
+          'tbody',
+          {},
+          ...rows.map((r) =>
+            h(
+              'tr',
+              {},
+              h('th', {}, r.label),
+              h('td', {}, manYen(r.value)),
+              h('td', { class: 'muted' }, r.principal === undefined ? '—' : manYen(r.principal)),
+              r.principal === undefined ? h('td', { class: 'muted' }, '—') : gainCell(r.value, r.principal),
+            ),
+          ),
+          h(
+            'tr',
+            { class: 'total' },
+            h('th', {}, '合計'),
+            h('td', {}, manYen(total)),
+            h('td', { class: 'muted' }, investedTotal === undefined ? '—' : manYen(investedTotal + a.cash)),
+            gainCell(investedValue, investedTotal),
+          ),
+        ),
+      ),
+      h(
+        'dl',
+        { class: 'summary-list' },
+        h('dt', {}, '借金'),
+        h('dd', { class: a.debt > 0 ? 'down' : '' }, a.debt > 0 ? manYen(a.debt) : 'なし'),
+        h('dt', {}, '奨学金'),
+        h('dd', {}, a.studentLoan > 0 ? `残り${manYen(a.studentLoan)}` : 'なし'),
+      ),
+      inv === undefined ? h('p', { class: 'muted small' }, '古いセーブデータのため、元本と損益は表示できない。') : null,
+      h('p', { class: 'muted small' }, '元本はつぎ込んだ金額。損益は今の残高との差。'),
+      h(
+        'button',
+        {
+          class: 'btn primary',
+          onclick: () => {
+            close();
+            resolve();
+          },
+        },
+        '閉じる',
+      ),
+    );
+    close = openModal(content, { dismissible: true });
   });
 }

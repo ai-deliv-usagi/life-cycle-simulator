@@ -132,6 +132,7 @@ export function createGame(
       debt: 0,
       studentLoan: loan?.amount ?? 0,
     },
+    invested: { index: 0, stocks: 0, speculative: 0 },
     adaptedSpending: 0,
     achievement: 0,
     happinessHistory: [],

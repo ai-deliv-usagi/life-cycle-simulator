@@ -224,6 +224,19 @@ describe('効果', () => {
     expect(s.assets).toMatchObject({ cash: 500_000, index: 1_000_000, debt: 300_000 });
   });
 
+  it('財産分与(split)は元本も減らし、相場の暴落は元本を変えない', () => {
+    const s = makeState();
+    s.character.married = true;
+    s.assets.index = 2_000_000;
+    s.invested!.index = 1_000_000;
+    applyChoice(s, byId('divorce_crisis'), 1, flatRng);
+    expect(s.assets.index).toBe(1_000_000);
+    expect(s.invested!.index).toBe(500_000);
+    fireEvent(s, byId('recession'), flatRng);
+    expect(s.assets.index).toBe(700_000);
+    expect(s.invested!.index).toBe(500_000);
+  });
+
   it('転職は現職以外へ、payMul は転職後の値になる', () => {
     const rng = createRng(2);
     for (let i = 0; i < 50; i++) {

@@ -53,6 +53,9 @@ export interface Assets {
   studentLoan: number; // 奨学金の残高(debt とは別枠)
 }
 
+/** 投資資産ごとの元本(つぎ込んだ額)。運用成績の表示用 */
+export type InvestedPrincipal = Pick<Assets, 'index' | 'stocks' | 'speculative'>;
+
 export interface StudentLoan {
   interestFree: boolean;
   annualRate: number; // 無利子なら 0
@@ -108,6 +111,7 @@ export interface GameState {
   policy: Policy;
   stats: Stats;
   assets: Assets;
+  invested?: InvestedPrincipal; // 古いセーブにはないので省略可
   adaptedSpending: number; // 慣れた生活水準(月額・実質)
   achievement: number; // 達成感の蓄積 0-100
   happinessHistory: number[]; // 月ごとの幸福度
@@ -175,7 +179,8 @@ export interface Effects {
   mulFlags?: Record<string, number>;
   job?: JobId | 'random_other' | 'previous';
   achievement?: number;
-  assetShock?: { pct: number; targets?: (keyof Assets)[] };
+  /** 資産を一律に増減。split=true は財産分与(元本も同じ割合で減らすので運用の損益にならない) */
+  assetShock?: { pct: number; targets?: (keyof Assets)[]; split?: boolean };
   inheritance?: boolean;
   region?: RegionId;
 }
