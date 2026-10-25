@@ -1,0 +1,6 @@
+[
+  { "id": "junior_high", "label": "中卒", "prob": 0.05, "startAge": 15, "startPayMul": 0.8, "raiseMul": 0.85, "loan": null },
+  { "id": "high", "label": "高卒", "prob": 0.3, "startAge": 18, "startPayMul": 0.88, "raiseMul": 0.9, "loan": null },
+  { "id": "vocational", "label": "専門卒", "prob": 0.15, "startAge": 20, "startPayMul": 0.95, "raiseMul": 0.95, "loan": { "prob": 0.5, "amount": 2000000 } },
+  { "id": "university", "label": "大卒", "prob": 0.5, "startAge": 22, "startPayMul": 1.0, "raiseMul": 1.0, "loan": { "prob": 0.5, "amount": 3000000 } }
+]

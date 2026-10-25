@@ -186,7 +186,7 @@ stepMonth(state, rng):
                 + 失業給付(timer) + 配偶者の収入(§5.2.2)
             雇用中かつ厚生年金ありの職業なら pensionMonths += 1, avgMonthlyPay を逐次平均で更新
   3. 支出   exp = 基本生活費 × 地域の生活費係数 × 支出係数 × priceLevel
-                + 車の維持費(hasCar) + 健康費 + 実家送金 + 仕送り(timer)
+                + 車の維持費(hasCar) + 健康費 + 実家送金(family.json の monthlyTransfer、親の存命中) + 仕送り(timer)
                 + 奨学金の返済(残高 > 0 の間)
             # 生活保護中は支出係数を「節約」に固定
             s.assets.cash += net − exp
@@ -387,7 +387,6 @@ k_h = 0.03, k_s = 0.03
     "parentSupport": { "monthlyCost": 30000 },
     "unemploymentBenefit": {}
   },
-  "family1Remittance": 20000,
   "studentLoan": { "interestFreeProb": 0.35, "annualRate": 0.01, "months": 240 },
   "unemployment": { "months": 6, "payRate": 0.6 },
   "spouse": {

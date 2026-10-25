@@ -1,0 +1,7 @@
+[
+  { "tier": 5, "label": "太い", "prob": 0.05, "initialCash": 3000000, "monthlyTransfer": 0, "inheritance": 50000000 },
+  { "tier": 4, "label": "やや太い", "prob": 0.15, "initialCash": 1000000, "monthlyTransfer": 0, "inheritance": 15000000 },
+  { "tier": 3, "label": "普通", "prob": 0.5, "initialCash": 300000, "monthlyTransfer": 0, "inheritance": 5000000 },
+  { "tier": 2, "label": "細い", "prob": 0.2, "initialCash": 50000, "monthlyTransfer": 0, "inheritance": 0 },
+  { "tier": 1, "label": "借金持ち", "prob": 0.1, "initialCash": 0, "monthlyTransfer": -20000, "inheritance": 0 }
+]

@@ -1,0 +1,7 @@
+[
+  { "id": "sales", "label": "営業", "startPay": 3300000, "peakPay": 6500000, "employeePension": true, "severance": 15000000, "layoffRate": 0.0005 },
+  { "id": "office", "label": "事務", "startPay": 2800000, "peakPay": 4200000, "employeePension": true, "severance": 10000000, "layoffRate": 0.0004 },
+  { "id": "engineer", "label": "エンジニア", "startPay": 3500000, "peakPay": 7500000, "employeePension": true, "severance": 12000000, "layoffRate": 0.0005 },
+  { "id": "factory", "label": "製造", "startPay": 3000000, "peakPay": 4800000, "employeePension": true, "severance": 10000000, "layoffRate": 0.0006 },
+  { "id": "parttime", "label": "バイト", "startPay": 2000000, "peakPay": 2400000, "employeePension": false, "severance": 0, "layoffRate": 0.001 }
+]

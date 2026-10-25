@@ -1,0 +1,5 @@
+[
+  { "id": "metro", "label": "大都市", "prob": 0.35, "livingMul": 1.15, "payMul": 1.1, "carProb": 0.1, "carMonthlyCost": 40000, "noCarFreeTime": 0 },
+  { "id": "city", "label": "地方都市", "prob": 0.45, "livingMul": 1.0, "payMul": 1.0, "carProb": 0.6, "carMonthlyCost": 25000, "noCarFreeTime": 0 },
+  { "id": "rural", "label": "田舎", "prob": 0.2, "livingMul": 0.85, "payMul": 0.9, "carProb": 1.0, "carMonthlyCost": 25000, "noCarFreeTime": -15 }
+]
