@@ -104,7 +104,6 @@
       "homemaker": { "prob": 0.3, "monthlyNet": 0, "taxBenefit": 5000, "employeePension": 0 }
     }
   },
-  "car": { "accidentMul": 1.5, "newPrice": 2500000, "usedPrice": 800000 },
   "bankruptcy": { "minLimit": 500000, "incomeShare": 0.3333, "stress": 30 },
   "result": { "netWorthLine": 30000000, "happinessLine": 60 }
 }
