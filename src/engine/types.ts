@@ -15,6 +15,7 @@ export type Invest = 'deposit' | 'index' | 'stocks' | 'speculative'; // 預金/�
 export type HealthCare = 'ignore' | 'normal' | 'active'; // 気にしない/普通/意識高め
 
 export type DeathCause = 'illness' | 'overwork' | 'accident' | 'old_age';
+export type HappinessPart = 'living' | 'security' | 'relations' | 'freeTime' | 'health' | 'achievement';
 export type LifeType = 'winner' | 'poor_happy' | 'rich_unhappy' | 'hardship';
 
 // ---- プレイヤーが決めるもの ----
@@ -320,6 +321,9 @@ export interface Balance {
     livingRelMax: number;
     livingRelSlope: number;
     adaptMonths: number;
+    skillAchievementShare: number; // 達成感 = スキル × この値 + achievement
+    /** 重み w = base + Σ 係数 × 価値観(最小 minWeight) */
+    weights: Record<HappinessPart, { base: number } & Partial<Record<keyof Values, number>>>;
   };
   events: { luckGoodBase: number; luckGoodScale: number; luckBadBase: number; luckBadScale: number; valueShiftStep: number };
   /** 毎月 −1 する数値フラグと、その間の効果 */
