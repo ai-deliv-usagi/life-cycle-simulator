@@ -30,6 +30,7 @@ function cloneState(s: GameState): GameState {
     policy: { ...s.policy },
     stats: { ...s.stats },
     assets: { ...s.assets },
+    ...(s.invested ? { invested: { ...s.invested } } : {}),
     flags: { ...s.flags },
     happinessHistory: s.happinessHistory.slice(),
     log: s.log.slice(),

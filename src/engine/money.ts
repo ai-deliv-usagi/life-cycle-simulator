@@ -264,6 +264,7 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
     const amount = Math.min(roundYen(surplus * balance.investShare), Math.max(0, a.cash));
     a.cash -= amount;
     a[target] += amount;
+    if (state.invested) state.invested[target] += amount;
   }
   applyReturns(state, rng, data);
 
@@ -271,6 +272,8 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   if (a.cash < 0) {
     for (const key of ['index', 'stocks', 'speculative'] as const) {
       const sell = Math.min(a[key], -a.cash);
+      // 売った割合だけ元本も減らす
+      if (state.invested && a[key] > 0) state.invested[key] = roundYen(state.invested[key] * (1 - sell / a[key]));
       a[key] -= sell;
       a.cash += sell;
       if (a.cash >= 0) break;

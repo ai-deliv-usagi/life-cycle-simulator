@@ -16,8 +16,11 @@ export function yen(yen: number): string {
   return `${Math.round(yen).toLocaleString('ja-JP')}円`;
 }
 
+/** 符号つき。1万円未満は円で出す(「−0万円」にならないように) */
 export function signedManYen(yen: number): string {
-  return `${yen >= 0 ? '+' : '−'}${manYen(Math.abs(yen))}`;
+  const abs = Math.abs(yen);
+  const body = abs < 10_000 ? `${Math.round(abs).toLocaleString('ja-JP')}円` : manYen(abs);
+  return `${yen >= 0 ? '+' : '−'}${body}`;
 }
 
 /** 健康状態を言葉で(閾値は UI の定数。DESIGN.md §9.3) */
@@ -54,9 +57,9 @@ export function stars(value: number): string {
 
 export const VALUE_AXES: { key: keyof Values; left: string; right: string }[] = [
   { key: 'risk', left: '安定志向', right: '挑戦志向' },
-  { key: 'relation', left: '家族重視', right: '自由・独身志向' },
+  { key: 'relation', left: '家族重視', right: '自由志向' },
   { key: 'spending', left: '貯める派', right: '使う派' },
-  { key: 'work', left: '生活のため', right: 'やりがい・出世' },
+  { key: 'work', left: '生活重視', right: 'やりがい重視' },
 ];
 
 export const STAT_LABELS = {
@@ -73,4 +76,35 @@ export function collapseLog<T extends { type: string; id?: string; month: number
     (e, i) =>
       !(e.type === 'event' && entries.slice(i + 1).some((n) => n.type === 'choice' && n.id === e.id && n.month === e.month)),
   );
+}
+
+/** ゲーム開始は新卒の4月。経過月から暦の月(1〜12)を出す */
+export function calendarMonth(month: number): number {
+  return ((3 + month) % 12) + 1;
+}
+
+/** 「22歳4月」(ログや年表用) */
+export function ageMonthLabel(ageMonths: number, month: number): string {
+  return `${Math.floor(ageMonths / 12)}歳${calendarMonth(month)}月`;
+}
+
+/** 何年目か(開始の月を1年目の4月とする) */
+export function yearNumber(month: number): number {
+  return Math.floor(month / 12) + 1;
+}
+
+export const RANK_LABELS = ['', '主任', '係長', '課長', '部長'] as const;
+
+/** 価値観の5段階(-2〜+2)。両端の名前から「とても〇〇 / やや〇〇 / 中間」を作る */
+export function valueStepLabel(axis: { left: string; right: string }, v: number): string {
+  const step = Math.round(v);
+  if (step <= -2) return `とても${axis.left}`;
+  if (step === -1) return `やや${axis.left}`;
+  if (step === 0) return '中間';
+  if (step === 1) return `やや${axis.right}`;
+  return `とても${axis.right}`;
+}
+
+export function signedPercent(ratio: number): string {
+  return `${ratio >= 0 ? '+' : '−'}${Math.abs(ratio * 100).toFixed(1)}%`;
 }

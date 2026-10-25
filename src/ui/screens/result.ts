@@ -2,7 +2,7 @@
 import { computeResult, DEATH_CAUSE_LABELS, LIFE_TYPE_LABELS, type GameState } from '../../engine/index';
 import { resultChart } from '../charts';
 import { download, h, mount } from '../dom';
-import { bigYen, collapseLog, educationLabel, familyLabel, jobLabel, regionLabel } from '../format';
+import { ageMonthLabel, bigYen, collapseLog, educationLabel, familyLabel, jobLabel, regionLabel } from '../format';
 import type { Nav } from '../nav';
 
 export function resultScreen(root: HTMLElement, nav: Nav, state: GameState): void {
@@ -48,7 +48,7 @@ export function resultScreen(root: HTMLElement, nav: Nav, state: GameState): voi
         h(
           'ol',
           { class: 'timeline' },
-          ...collapseLog(r.timeline).map((e) => h('li', { class: `log log-${e.type}` }, h('span', { class: 'log-age' }, `${Math.floor(e.ageMonths / 12)}歳`), e.text)),
+          ...collapseLog(r.timeline).map((e) => h('li', { class: `log log-${e.type}` }, h('span', { class: 'log-age' }, ageMonthLabel(e.ageMonths, e.month)), e.text)),
         ),
       ),
       h(

@@ -138,7 +138,8 @@
               "index",
               "stocks",
               "speculative"
-            ]
+            ],
+            "split": true
           },
           "stats": {
             "relations": -15
@@ -1803,7 +1804,8 @@
               "index",
               "stocks",
               "speculative"
-            ]
+            ],
+            "split": true
           },
           "stats": {
             "stress": 5

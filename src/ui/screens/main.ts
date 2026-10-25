@@ -3,10 +3,10 @@ import { getMonthlyView, type GameState, type Stats } from '../../engine/index';
 import { NetWorthChart } from '../charts';
 import { GameController, type Speed } from '../controller';
 import { clear, h, mount } from '../dom';
-import { bigYen, collapseLog, manYen, regionLabel, STAT_LABELS, yen } from '../format';
+import { ageMonthLabel, bigYen, calendarMonth, collapseLog, manYen, RANK_LABELS, regionLabel, STAT_LABELS, yearNumber, yen } from '../format';
 import type { Nav } from '../nav';
 import { policySummary } from '../policyForm';
-import { choiceResultModal, eventModal, policyModal, yearSummaryModal } from './modals';
+import { assetsModal, choiceResultModal, eventModal, policyModal, yearSummaryModal } from './modals';
 
 const RECENT_LOGS = 10;
 const SPEEDS: Speed[] = [1, 4, 16];
@@ -28,9 +28,12 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     job: text('job'),
     region: text('region'),
     family: text('family'),
+    date: text('date muted small'),
+    netLabel: text('tile-label'),
     net: text('tile-value'),
     assets: text('tile-value'),
     debt: text('tile-value'),
+    debtSub: text('tile-sub muted small'),
     happiness: text('tile-value'),
     policy: h('p', { class: 'policy-line muted small' }),
   };
@@ -43,7 +46,8 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
   const speedBtns = SPEEDS.map((s) => h('button', { class: 'btn speed', 'aria-pressed': s === 1 ? 'true' : 'false' }, `${s}x`));
   const autoClose = h('input', { type: 'checkbox' });
 
-  const tile = (label: string, value: HTMLElement) => h('div', { class: 'tile' }, h('span', { class: 'tile-label' }, label), value);
+  const tile = (label: string | HTMLElement, ...value: HTMLElement[]) =>
+    h('div', { class: 'tile' }, typeof label === 'string' ? h('span', { class: 'tile-label' }, label) : label, ...value);
 
   mount(
     root,
@@ -53,15 +57,24 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       h(
         'header',
         { class: 'status-head' },
-        h('div', {}, fields.name, ' ', fields.age),
+        h('div', {}, fields.name, ' ', fields.age, ' ', fields.date),
         h('div', { class: 'muted small' }, fields.job, ' / ', fields.region, ' / ', fields.family),
       ),
       h(
         'section',
         { class: 'tiles' },
-        tile('世帯の手取り(月)', fields.net),
-        tile('金融資産', fields.assets),
-        tile('借金・奨学金', fields.debt),
+        tile(fields.netLabel, fields.net),
+        h(
+          'button',
+          {
+            class: 'tile tile-button',
+            'aria-label': '金融資産の内訳を見る',
+            onclick: () => void controller.whilePaused(() => assetsModal(controller.state)),
+          },
+          h('span', { class: 'tile-label' }, '金融資産 ›'),
+          fields.assets,
+        ),
+        tile('借金', fields.debt, fields.debtSub),
         tile('今月の幸福度', fields.happiness),
       ),
       h(
@@ -114,13 +127,26 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     const c = state.character;
     fields.name.textContent = c.name;
     fields.age.textContent = `${v.age}歳`;
-    fields.job.textContent = v.jobLabel;
+    fields.date.textContent = `${calendarMonth(state.month)}月(${yearNumber(state.month)}年目)`;
+    const rank = RANK_LABELS[Number(state.flags.rank ?? 0)] ?? '';
+    fields.job.textContent = rank && !c.retired ? `${v.jobLabel}(${rank})` : v.jobLabel;
     fields.region.textContent = regionLabel(c.region);
     fields.family.textContent = c.married ? '既婚' : state.flags.partner === true ? '恋人あり' : '独身';
+    fields.netLabel.textContent = c.retired
+      ? '年金・世帯の手取り(月)'
+      : Number(state.flags.unemploymentBenefit ?? 0) > 0
+        ? '失業給付・世帯の手取り(月)'
+        : '世帯の手取り(月)';
     fields.net.textContent = yen(v.householdNet);
     fields.assets.textContent = bigYen(v.financialAssets);
-    fields.debt.textContent = v.debt + v.studentLoan > 0 ? manYen(v.debt + v.studentLoan) : 'なし';
+    fields.debt.textContent = v.debt > 0 ? manYen(v.debt) : 'なし';
     fields.debt.classList.toggle('down', v.debt > 0);
+    const blacklist = Number(state.flags.blacklist ?? 0);
+    const debtNotes = [
+      v.studentLoan > 0 ? `奨学金 残り${manYen(v.studentLoan)}` : '',
+      blacklist > 0 ? `ブラックリスト 残り${Math.ceil(blacklist / 12)}年` : '',
+    ].filter(Boolean);
+    fields.debtSub.textContent = debtNotes.join(' / ');
     fields.happiness.textContent = String(Math.round(v.happiness));
     fields.policy.textContent = policySummary(state.policy);
     for (const k of statKeys) bars[k].style.width = `${state.stats[k]}%`;
@@ -131,7 +157,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       .reverse();
     for (const e of recent) {
       logList.appendChild(
-        h('li', { class: `log log-${e.type}` }, h('span', { class: 'log-age' }, `${Math.floor(e.ageMonths / 12)}歳`), e.text),
+        h('li', { class: `log log-${e.type}` }, h('span', { class: 'log-age' }, ageMonthLabel(e.ageMonths, e.month)), e.text),
       );
     }
     if (chartChanged) chart.update(chartPoints(state));
