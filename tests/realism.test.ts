@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultData } from '../src/data/index';
 import { applyChoice, applyEffects, eventProb, fireEvent } from '../src/engine/events';
-import { applyMonthlyMoney, bonusGross, calcIncome } from '../src/engine/money';
+import { applyMonthlyMoney, bonusGross, calcExpenses, calcIncome } from '../src/engine/money';
 import { createRng } from '../src/engine/rng';
 import { stepMonth } from '../src/engine/step';
 import type { EventDef, GameState } from '../src/engine/types';
@@ -113,5 +113,30 @@ describe('年間の収支に運用損益と生活保護', () => {
     s.flags.hasCar = true;
     const r = applyMonthlyMoney(s, flatRng);
     expect(r.welfare).toBeGreaterThan(0);
+  });
+});
+
+describe('生活保護', () => {
+  it('貯金を使い切ってから受ける。受け始めると車を手放し、ログに残る', () => {
+    const s = makeState({ hasCar: true });
+    s.character.job = 'none';
+    s.assets.cash = 1_000_000; // 貯金があるうちは受けない
+    applyMonthlyMoney(s, flatRng);
+    expect(s.flags.welfare).toBe(false);
+    expect(s.flags.hasCar).toBe(true);
+    s.assets.cash = 0;
+    applyMonthlyMoney(s, flatRng);
+    expect(s.flags.welfare).toBe(true);
+    expect(s.flags.hasCar).toBe(false);
+    expect(s.log.at(-1)).toMatchObject({ id: 'welfare' });
+    expect(s.log.at(-1)!.text).toContain('車は手放した');
+  });
+
+  it('受給中は医療費(健康のための出費)と車の維持費がかからない', () => {
+    const s = makeState({ hasCar: true }, { health: 'active' });
+    s.flags.welfare = true;
+    const e = calcExpenses(s);
+    expect(e.health).toBe(0);
+    expect(e.car).toBe(0);
   });
 });
