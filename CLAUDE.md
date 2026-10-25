@@ -8,6 +8,8 @@
 
 - `npm run dev` 開発サーバー
 - `npm test` テスト(Vitest)
+- `npm run typecheck` 型チェック
+- `npm run lint` ESLint(`Math.random` と engine からの DOM 参照を禁止している)
 - `npm run build` 静的ビルド
 - `npx tsx scripts/balance.ts` 1,000人生を自動プレイしてバランス統計を出す
 
