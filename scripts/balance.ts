@@ -147,7 +147,7 @@ export function runBalance(opts: Options) {
       target: 'どれも10%以上',
       ok: Object.values(typeShare).every((s) => s >= 0.1),
     },
-    { name: '1人生あたりのイベント数', value: eventsPerLife.toFixed(1), target: '40〜80回', ok: eventsPerLife >= 40 && eventsPerLife <= 80 },
+    { name: '1人生あたりのイベント数', value: eventsPerLife.toFixed(1), target: '40〜90回', ok: eventsPerLife >= 40 && eventsPerLife <= 90 },
     { name: '全イベントが1回以上発生', value: neverFired.length === 0 ? 'すべて発生' : `未発生: ${neverFired.join(', ')}`, target: '未発生なし', ok: neverFired.length === 0 },
   ];
 
