@@ -1,12 +1,12 @@
 import type { Rng } from '../src/engine/rng';
 import { createGame } from '../src/engine/setup';
-import type { CharacterRoll, GameState, Policy, Values } from '../src/engine/types';
+import type { CharacterRoll, GameState, PolicyInput, Values } from '../src/engine/types';
 
 export const neutralValues: Values = { risk: 0, relation: 0, spending: 0, work: 0 };
-export const defaultPolicy: Policy = { work: 'regular', spending: 'normal', invest: 'deposit', health: 'ignore' };
+export const defaultPolicy: PolicyInput = { work: 'regular', spending: 'normal', invest: 'deposit', health: 'ignore' };
 
 /** テスト用に条件を固定したキャラを作る */
-export function makeState(roll: Partial<CharacterRoll> = {}, policy: Partial<Policy> = {}): GameState {
+export function makeState(roll: Partial<CharacterRoll> = {}, policy: Partial<PolicyInput> = {}): GameState {
   const base: CharacterRoll = {
     seed: 1,
     education: 'university',

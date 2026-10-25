@@ -5,7 +5,7 @@
 import { defaultData } from '../data/index';
 import type { Rng } from './rng';
 import type { GameData, GameState, JobDef, JobId, RegionDef } from './types';
-import { addLog, ageYears, clamp, clampStat, findById, roundYen } from './util';
+import { addLog, ageYears, annuityPayment, clamp, clampStat, findById, roundYen } from './util';
 
 // ---- 参照 ----
 
@@ -28,6 +28,11 @@ function bool(state: GameState, key: string): boolean {
 
 export function isEmployed(state: GameState): boolean {
   return state.character.job !== 'none' && !state.character.retired;
+}
+
+/** 定年後に再雇用で働いている(年金と給料の両方がある) */
+export function isRehired(state: GameState): boolean {
+  return state.character.retired && num(state, 'rehire', 0) > 0;
 }
 
 // ---- 収入 ----
@@ -107,7 +112,8 @@ export interface MonthlyIncome {
 export function calcIncome(state: GameState, data: GameData = defaultData): MonthlyIncome {
   const c = state.character;
   const { balance } = data;
-  const annual = annualGross(state, data);
+  let annual = annualGross(state, data);
+  if (isRehired(state)) annual = roundYen(c.lastMonthlyPay * balance.rehire.payRate) * 12; // 再雇用は退職前の月給の一定割合
   const salary = roundYen((annual / 12) * takeHomeRate(annual, data));
   const pension = c.retired ? roundYen(pensionMonthly(state, data) * balance.takeHome.pension) : 0;
   const unemployment =
@@ -139,7 +145,7 @@ function spendingMul(state: GameState, data: GameData, welfare: boolean): number
   return data.balance.spending[policy].living;
 }
 
-/** 生活費以外の決まった支出(車・健康費・実家への送金・親への仕送り・奨学金) */
+/** 生活費以外の決まった支出(車・健康費・実家への送金・親への仕送り・奨学金・ローン) */
 function obligations(state: GameState, data: GameData) {
   const { balance } = data;
   const region = regionDef(state, data);
@@ -150,6 +156,7 @@ function obligations(state: GameState, data: GameData) {
     remittance: transfer < 0 && bool(state, 'parentAlive') ? -transfer : 0,
     parentSupport: num(state, 'parentSupport', 0) > 0 ? balance.timers.parentSupport.monthlyCost : 0,
     studentLoan: studentLoanPayment(state).payment,
+    loan: loanPayment(state, data).payment,
   };
 }
 
@@ -162,7 +169,7 @@ function livingReal(state: GameState, data: GameData, welfare: boolean): number 
   const l = data.balance.living;
   const fixed = state.character.married ? l.married : l.single;
   const o = obligations(state, data);
-  const committed = o.car + o.health + o.remittance + o.parentSupport + o.studentLoan;
+  const committed = o.car + o.health + o.remittance + o.parentSupport + o.studentLoan + o.loan;
   const disposable = Math.max(0, calcIncome(state, data).total - committed);
   return fixed + l.incomeShare * disposable * spendingMul(state, data, welfare);
 }
@@ -182,6 +189,45 @@ function studentLoanPayment(state: GameState): { payment: number; principal: num
   return { payment: loan.monthlyPayment, principal: loan.monthlyPayment - interest };
 }
 
+/** 今月のローンの返済額(利息込み)と、そのうち元本に充てる額 */
+function loanPayment(state: GameState, data: GameData): { payment: number; principal: number } {
+  const balance = state.assets.loan ?? 0;
+  const monthly = state.character.loanPayment ?? 0;
+  if (balance <= 0 || monthly <= 0) return { payment: 0, principal: 0 };
+  const interest = roundYen((balance * data.balance.loan.annualRate) / 12);
+  // 最終回: 残りが返済額以下、または円の丸めで数円だけ残る場合はまとめて返す
+  if (balance + interest - monthly < monthly * 0.01) return { payment: balance + interest, principal: balance };
+  return { payment: monthly, principal: monthly - interest };
+}
+
+/** ローンを組む。審査(信用・ブラックリスト)に通れば true。落ちたら何もしない */
+export function takeLoan(state: GameState, amount: number, months: number, data: GameData = defaultData): boolean {
+  const cfg = data.balance.loan;
+  if (state.stats.credit < cfg.minCredit || num(state, 'blacklist', 0) > 0) return false;
+  state.assets.loan = (state.assets.loan ?? 0) + amount;
+  state.character.loanPayment = (state.character.loanPayment ?? 0) + annuityPayment(amount, cfg.annualRate, months);
+  return true;
+}
+
+/** 繰上げ返済。使える額のうち、ローン → 奨学金の順に返し、使った額を返す */
+function prepay(state: GameState, budget: number): number {
+  const a = state.assets;
+  let used = 0;
+  const loan = Math.min(budget, a.loan ?? 0);
+  if (loan > 0) {
+    a.loan = (a.loan ?? 0) - loan;
+    used += loan;
+    if (a.loan <= 0) state.character.loanPayment = 0;
+  }
+  const student = Math.min(budget - used, a.studentLoan);
+  if (student > 0) {
+    a.studentLoan -= student;
+    used += student;
+  }
+  a.cash -= used;
+  return used;
+}
+
 export interface MonthlyExpenses {
   living: number;
   car: number;
@@ -189,6 +235,7 @@ export interface MonthlyExpenses {
   remittance: number; // 実家への送金
   parentSupport: number; // 親の病気の仕送り
   studentLoan: number;
+  loan: number;
   total: number;
 }
 
@@ -199,7 +246,7 @@ export function calcExpenses(
 ): MonthlyExpenses {
   const region = regionDef(state, data);
   const living = roundYen(livingReal(state, data, welfare) * region.livingMul * num(state, 'priceLevel', 1));
-  const { car, health, remittance, parentSupport, studentLoan } = obligations(state, data);
+  const { car, health, remittance, parentSupport, studentLoan, loan } = obligations(state, data);
   return {
     living,
     car,
@@ -207,7 +254,8 @@ export function calcExpenses(
     remittance,
     parentSupport,
     studentLoan,
-    total: living + car + health + remittance + parentSupport + studentLoan,
+    loan,
+    total: living + car + health + remittance + parentSupport + studentLoan + loan,
   };
 }
 
@@ -248,6 +296,11 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   // 3. 支出
   const expenses = calcExpenses(state, data);
   a.studentLoan -= studentLoanPayment(state).principal;
+  const loanPrincipal = loanPayment(state, data).principal;
+  if (loanPrincipal > 0) {
+    a.loan = (a.loan ?? 0) - loanPrincipal;
+    if (a.loan <= 0) c.loanPayment = 0;
+  }
   a.cash += income.total - expenses.total;
 
   // 4. 借金の利息と返済、積立、運用リターン
@@ -259,12 +312,18 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
     a.cash -= repay;
     surplus -= repay;
   }
-  const target = state.policy.invest;
-  if (surplus > 0 && target !== 'deposit') {
-    const amount = Math.min(roundYen(surplus * balance.investShare), Math.max(0, a.cash));
-    a.cash -= amount;
-    a[target] += amount;
-    if (state.invested) state.invested[target] += amount;
+  if (surplus > 0) {
+    // 余剰のうち投資に回す分。繰上げ返済するなら先にローン・奨学金を返し、残りを配分どおりに積み立てる
+    let budget = Math.min(roundYen(surplus * balance.investShare), Math.max(0, a.cash));
+    if (state.policy.prepay) budget -= prepay(state, budget);
+    const alloc = state.policy.invest;
+    for (const key of ['index', 'stocks', 'speculative'] as const) {
+      const amount = roundYen((budget * alloc[key]) / 100);
+      if (amount <= 0) continue;
+      a.cash -= amount;
+      a[key] += amount;
+      if (state.invested) state.invested[key] += amount;
+    }
   }
   applyReturns(state, rng, data);
 
@@ -313,6 +372,8 @@ export function applyReturns(state: GameState, rng: Rng, data: GameData = defaul
 
 export function declareBankruptcy(state: GameState, data: GameData = defaultData): void {
   state.assets.debt = 0;
+  state.assets.loan = 0; // ローンも免責される(奨学金は保証機関が残す扱いで残る)
+  state.character.loanPayment = 0;
   state.stats.credit = 0;
   state.stats.stress = clampStat(state.stats.stress + data.balance.bankruptcy.stress);
   state.flags.bankrupt = true;

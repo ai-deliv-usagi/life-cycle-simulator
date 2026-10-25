@@ -524,3 +524,35 @@ input[type='number'] {
   font-weight: 700;
   border-bottom: 0;
 }
+
+/* 投資の配分(C) */
+.alloc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.alloc-row {
+  display: grid;
+  grid-template-columns: 1fr auto 3.5em auto;
+  align-items: center;
+  gap: 8px;
+}
+.alloc-row:last-child {
+  grid-template-columns: 1fr 3.5em;
+  color: var(--muted);
+}
+.alloc-value {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.btn.stepper {
+  min-width: 44px;
+  padding: 6px 0;
+}
+.btn.preset {
+  padding: 6px 12px;
+  min-height: 36px;
+  font-size: 0.9rem;
+}

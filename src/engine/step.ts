@@ -3,17 +3,18 @@ import { defaultData } from '../data/index';
 import { rollDeath } from './death';
 import { applyChoice, drawEvent, fireEvent } from './events';
 import { computeHappiness, updateAdaptation } from './happiness';
-import { annualGross, applyMonthlyMoney, calcIncome, retire } from './money';
+import { annualGross, applyMonthlyMoney, calcIncome, isRehired, retire } from './money';
 import { DEATH_CAUSE_LABELS } from './result';
 import type { Rng } from './rng';
 import { updateStats } from './stats';
-import type { GameData, GameState, Policy } from './types';
+import { INVEST_KEYS, normalizePolicy } from './policy';
+import type { GameData, GameState, Policy, PolicyInput } from './types';
 import { addLog, financialAssets, findById, netWorth } from './util';
 
 export const POLICY_LABELS = {
   work: { regular: '定時', normal: '普通', overtime: '残業多め', grind: '激務' },
   spending: { frugal: '節約', normal: '普通', comfort: 'ゆとり', lavish: '浪費' },
-  invest: { deposit: '預金のみ', index: '積立(インデックス)', stocks: '個別株', speculative: '信用取引・仮想通貨' },
+  invest: { deposit: '預金', index: '積立', stocks: '個別株', speculative: '信用・仮想通貨' },
   health: { ignore: '気にしない', normal: '普通', active: '意識高め' },
 } as const;
 
@@ -27,7 +28,7 @@ function cloneState(s: GameState): GameState {
     eventHistory: { ...s.eventHistory },
     character: { ...s.character },
     values: { ...s.values },
-    policy: { ...s.policy },
+    policy: { ...s.policy, invest: { ...s.policy.invest } },
     stats: { ...s.stats },
     assets: { ...s.assets },
     ...(s.invested ? { invested: { ...s.invested } } : {}),
@@ -119,15 +120,22 @@ export function resolveChoice(
   return s;
 }
 
+/** 投資の配分を「積立70%・預金30%」のように */
+export function allocationLabel(p: Policy): string {
+  const parts = INVEST_KEYS.filter((k) => p.invest[k] > 0).map((k) => `${POLICY_LABELS.invest[k]}${p.invest[k]}%`);
+  return parts.join('・') || '預金100%';
+}
+
 /** 方針を変える。次の月から反映される */
-export function changePolicy(state: GameState, policy: Policy): GameState {
+export function changePolicy(state: GameState, input: PolicyInput | Policy): GameState {
   const s = cloneState(state);
-  s.policy = { ...policy };
+  const policy = normalizePolicy(input);
+  s.policy = policy;
   const l = POLICY_LABELS;
   addLog(
     s,
     'policy',
-    `方針変更: 働き方「${l.work[policy.work]}」支出「${l.spending[policy.spending]}」投資「${l.invest[policy.invest]}」健康「${l.health[policy.health]}」`,
+    `方針変更: 働き方「${l.work[policy.work]}」支出「${l.spending[policy.spending]}」投資「${allocationLabel(policy)}${policy.prepay ? '・繰上げ返済あり' : ''}」健康「${l.health[policy.health]}」`,
   );
   return s;
 }
@@ -141,6 +149,7 @@ export interface MonthlyView {
   financialAssets: number;
   debt: number;
   studentLoan: number;
+  loan: number;
   netWorth: number;
   happiness: number;
 }
@@ -148,7 +157,8 @@ export interface MonthlyView {
 /** UI 表示用の値(state から導出するだけ) */
 export function getMonthlyView(state: GameState, data: GameData = defaultData): MonthlyView {
   const c = state.character;
-  const jobLabel = c.retired ? '退職' : c.job === 'none' ? '無職' : findById(data.jobs, c.job, 'job').label;
+  const jobName = c.job === 'none' ? '無職' : findById(data.jobs, c.job, 'job').label;
+  const jobLabel = c.retired ? (isRehired(state) ? `再雇用(${jobName})` : '退職') : jobName;
   return {
     age: Math.floor(state.ageMonths / 12),
     jobLabel,
@@ -158,6 +168,7 @@ export function getMonthlyView(state: GameState, data: GameData = defaultData): 
     financialAssets: financialAssets(state.assets),
     debt: state.assets.debt,
     studentLoan: state.assets.studentLoan,
+    loan: state.assets.loan ?? 0,
     netWorth: netWorth(state.assets),
     happiness: state.happinessHistory.at(-1) ?? 0,
   };

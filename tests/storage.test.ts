@@ -48,6 +48,19 @@ describe('セーブ', () => {
     expect(loadGame(store).status).toBe('broken');
   });
 
+  it('古いセーブ(投資を1つ選ぶ形の方針)は配分に直して読み込む', () => {
+    const store = memoryStore();
+    const old = game() as unknown as { policy: Record<string, unknown> };
+    old.policy = { work: 'normal', spending: 'normal', invest: 'stocks', health: 'normal' };
+    store.setItem(SAVE_KEY, JSON.stringify({ version: 1, state: old }));
+    const loaded = loadGame(store);
+    expect(loaded.status).toBe('ok');
+    if (loaded.status === 'ok') {
+      expect(loaded.state.policy.invest).toEqual({ deposit: 0, index: 0, stocks: 100, speculative: 0 });
+      expect(loaded.state.policy.prepay).toBe(false);
+    }
+  });
+
   it('localStorage が使えなくても落ちない', () => {
     const throwing = {
       getItem: () => {

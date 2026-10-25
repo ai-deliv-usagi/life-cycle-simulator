@@ -3,7 +3,7 @@ import { defaultData } from '../src/data/index';
 import { realLivingSpending } from '../src/engine/money';
 import { deriveSeed } from '../src/engine/rng';
 import { createGame, rollCharacter } from '../src/engine/setup';
-import type { CharacterRoll, Policy, Values } from '../src/engine/types';
+import type { CharacterRoll, PolicyInput, Values } from '../src/engine/types';
 
 const N = 20_000;
 const rolls: CharacterRoll[] = Array.from({ length: N }, (_, i) => rollCharacter(i));
@@ -13,7 +13,7 @@ function share<T>(pred: (r: CharacterRoll) => T, value: T): number {
 }
 
 const values: Values = { risk: 0, relation: 0, spending: 0, work: 0 };
-const policy: Policy = { work: 'normal', spending: 'normal', invest: 'index', health: 'normal' };
+const policy: PolicyInput = { work: 'normal', spending: 'normal', invest: 'index', health: 'normal' };
 
 describe('rollCharacter', () => {
   it('同じシードなら同じガチャ、違うシードなら(ほぼ)違うガチャ', () => {
@@ -96,7 +96,10 @@ describe('createGame', () => {
       speculative: 0,
       debt: 0,
       studentLoan: 3_000_000,
+      loan: 0,
     });
+    expect(s.policy.invest).toEqual({ deposit: 0, index: 100, stocks: 0, speculative: 0 }); // 「積立」は積立100%に
+    expect(s.policy.prepay).toBe(false);
     expect(s.character.studentLoan).toEqual({
       interestFree: univLoan.studentLoan!.interestFree,
       annualRate: univLoan.studentLoan!.annualRate,
@@ -125,7 +128,7 @@ describe('createGame', () => {
   });
 
   it('価値観は-2〜+2にクランプし、引数の方針を書き換えない', () => {
-    const p: Policy = { ...policy };
+    const p: PolicyInput = { ...policy };
     const s = createGame(univLoan, { risk: 5, relation: -3, spending: 1.5, work: -2 }, p, 'x');
     expect(s.values).toEqual({ risk: 2, relation: -2, spending: 1.5, work: -2 });
     s.policy.work = 'grind';

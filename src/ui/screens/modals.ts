@@ -200,8 +200,10 @@ export function assetsModal(state: GameState): Promise<void> {
       h(
         'dl',
         { class: 'summary-list' },
-        h('dt', {}, '借金'),
+        h('dt', {}, '借金(カードローン)'),
         h('dd', { class: a.debt > 0 ? 'down' : '' }, a.debt > 0 ? manYen(a.debt) : 'なし'),
+        h('dt', {}, 'ローン'),
+        h('dd', {}, (a.loan ?? 0) > 0 ? `残り${manYen(a.loan ?? 0)}(毎月${manYen(state.character.loanPayment ?? 0)})` : 'なし'),
         h('dt', {}, '奨学金'),
         h('dd', {}, a.studentLoan > 0 ? `残り${manYen(a.studentLoan)}` : 'なし'),
       ),
