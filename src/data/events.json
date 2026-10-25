@@ -1,1 +1,1269 @@
-[]
+[
+  {
+    "id": "partner",
+    "category": "life",
+    "title": "恋人ができる",
+    "text": "趣味の集まりで気の合う人と出会い、付き合うことになった。",
+    "conditions": {
+      "ageMin": 18,
+      "ageMax": 45,
+      "flags": {
+        "married": false,
+        "partner": false
+      }
+    },
+    "baseProb": 0.012,
+    "good": true,
+    "probMods": [
+      {
+        "stat": "relations",
+        "above": 60,
+        "mul": 1.5
+      },
+      {
+        "value": "relation",
+        "below": 0,
+        "mul": 1.3
+      }
+    ],
+    "effects": {
+      "stats": {
+        "relations": 10
+      },
+      "setFlags": {
+        "partner": true
+      }
+    }
+  },
+  {
+    "id": "proposal",
+    "category": "life",
+    "title": "プロポーズのチャンス",
+    "text": "付き合っている恋人が、将来の話を切り出してきた。",
+    "conditions": {
+      "ageMin": 22,
+      "ageMax": 50,
+      "flags": {
+        "partner": true,
+        "married": false
+      }
+    },
+    "baseProb": 0.02,
+    "probMods": [
+      {
+        "stat": "relations",
+        "above": 60,
+        "mul": 1.5
+      }
+    ],
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "結婚する",
+        "effects": {
+          "cash": -2000000,
+          "stats": {
+            "relations": 15,
+            "stress": -5
+          },
+          "setFlags": {
+            "married": true,
+            "partner": false
+          },
+          "achievement": 5
+        },
+        "valueShift": {
+          "relation": -0.1
+        }
+      },
+      {
+        "label": "まだ早い",
+        "effects": {
+          "stats": {
+            "relations": -10
+          }
+        },
+        "valueShift": {
+          "relation": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "divorce_crisis",
+    "category": "life",
+    "title": "離婚の危機",
+    "text": "すれ違いが続き、配偶者から離婚を切り出された。",
+    "conditions": {
+      "flags": {
+        "married": true
+      }
+    },
+    "baseProb": 0.003,
+    "good": false,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "stat": "stress",
+        "above": 70,
+        "mul": 3
+      },
+      {
+        "stat": "relations",
+        "below": 30,
+        "mul": 2
+      }
+    ],
+    "choices": [
+      {
+        "label": "関係修復に努める",
+        "effects": {
+          "cash": -300000,
+          "stats": {
+            "stress": 5,
+            "relations": 10
+          }
+        }
+      },
+      {
+        "label": "離婚する",
+        "effects": {
+          "setFlags": {
+            "married": false
+          },
+          "assetShock": {
+            "pct": -0.5,
+            "targets": [
+              "cash",
+              "index",
+              "stocks",
+              "speculative"
+            ]
+          },
+          "stats": {
+            "relations": -15
+          }
+        },
+        "valueShift": {
+          "relation": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "parent_ill",
+    "category": "life",
+    "title": "親の病気",
+    "text": "親が病気で倒れ、介護と仕送りが必要になった。",
+    "conditions": {
+      "ageMin": 40,
+      "ageMax": 75,
+      "flags": {
+        "parentAlive": true
+      }
+    },
+    "baseProb": 0.004,
+    "once": true,
+    "probMods": [
+      {
+        "age": true,
+        "above": 55,
+        "mul": 2
+      }
+    ],
+    "choices": [
+      {
+        "label": "仕送りする(月3万円・3年)",
+        "effects": {
+          "setFlags": {
+            "parentSupport": 36,
+            "parentIll": true
+          },
+          "stats": {
+            "relations": 5
+          }
+        },
+        "valueShift": {
+          "relation": -0.1
+        }
+      },
+      {
+        "label": "施設に任せる",
+        "effects": {
+          "cash": -1000000,
+          "setFlags": {
+            "parentIll": true
+          }
+        }
+      },
+      {
+        "label": "断る",
+        "effects": {
+          "setFlags": {
+            "parentIll": true
+          },
+          "stats": {
+            "relations": -10,
+            "stress": 10
+          }
+        },
+        "valueShift": {
+          "relation": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "parent_death",
+    "category": "life",
+    "title": "親が亡くなる",
+    "text": "親が息を引き取った。遺産を相続した。",
+    "conditions": {
+      "ageMin": 40,
+      "flags": {
+        "parentAlive": true
+      }
+    },
+    "baseProb": 0.003,
+    "once": true,
+    "probMods": [
+      {
+        "flag": "parentIll",
+        "equals": true,
+        "mul": 3
+      },
+      {
+        "age": true,
+        "above": 60,
+        "mul": 2
+      }
+    ],
+    "effects": {
+      "inheritance": true,
+      "setFlags": {
+        "parentAlive": false,
+        "parentSupport": 0
+      },
+      "stats": {
+        "stress": 15
+      }
+    }
+  },
+  {
+    "id": "wedding_rush",
+    "category": "life",
+    "title": "友人の結婚式ラッシュ",
+    "text": "友人の結婚式の招待状が立て続けに届いた。",
+    "conditions": {
+      "ageMin": 25,
+      "ageMax": 35
+    },
+    "baseProb": 0.01,
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "全部出席する",
+        "effects": {
+          "cash": -150000,
+          "stats": {
+            "relations": 8
+          }
+        }
+      },
+      {
+        "label": "ご祝儀だけ送る",
+        "effects": {
+          "cash": -50000,
+          "stats": {
+            "relations": 2
+          }
+        }
+      },
+      {
+        "label": "欠席する",
+        "effects": {
+          "stats": {
+            "relations": -6
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "moving",
+    "category": "life",
+    "title": "引っ越し",
+    "text": "今の家の更新時期が来た。住む場所を見直すチャンスだ。",
+    "conditions": {
+      "ageMin": 20,
+      "ageMax": 70
+    },
+    "baseProb": 0.006,
+    "cooldownMonths": 60,
+    "choices": [
+      {
+        "label": "都会へ出る",
+        "effects": {
+          "region": "metro",
+          "cash": -400000,
+          "stats": {
+            "stress": 5
+          }
+        },
+        "conditions": {
+          "region": [
+            "city",
+            "rural"
+          ]
+        },
+        "valueShift": {
+          "risk": 0.1
+        }
+      },
+      {
+        "label": "地方へ移る",
+        "effects": {
+          "region": "rural",
+          "cash": -300000,
+          "stats": {
+            "stress": -8
+          }
+        },
+        "conditions": {
+          "region": [
+            "metro",
+            "city"
+          ]
+        }
+      },
+      {
+        "label": "近場で住み替える",
+        "effects": {
+          "cash": -200000,
+          "stats": {
+            "stress": -5
+          }
+        }
+      },
+      {
+        "label": "やめておく"
+      }
+    ]
+  },
+  {
+    "id": "reunion",
+    "category": "life",
+    "title": "同窓会",
+    "text": "学生時代の同窓会の案内が届いた。",
+    "conditions": {
+      "ageMin": 25,
+      "ageMax": 70
+    },
+    "baseProb": 0.008,
+    "cooldownMonths": 36,
+    "choices": [
+      {
+        "label": "行く",
+        "effects": {
+          "cash": -10000,
+          "stats": {
+            "relations": 5
+          }
+        },
+        "conditions": {
+          "flags": {
+            "married": true
+          }
+        }
+      },
+      {
+        "label": "行く",
+        "effects": {
+          "cash": -10000,
+          "stats": {
+            "relations": 5
+          }
+        },
+        "conditions": {
+          "flags": {
+            "married": false
+          }
+        },
+        "outcomes": [
+          {
+            "prob": 0.2,
+            "text": "昔の同級生といい感じになった",
+            "effects": {
+              "setFlags": {
+                "partner": true
+              }
+            }
+          },
+          {
+            "prob": 0.8,
+            "text": "懐かしい話で盛り上がった",
+            "effects": {}
+          }
+        ]
+      },
+      {
+        "label": "行かない",
+        "effects": {
+          "stats": {
+            "relations": -2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "promotion",
+    "category": "career",
+    "title": "昇進",
+    "text": "上司から昇進の打診があった。責任は重くなる。",
+    "conditions": {
+      "employed": true,
+      "jobNotIn": [
+        "parttime"
+      ]
+    },
+    "baseProb": 0.006,
+    "good": true,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "stat": "skill",
+        "above": 60,
+        "mul": 2
+      },
+      {
+        "work": [
+          "overtime",
+          "grind"
+        ],
+        "mul": 1.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "受ける",
+        "effects": {
+          "addFlags": {
+            "payMul": 0.1
+          },
+          "stats": {
+            "stress": 10
+          },
+          "achievement": 15
+        },
+        "valueShift": {
+          "work": 0.1
+        }
+      },
+      {
+        "label": "断る",
+        "effects": {
+          "stats": {
+            "stress": -3
+          }
+        },
+        "valueShift": {
+          "work": -0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "raise_skipped",
+    "category": "career",
+    "title": "昇給見送り",
+    "text": "会社の業績が振るわず、今年の昇給は見送りになった。",
+    "conditions": {
+      "employed": true
+    },
+    "baseProb": 0.005,
+    "good": false,
+    "cooldownMonths": 24,
+    "effects": {
+      "addFlags": {
+        "payMul": -0.03
+      },
+      "stats": {
+        "stress": 5
+      },
+      "achievement": -5
+    }
+  },
+  {
+    "id": "job_offer",
+    "category": "career",
+    "title": "転職の誘い",
+    "text": "知り合いから、別の業界で働かないかと誘われた。",
+    "conditions": {
+      "employed": true,
+      "ageMax": 55
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "stat": "skill",
+        "above": 50,
+        "mul": 1.5
+      },
+      {
+        "region": [
+          "metro"
+        ],
+        "mul": 1.5
+      },
+      {
+        "region": [
+          "rural"
+        ],
+        "mul": 0.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "転職する",
+        "effects": {
+          "job": "random_other",
+          "setFlags": {
+            "payMul": 1.05
+          },
+          "stats": {
+            "stress": 5
+          }
+        },
+        "valueShift": {
+          "risk": 0.1
+        }
+      },
+      {
+        "label": "断る",
+        "valueShift": {
+          "risk": -0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "layoff",
+    "category": "career",
+    "title": "リストラ",
+    "text": "会社の人員整理の対象になり、職を失った。",
+    "conditions": {
+      "employed": true
+    },
+    "baseProb": 0,
+    "probFrom": "layoffRate",
+    "good": false,
+    "probMods": [
+      {
+        "flag": "recession",
+        "above": 0,
+        "mul": 3
+      }
+    ],
+    "effects": {
+      "job": "none",
+      "stats": {
+        "stress": 20
+      },
+      "achievement": -10
+    }
+  },
+  {
+    "id": "bonus_cut",
+    "category": "career",
+    "title": "ボーナスカット",
+    "text": "業績悪化で、今期のボーナスがカットされた。",
+    "conditions": {
+      "employed": true
+    },
+    "baseProb": 0.006,
+    "good": false,
+    "cooldownMonths": 12,
+    "effects": {
+      "cashMonthsOfPay": -1,
+      "stats": {
+        "stress": 5
+      }
+    }
+  },
+  {
+    "id": "certification",
+    "category": "career",
+    "title": "資格取得のチャンス",
+    "text": "仕事に役立つ資格の講座があると聞いた。",
+    "conditions": {
+      "employed": true
+    },
+    "baseProb": 0.006,
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "挑戦する",
+        "effects": {
+          "cash": -100000,
+          "stats": {
+            "stress": 5,
+            "skill": 8
+          },
+          "achievement": 5
+        }
+      },
+      {
+        "label": "見送る"
+      }
+    ]
+  },
+  {
+    "id": "boss_trouble",
+    "category": "career",
+    "title": "上司とのトラブル",
+    "text": "上司と意見がぶつかり、職場の空気が悪くなった。",
+    "conditions": {
+      "employed": true
+    },
+    "baseProb": 0.006,
+    "good": false,
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "我慢する",
+        "effects": {
+          "stats": {
+            "stress": 15
+          }
+        }
+      },
+      {
+        "label": "言い返す",
+        "outcomes": [
+          {
+            "prob": 0.6,
+            "text": "筋の通った意見が認められた",
+            "effects": {
+              "stats": {
+                "stress": -5
+              },
+              "achievement": 3
+            }
+          },
+          {
+            "prob": 0.4,
+            "text": "評価を下げられてしまった",
+            "effects": {
+              "addFlags": {
+                "payMul": -0.05
+              },
+              "stats": {
+                "stress": 10
+              }
+            }
+          }
+        ],
+        "valueShift": {
+          "risk": 0.1
+        }
+      },
+      {
+        "label": "異動願いを出す",
+        "effects": {
+          "stats": {
+            "skill": -3,
+            "stress": -10
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "side_job",
+    "category": "career",
+    "title": "副業の誘い",
+    "text": "知人から、週末にできる副業の話を持ちかけられた。",
+    "conditions": {
+      "employed": true
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 36,
+    "choices": [
+      {
+        "label": "始める",
+        "outcomes": [
+          {
+            "prob": 0.6,
+            "text": "副業が軌道に乗った",
+            "effects": {
+              "cash": 600000,
+              "stats": {
+                "skill": 5,
+                "stress": 10
+              }
+            }
+          },
+          {
+            "prob": 0.4,
+            "text": "思ったより稼げず赤字になった",
+            "effects": {
+              "cash": -200000,
+              "stats": {
+                "stress": 10
+              }
+            }
+          }
+        ],
+        "valueShift": {
+          "risk": 0.1
+        }
+      },
+      {
+        "label": "断る"
+      }
+    ]
+  },
+  {
+    "id": "invest_jackpot",
+    "category": "money",
+    "title": "投資の大当たり",
+    "text": "持っていた株が急騰した。",
+    "conditions": {
+      "minInvested": 500000
+    },
+    "baseProb": 0.003,
+    "good": true,
+    "effects": {
+      "assetShock": {
+        "pct": 0.5,
+        "targets": [
+          "stocks",
+          "speculative"
+        ]
+      },
+      "achievement": 5
+    }
+  },
+  {
+    "id": "scam",
+    "category": "money",
+    "title": "投資詐欺の勧誘",
+    "text": "「絶対に儲かる」という投資話を持ちかけられた。",
+    "conditions": {
+      "ageMin": 25
+    },
+    "baseProb": 0.004,
+    "good": false,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "stat": "credit",
+        "below": 40,
+        "mul": 2
+      },
+      {
+        "value": "risk",
+        "above": 0,
+        "mul": 1.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "乗る",
+        "outcomes": [
+          {
+            "prob": 0.85,
+            "text": "詐欺だった。お金は戻ってこない",
+            "effects": {
+              "cash": -1000000,
+              "stats": {
+                "stress": 15
+              }
+            }
+          },
+          {
+            "prob": 0.15,
+            "text": "本当に儲かってしまった",
+            "effects": {
+              "cash": 300000
+            }
+          }
+        ],
+        "valueShift": {
+          "risk": 0.1
+        }
+      },
+      {
+        "label": "断る",
+        "valueShift": {
+          "risk": -0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "lottery",
+    "category": "money",
+    "title": "宝くじ",
+    "text": "売り場の前を通りかかった。今日は大安だ。",
+    "conditions": {
+      "ageMin": 20
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 12,
+    "choices": [
+      {
+        "label": "買う",
+        "effects": {
+          "cash": -3000
+        },
+        "outcomes": [
+          {
+            "prob": 0.002,
+            "text": "1等が当たった!",
+            "effects": {
+              "cash": 100000000,
+              "achievement": 10
+            }
+          },
+          {
+            "prob": 0.02,
+            "text": "そこそこ当たった",
+            "effects": {
+              "cash": 100000
+            }
+          },
+          {
+            "prob": 0.978,
+            "text": "はずれ",
+            "effects": {}
+          }
+        ]
+      },
+      {
+        "label": "買わない"
+      }
+    ]
+  },
+  {
+    "id": "car_broke",
+    "category": "money",
+    "title": "車が壊れる",
+    "text": "車が故障して動かなくなった。",
+    "conditions": {
+      "ageMin": 20,
+      "ageMax": 80,
+      "flags": {
+        "hasCar": true
+      }
+    },
+    "baseProb": 0.004,
+    "good": false,
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "修理する",
+        "effects": {
+          "cash": -300000
+        }
+      },
+      {
+        "label": "買い替える",
+        "effects": {
+          "cash": -1500000,
+          "stats": {
+            "stress": -5
+          }
+        }
+      },
+      {
+        "label": "手放す",
+        "effects": {
+          "setFlags": {
+            "hasCar": false
+          },
+          "stats": {
+            "stress": 5
+          }
+        },
+        "conditions": {
+          "region": [
+            "metro",
+            "city"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "car_purchase",
+    "category": "money",
+    "title": "車を買う",
+    "text": "車があれば生活が楽になりそうだ。",
+    "conditions": {
+      "ageMin": 20,
+      "ageMax": 75,
+      "flags": {
+        "hasCar": false
+      }
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "region": [
+          "city"
+        ],
+        "mul": 2
+      },
+      {
+        "region": [
+          "rural"
+        ],
+        "mul": 4
+      }
+    ],
+    "choices": [
+      {
+        "label": "新車を買う",
+        "effects": {
+          "cash": -2500000,
+          "setFlags": {
+            "hasCar": true
+          },
+          "achievement": 5
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "中古車を買う",
+        "effects": {
+          "cash": -800000,
+          "setFlags": {
+            "hasCar": true
+          }
+        }
+      },
+      {
+        "label": "買わない",
+        "valueShift": {
+          "spending": -0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "appliance",
+    "category": "money",
+    "title": "家電が壊れる",
+    "text": "冷蔵庫と洗濯機が立て続けに壊れた。",
+    "conditions": {},
+    "baseProb": 0.008,
+    "good": false,
+    "cooldownMonths": 12,
+    "effects": {
+      "cash": -100000
+    }
+  },
+  {
+    "id": "windfall_bonus",
+    "category": "money",
+    "title": "臨時ボーナス",
+    "text": "会社の業績が好調で、臨時ボーナスが出た。",
+    "conditions": {
+      "employed": true
+    },
+    "baseProb": 0.004,
+    "good": true,
+    "cooldownMonths": 12,
+    "effects": {
+      "cashMonthsOfPay": 1,
+      "stats": {
+        "stress": -3
+      }
+    }
+  },
+  {
+    "id": "friend_loan",
+    "category": "money",
+    "title": "友人に借金を頼まれる",
+    "text": "古い友人から「50万円貸してほしい」と頼まれた。",
+    "conditions": {
+      "ageMin": 22
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 36,
+    "choices": [
+      {
+        "label": "貸す",
+        "outcomes": [
+          {
+            "prob": 0.5,
+            "text": "約束どおり返ってきた",
+            "effects": {
+              "stats": {
+                "relations": 10
+              }
+            }
+          },
+          {
+            "prob": 0.5,
+            "text": "返ってこなかった",
+            "effects": {
+              "cash": -500000,
+              "stats": {
+                "relations": -5
+              }
+            }
+          }
+        ]
+      },
+      {
+        "label": "断る",
+        "effects": {
+          "stats": {
+            "relations": -8
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "cold",
+    "category": "health",
+    "title": "風邪で休む",
+    "text": "ひどい風邪をひいて数日寝込んだ。",
+    "conditions": {},
+    "baseProb": 0.015,
+    "good": false,
+    "cooldownMonths": 6,
+    "probMods": [
+      {
+        "stat": "health",
+        "below": 40,
+        "mul": 2
+      }
+    ],
+    "effects": {
+      "stats": {
+        "health": -2,
+        "stress": 2
+      }
+    }
+  },
+  {
+    "id": "checkup",
+    "category": "health",
+    "title": "健康診断で再検査",
+    "text": "健康診断で「要再検査」の判定が出た。",
+    "conditions": {
+      "ageMin": 35
+    },
+    "baseProb": 0.006,
+    "cooldownMonths": 24,
+    "probMods": [
+      {
+        "healthCare": [
+          "active"
+        ],
+        "mul": 1.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "精密検査を受ける",
+        "effects": {
+          "cash": -30000,
+          "stats": {
+            "health": 5
+          }
+        }
+      },
+      {
+        "label": "放置する",
+        "effects": {
+          "stats": {
+            "health": -5
+          }
+        },
+        "valueShift": {
+          "risk": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "hospital",
+    "category": "health",
+    "title": "入院",
+    "text": "体調を崩して入院することになった。",
+    "conditions": {},
+    "baseProb": 0.003,
+    "good": false,
+    "cooldownMonths": 12,
+    "probMods": [
+      {
+        "stat": "health",
+        "below": 40,
+        "mul": 2.5
+      },
+      {
+        "age": true,
+        "above": 60,
+        "mul": 2
+      }
+    ],
+    "effects": {
+      "cash": -300000,
+      "stats": {
+        "health": -10,
+        "stress": 10
+      }
+    }
+  },
+  {
+    "id": "traffic_accident",
+    "category": "health",
+    "title": "交通事故でけが",
+    "text": "交通事故に巻き込まれてけがをした。",
+    "conditions": {},
+    "baseProb": 0.002,
+    "good": false,
+    "cooldownMonths": 24,
+    "probMods": [
+      {
+        "flag": "hasCar",
+        "equals": true,
+        "mul": 1.5
+      }
+    ],
+    "effects": {
+      "cash": -200000,
+      "stats": {
+        "health": -15,
+        "stress": 10
+      }
+    }
+  },
+  {
+    "id": "back_pain",
+    "category": "health",
+    "title": "腰痛",
+    "text": "腰に激痛が走った。ぎっくり腰かもしれない。",
+    "conditions": {
+      "ageMin": 30
+    },
+    "baseProb": 0.006,
+    "cooldownMonths": 24,
+    "probMods": [
+      {
+        "work": [
+          "overtime",
+          "grind"
+        ],
+        "mul": 1.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "整体に通う",
+        "effects": {
+          "cash": -50000,
+          "stats": {
+            "health": 3
+          }
+        }
+      },
+      {
+        "label": "我慢する",
+        "effects": {
+          "stats": {
+            "health": -3,
+            "stress": 5
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "recession",
+    "category": "social",
+    "title": "不況",
+    "text": "景気が急激に悪化した。株価が暴落し、リストラが増えている。",
+    "conditions": {},
+    "baseProb": 0.002,
+    "cooldownMonths": 120,
+    "effects": {
+      "assetShock": {
+        "pct": -0.3
+      },
+      "setFlags": {
+        "recession": 24
+      }
+    }
+  },
+  {
+    "id": "inflation",
+    "category": "social",
+    "title": "物価上昇",
+    "text": "物価が上がり、生活費がかさむようになった。",
+    "conditions": {},
+    "baseProb": 0.003,
+    "cooldownMonths": 60,
+    "effects": {
+      "mulFlags": {
+        "priceLevel": 1.05
+      }
+    }
+  },
+  {
+    "id": "reemployment",
+    "category": "system",
+    "title": "再就職",
+    "text": "求人が見つかった。働き口を選べる。",
+    "conditions": {
+      "employed": false,
+      "retired": false
+    },
+    "baseProb": 0.05,
+    "probMods": [
+      {
+        "stat": "skill",
+        "above": 30,
+        "mul": 2
+      },
+      {
+        "stat": "skill",
+        "above": 60,
+        "mul": 1.5
+      },
+      {
+        "region": [
+          "rural"
+        ],
+        "mul": 0.7
+      }
+    ],
+    "choices": [
+      {
+        "label": "前の職業に戻る",
+        "effects": {
+          "job": "previous",
+          "setFlags": {
+            "payMul": 0.95
+          }
+        }
+      },
+      {
+        "label": "別の職業に就く",
+        "effects": {
+          "job": "random_other"
+        }
+      }
+    ]
+  }
+]

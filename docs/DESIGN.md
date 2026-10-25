@@ -406,7 +406,6 @@ k_h = 0.03, k_s = 0.03
       "homemaker": { "prob": 0.30, "monthlyNet": 0,      "taxBenefit": 5000, "employeePension": 0 }
     }
   },
-  "car": { "accidentMul": 1.5, "newPrice": 2500000, "usedPrice": 800000 },
   "bankruptcy": { "minLimit": 500000, "incomeShare": 0.3333, "stress": 30 },
   "result": { "netWorthLine": 30000000, "happinessLine": 60 }
 }
@@ -449,6 +448,7 @@ interface EventDef {
     retired?: boolean;               // ★
     minInvested?: number;            // ★ index+stocks+speculative の下限(円)
     region?: RegionId[];             // ★ 住んでいる地域のどれか
+    jobNotIn?: JobId[];              // ★ この職業のときは起きない(昇進はバイトでは起きない、など)
   };
   baseProb: number;
   probFrom?: 'layoffRate';           // ★ baseProb の代わりに職業データの値を使う
@@ -462,7 +462,7 @@ interface EventDef {
 type ProbMod =                       // ★ stat以外も条件にできるよう一般化(stat形式は仕様どおり)
   | { stat: keyof Stats; above?: number; below?: number; mul: number }
   | { value: keyof Values; above?: number; below?: number; mul: number }
-  | { flag: string; equals: boolean | number; mul: number }
+  | { flag: string; equals?: boolean | number; above?: number; below?: number; mul: number }
   | { age: true; above?: number; below?: number; mul: number }
   | { work: WorkStyle[]; mul: number }
   | { healthCare: HealthCare[]; mul: number }
@@ -500,6 +500,8 @@ interface Effects {
 ### 7.2 MVPのイベント31個(初期値)
 
 仕様の30個に「車を買う」を足して31個(§5.7)。「引っ越し」は地域を変えるイベントに作り直した。
+
+実際の定義は `src/data/events.json`。車の価格などイベント固有の金額は events.json に直接書く(balance.json には置かない)。
 
 確率は月あたり。CD=クールダウン(月)。目安は1人生40〜80回([§11](#11-テストとバランス確認))で、balance.ts で調整する。
 
@@ -563,7 +565,7 @@ interface Effects {
 
 | id | タイトル | 条件 | 確率 | 選択肢 |
 | --- | --- | --- | --- | --- |
-| reemployment | 再就職 | job=none、未退職 | 0.05 + 0.15×スキル/100(probMods で表現)/ 田舎 ×0.7 | 前職に戻る: job=previous、payMul=0.95 / 別の職業: job=random_other |
+| reemployment | 再就職 | job=none、未退職 | 0.05 / スキル>30 ×2 / スキル>60 ×1.5 / 田舎 ×0.7(「0.05 + 0.15×スキル/100」を probMods の段階で近似: 0.05 → 0.10 → 0.15) | 前職に戻る: job=previous、payMul=0.95 / 別の職業: job=random_other |
 
 ## 8. 乱数とシード
 

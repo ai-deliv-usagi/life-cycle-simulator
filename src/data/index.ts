@@ -100,11 +100,21 @@ export function validateData(data: GameData): string[] {
     for (const r of ev.conditions.region ?? []) {
       if (!REGIONS.includes(r)) errors.push(`events.${ev.id}: 不明な地域 "${r}"`);
     }
+    for (const j of ev.conditions.jobNotIn ?? []) {
+      if (!JOBS.includes(j)) errors.push(`events.${ev.id}: 不明な職業 "${j}"`);
+    }
     const effectsList = [ev.effects, ...(ev.choices ?? []).flatMap((c) => [c.effects, ...(c.outcomes ?? []).map((o) => o.effects)])];
     for (const eff of effectsList) {
       for (const key of Object.keys(eff?.stats ?? {})) {
         if (!STATS.includes(key)) errors.push(`events.${ev.id}: 不明なステータス "${key}"`);
       }
+      if (eff?.region && !REGIONS.includes(eff.region)) errors.push(`events.${ev.id}: 不明な地域 "${eff.region}"`);
+      if (eff?.job && ![...JOBS, 'none', 'random_other', 'previous'].includes(eff.job)) {
+        errors.push(`events.${ev.id}: 不明な職業 "${eff.job}"`);
+      }
+    }
+    if (ev.choices && ev.choices.length > 0 && ev.choices.every((c) => c.conditions)) {
+      errors.push(`events.${ev.id}: 条件なしの選択肢が1つもない(どの選択肢も出ない状態がありうる)`);
     }
     for (const c of ev.choices ?? []) {
       if (c.outcomes && !sumsToOne(c.outcomes.map((o) => o.prob))) {

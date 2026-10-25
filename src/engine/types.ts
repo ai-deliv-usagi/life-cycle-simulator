@@ -154,12 +154,13 @@ export interface EventConditions {
   retired?: boolean;
   minInvested?: number; // index+stocks+speculative の下限(円)
   region?: RegionId[];
+  jobNotIn?: JobId[]; // この職業のときは起きない
 }
 
 export type ProbMod =
   | { stat: keyof Stats; above?: number; below?: number; mul: number }
   | { value: keyof Values; above?: number; below?: number; mul: number }
-  | { flag: string; equals: boolean | number; mul: number }
+  | { flag: string; equals?: boolean | number; above?: number; below?: number; mul: number }
   | { age: true; above?: number; below?: number; mul: number }
   | { work: WorkStyle[]; mul: number }
   | { healthCare: HealthCare[]; mul: number }
@@ -337,7 +338,6 @@ export interface Balance {
   spouse: {
     types: Record<SpouseType, { prob: number; monthlyNet: number; taxBenefit: number; employeePension: number }>;
   };
-  car: { accidentMul: number; newPrice: number; usedPrice: number };
   bankruptcy: { minLimit: number; incomeShare: number; stress: number };
   result: { netWorthLine: number; happinessLine: number };
 }
