@@ -380,7 +380,16 @@ k_h = 0.03, k_s = 0.03
   },
   "happiness": {
     "minWeight": 0.2, "marriedRelationsBonus": 15, "securityMonths": 24, "debtSecurityPenalty": 30,
-    "livingAbsScale": 200000, "livingAbsMax": 60, "livingRelMax": 40, "livingRelSlope": 2, "adaptMonths": 24
+    "livingAbsScale": 200000, "livingAbsMax": 60, "livingRelMax": 40, "livingRelSlope": 2, "adaptMonths": 24,
+    "skillAchievementShare": 0.5,
+    "weights": {
+      "living": { "base": 1, "spending": 0.25 },
+      "security": { "base": 1, "risk": -0.2, "spending": -0.2 },
+      "relations": { "base": 1, "relation": -0.25 },
+      "freeTime": { "base": 1, "relation": 0.25, "work": -0.15 },
+      "health": { "base": 1 },
+      "achievement": { "base": 1, "risk": 0.2, "work": 0.25 }
+    }
   },
   "events": { "luckGoodBase": 0.8, "luckGoodScale": 0.4, "luckBadBase": 1.2, "luckBadScale": -0.4, "valueShiftStep": 0.1 },
   "timers": {
