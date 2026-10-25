@@ -556,3 +556,68 @@ input[type='number'] {
   min-height: 36px;
   font-size: 0.9rem;
 }
+
+/* 収支とバランスシート・方針の説明 */
+.finance h3,
+.balance-sheet h3,
+.year-summary h3,
+.assets-modal h3 {
+  font-size: 0.9rem;
+  margin: 8px 0 4px;
+  color: var(--muted);
+}
+.fin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.fin-table th,
+.fin-table td {
+  padding: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.fin-table th {
+  text-align: left;
+  font-weight: 400;
+}
+.fin-table td {
+  text-align: right;
+  white-space: nowrap;
+}
+.fin-table .total th,
+.fin-table .total td {
+  font-weight: 700;
+  border-bottom: 0;
+}
+.bs-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+@media (min-width: 480px) {
+  .bs-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+}
+.summary-details summary {
+  cursor: pointer;
+  color: var(--accent);
+  padding: 4px 0;
+}
+.policy-help {
+  margin: 4px 0 0;
+}
+.alloc-label {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+.alloc-help {
+  font-size: 0.75rem;
+}
+
+.asset-table .pct {
+  display: block;
+}

@@ -2,6 +2,7 @@
 import { defaultData } from '../data/index';
 import { rollDeath } from './death';
 import { applyChoice, drawEvent, fireEvent } from './events';
+import { cloneLedger, closeYear, recordMonth } from './ledger';
 import { computeHappiness, updateAdaptation } from './happiness';
 import { annualGross, applyMonthlyMoney, calcIncome, isRehired, retire } from './money';
 import { DEATH_CAUSE_LABELS } from './result';
@@ -32,6 +33,7 @@ function cloneState(s: GameState): GameState {
     stats: { ...s.stats },
     assets: { ...s.assets },
     ...(s.invested ? { invested: { ...s.invested } } : {}),
+    ...(s.ledger ? { ledger: cloneLedger(s.ledger) } : {}),
     flags: { ...s.flags },
     happinessHistory: s.happinessHistory.slice(),
     log: s.log.slice(),
@@ -67,7 +69,7 @@ export function stepMonth(state: GameState, rng: Rng, data: GameData = defaultDa
   }
 
   // 2〜5. お金。そのあとタイマーを1ヶ月進める(DESIGN.md §3)
-  applyMonthlyMoney(s, rng, data);
+  recordMonth(s, applyMonthlyMoney(s, rng, data));
   for (const key of Object.keys(balance.timers)) {
     const v = s.flags[key];
     if (typeof v === 'number' && v > 0) s.flags[key] = v - 1;
@@ -96,6 +98,7 @@ export function stepMonth(state: GameState, rng: Rng, data: GameData = defaultDa
 
   // 10. 年間サマリー
   if (isYearEnd(s)) {
+    closeYear(s);
     const age = Math.floor(s.ageMonths / 12);
     addLog(s, 'year_summary', `${age}歳(${s.month / 12}年目) 金融資産 ${manYen(financialAssets(s.assets))}`);
   }

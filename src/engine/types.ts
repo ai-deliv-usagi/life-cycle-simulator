@@ -1,3 +1,5 @@
+import type { YearLedger } from './ledger';
+
 // ゲームの型定義。仕様は docs/SPEC.md「データ型」、追加分は docs/DESIGN.md §3。
 // 金額は円の整数、ステータスは 0〜100、価値観は -2〜+2。
 
@@ -121,6 +123,8 @@ export interface GameState {
   stats: Stats;
   assets: Assets;
   invested?: InvestedPrincipal; // 古いセーブにはないので省略可
+  ledger?: YearLedger; // 今年の収支(古いセーブにはない)
+  lastLedger?: YearLedger; // 前の年の収支(年間サマリー用)
   adaptedSpending: number; // 慣れた生活水準(月額・実質)
   achievement: number; // 達成感の蓄積 0-100
   happinessHistory: number[]; // 月ごとの幸福度

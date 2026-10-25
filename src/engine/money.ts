@@ -3,6 +3,7 @@
 // calc 系の関数は state を読むだけ。apply 系の関数は stepMonth が複製した state を直接更新する
 // (stepMonth の外から呼ぶときは呼び出し側で複製すること)。
 import { defaultData } from '../data/index';
+import { recordSeverance } from './ledger';
 import type { Rng } from './rng';
 import type { GameData, GameState, JobDef, JobId, RegionDef } from './types';
 import { addLog, ageYears, annuityPayment, clamp, clampStat, findById, roundYen } from './util';
@@ -270,6 +271,9 @@ export function debtLimit(state: GameState, data: GameData = defaultData): numbe
 export interface MoneyResult {
   income: MonthlyIncome;
   expenses: MonthlyExpenses;
+  debtInterest: number;
+  invested: number;
+  prepaid: number;
 }
 
 /**
@@ -304,7 +308,10 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   a.cash += income.total - expenses.total;
 
   // 4. 借金の利息と返済、積立、運用リターン
-  a.debt += roundYen((a.debt * balance.debtAnnualRate) / 12);
+  const debtInterest = roundYen((a.debt * balance.debtAnnualRate) / 12);
+  a.debt += debtInterest;
+  let invested = 0;
+  let prepaid = 0;
   let surplus = income.total - expenses.total;
   if (surplus > 0 && a.debt > 0) {
     const repay = Math.max(0, Math.min(surplus, a.debt, a.cash));
@@ -315,13 +322,17 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   if (surplus > 0) {
     // 余剰のうち投資に回す分。繰上げ返済するなら先にローン・奨学金を返し、残りを配分どおりに積み立てる
     let budget = Math.min(roundYen(surplus * balance.investShare), Math.max(0, a.cash));
-    if (state.policy.prepay) budget -= prepay(state, budget);
+    if (state.policy.prepay) {
+      prepaid = prepay(state, budget);
+      budget -= prepaid;
+    }
     const alloc = state.policy.invest;
     for (const key of ['index', 'stocks', 'speculative'] as const) {
       const amount = roundYen((budget * alloc[key]) / 100);
       if (amount <= 0) continue;
       a.cash -= amount;
       a[key] += amount;
+      invested += amount;
       if (state.invested) state.invested[key] += amount;
     }
   }
@@ -353,7 +364,7 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   if (a.debt > debtLimit(state, data) && num(state, 'blacklist', 0) <= 0) declareBankruptcy(state, data);
   if (bool(state, 'welfare') && income.total >= minimalLiving) state.flags.welfare = false;
 
-  return { income, expenses };
+  return { income, expenses, debtInterest, invested, prepaid };
 }
 
 /** 運用リターン。乱数の消費を保有額によらず一定にして、方針を変えても乱数列がずれないようにする */
@@ -385,7 +396,9 @@ export function declareBankruptcy(state: GameState, data: GameData = defaultData
 
 /** 65歳の退職。退職金を受け取る */
 export function retire(state: GameState, data: GameData = defaultData): void {
-  state.assets.cash += severancePay(state, data);
+  const severance = severancePay(state, data);
+  state.assets.cash += severance;
+  recordSeverance(state, severance);
   state.character.retired = true;
   state.character.jobYears = 0;
   state.flags.unemploymentBenefit = 0;
@@ -398,7 +411,9 @@ export function retire(state: GameState, data: GameData = defaultData): void {
 export function changeJob(state: GameState, newJob: JobId, data: GameData = defaultData): void {
   const c = state.character;
   if (newJob === c.job) return;
-  state.assets.cash += severancePay(state, data);
+  const severance = severancePay(state, data);
+  state.assets.cash += severance;
+  recordSeverance(state, severance);
   if (c.job !== 'none') c.previousJob = c.job;
   c.job = newJob;
   c.jobYears = 0;

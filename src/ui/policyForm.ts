@@ -6,10 +6,14 @@ import {
   POLICY_LABELS,
   type Invest,
   type InvestAllocation,
+  type HealthCare,
   type Policy,
   type PolicyInput,
+  type Spending,
+  type WorkStyle,
 } from '../engine/index';
 import { h } from './dom';
+import { healthHelp, investHelp, spendingHelp, workHelp } from './policyHelp';
 
 type ChoiceKey = 'work' | 'spending' | 'health';
 
@@ -31,8 +35,15 @@ const STEP = 10;
 
 let formId = 0;
 
+const HELP: Record<ChoiceKey, (v: string) => string> = {
+  work: (v) => workHelp(v as WorkStyle),
+  spending: (v) => spendingHelp(v as Spending),
+  health: (v) => healthHelp(v as HealthCare),
+};
+
 function radioGroup<K extends ChoiceKey>(id: string, key: K, label: string, current: Policy): HTMLElement {
   const options = POLICY_LABELS[key] as Record<string, string>;
+  const help = h('p', { class: 'policy-help muted small' }, HELP[key](current[key]));
   return h(
     'fieldset',
     { class: 'choice-group' },
@@ -51,12 +62,14 @@ function radioGroup<K extends ChoiceKey>(id: string, key: K, label: string, curr
             checked: current[key] === value,
             onchange: () => {
               (current as Record<ChoiceKey, string>)[key] = value;
+              help.textContent = HELP[key](value);
             },
           }),
           h('span', {}, text),
         ),
       ),
     ),
+    help,
   );
 }
 
@@ -85,13 +98,12 @@ function allocationEditor(current: Policy): HTMLElement {
 
   const row = (key: Invest) => {
     const label = POLICY_LABELS.invest[key];
-    if (key === 'deposit') {
-      return h('div', { class: 'alloc-row' }, h('span', { class: 'alloc-label' }, `${label}(残り)`), values[key]);
-    }
+    const name = h('span', { class: 'alloc-label' }, key === 'deposit' ? `${label}(残り)` : label, h('span', { class: 'alloc-help muted' }, investHelp(key)));
+    if (key === 'deposit') return h('div', { class: 'alloc-row' }, name, values[key]);
     const minus = h('button', { type: 'button', class: 'btn stepper', 'aria-label': `${label}を減らす`, onclick: () => change(key, -STEP) }, '−');
     const plus = h('button', { type: 'button', class: 'btn stepper', 'aria-label': `${label}を増やす`, onclick: () => change(key, STEP) }, '+');
     buttons.push(minus, plus);
-    return h('div', { class: 'alloc-row' }, h('span', { class: 'alloc-label' }, label), minus, values[key], plus);
+    return h('div', { class: 'alloc-row' }, name, minus, values[key], plus);
   };
 
   const el = h(

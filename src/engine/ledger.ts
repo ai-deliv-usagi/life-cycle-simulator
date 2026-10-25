@@ -1,0 +1,79 @@
+// 1年分の収支(年間サマリーの内訳用)。stepMonth が毎月足し、年の切れ目で lastLedger に移す
+import type { MonthlyExpenses, MonthlyIncome } from './money';
+import type { GameState } from './types';
+
+export type IncomeKey = Exclude<keyof MonthlyIncome, 'total'> | 'severance';
+export type ExpenseKey = Exclude<keyof MonthlyExpenses, 'total'>;
+
+export interface YearLedger {
+  income: Record<IncomeKey, number>;
+  expenses: Record<ExpenseKey, number>;
+  debtInterest: number; // カードローンの利息
+  eventIn: number; // イベントでの臨時収入(相続・ボーナス・当選など)
+  eventOut: number; // イベントでの出費(結婚式・家電・入院など)
+  invested: number; // 投資に回した額
+  prepaid: number; // 繰上げ返済した額
+}
+
+export function emptyLedger(): YearLedger {
+  return {
+    income: { salary: 0, pension: 0, unemployment: 0, spouse: 0, family: 0, severance: 0 },
+    expenses: { living: 0, car: 0, health: 0, remittance: 0, parentSupport: 0, studentLoan: 0, loan: 0 },
+    debtInterest: 0,
+    eventIn: 0,
+    eventOut: 0,
+    invested: 0,
+    prepaid: 0,
+  };
+}
+
+export function cloneLedger(l: YearLedger): YearLedger {
+  return { ...l, income: { ...l.income }, expenses: { ...l.expenses } };
+}
+
+/** 古いセーブには ledger がないので、必要になったときに作る */
+function ledgerOf(state: GameState): YearLedger {
+  state.ledger ??= emptyLedger();
+  return state.ledger;
+}
+
+export interface MonthMoney {
+  income: MonthlyIncome;
+  expenses: MonthlyExpenses;
+  debtInterest: number;
+  invested: number;
+  prepaid: number;
+}
+
+export function recordMonth(state: GameState, m: MonthMoney): void {
+  const l = ledgerOf(state);
+  for (const k of Object.keys(l.income) as IncomeKey[]) if (k !== 'severance') l.income[k] += m.income[k];
+  for (const k of Object.keys(l.expenses) as ExpenseKey[]) l.expenses[k] += m.expenses[k];
+  l.debtInterest += m.debtInterest;
+  l.invested += m.invested;
+  l.prepaid += m.prepaid;
+}
+
+/** イベントでの現金の出入り */
+export function recordEventCash(state: GameState, amount: number): void {
+  if (amount === 0) return;
+  const l = ledgerOf(state);
+  if (amount > 0) l.eventIn += amount;
+  else l.eventOut += -amount;
+}
+
+export function recordSeverance(state: GameState, amount: number): void {
+  if (amount > 0) ledgerOf(state).income.severance += amount;
+}
+
+/** 年の切れ目: 今年の分を lastLedger に移して、新しい年を始める */
+export function closeYear(state: GameState): void {
+  state.lastLedger = ledgerOf(state);
+  state.ledger = emptyLedger();
+}
+
+export function ledgerTotals(l: YearLedger): { income: number; expenses: number } {
+  const income = Object.values(l.income).reduce((a, b) => a + b, 0) + l.eventIn;
+  const expenses = Object.values(l.expenses).reduce((a, b) => a + b, 0) + l.debtInterest + l.eventOut;
+  return { income, expenses };
+}
