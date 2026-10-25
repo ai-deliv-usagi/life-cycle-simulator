@@ -166,7 +166,7 @@ interface LifeResult {
 
 - `married` は `character.married` が正。イベント定義の `flags.married` / `setFlags.married` はエンジンが `character.married` に読み替える(仕様のイベント例との互換のため)
 - `married` が false → true になったとき、エンジンが `character.spouse` を `balance.spouse.types` の確率で抽選する。離婚で null に戻す
-- 数値フラグのうち `balance.json` の `timers` に載っているもの(`recession` `parentSupport` `unemploymentBenefit`)は毎月 −1 して0で止める
+- 数値フラグのうち `balance.json` の `timers` に載っているもの(`recession` `parentSupport` `unemploymentBenefit`)は毎月 −1 して0で止める。値は「残り何ヶ月効くか」で、お金の処理(§4 の 2〜5)のあと・イベントの前に −1 する。こうするとイベントで N をセットした翌月から、ちょうど N ヶ月効く
 
 ## 4. 月次処理(stepMonth)の詳細
 
@@ -179,7 +179,6 @@ stepMonth(state, rng):
 
   1. 時間
      s.month += 1; s.ageMonths += 1
-     timers を −1
      if 年齢が65歳ちょうど and not retired: retire(s)   # 退職金を cash へ, job は維持して retired=true
 
   2. 収入   net = retired ? 年金×0.90 : 給与手取り(無職は0)
@@ -201,6 +200,7 @@ stepMonth(state, rng):
             if debt > 借入上限: 自己破産(§5.6)
             if 自己破産済み and まだ不足: 生活保護で不足分を補填(debt は増やさない), welfare = true
             if welfare and net ≥ 生活保護なしの exp: welfare = false
+            timers を −1(§3)
   6. ステータス   updateStats(s)   # §5.3
   7. イベント     ev = drawEvent(s, rng)
                   選択肢なし → 効果を即適用、log 'event'
@@ -303,7 +303,7 @@ k_h = 0.03, k_s = 0.03
 借金(`debt`)が無限に膨らまないようにするための下限。
 
 - 借入上限 = max(50万円, 額面年収 × 1/3)(総量規制の近似)。無職・年金生活は50万円
-- 上限を超えた月に**自己破産**: `debt = 0`、信用 = 0、ストレス +30、`bankrupt = true`、log 'event'(id: `bankruptcy`)。一生に何度でも起こりうる
+- 上限を超えた月に**自己破産**: `debt = 0`、信用 = 0、ストレス +30、`bankrupt = true`、log 'event'(id: `bankruptcy`)。一度破産すると、それ以降の不足はすべて生活保護で補うので、破産は一生に1回まで
 - 自己破産したあとも資金が足りない月は**生活保護**: 不足分を補填して `cash = 0` で止める(借金にしない)。受給中は支出方針に関係なく生活費係数を「節約」(0.8)で計算し、幸福度の「安心」は0にする
 - 収入が通常の支出を上回った月に生活保護は終わる
 - どちらも30個のイベントには数えないシステムイベント
@@ -332,6 +332,7 @@ k_h = 0.03, k_s = 0.03
 {
   "startStats": { "stress": 20, "skill": 10, "credit": 50, "relations": 50 },
   "gacha": { "constitution": { "mean": 50, "sd": 15 }, "luck": { "mean": 50, "sd": 15 } },
+  "salary": { "peakAge": 50, "skillBase": 0.9, "skillRange": 0.2 },
   "takeHome": {
     "bands": [ { "below": 3000000, "rate": 0.80 }, { "below": 6000000, "rate": 0.77 },
                { "below": 10000000, "rate": 0.73 }, { "below": null, "rate": 0.68 } ],

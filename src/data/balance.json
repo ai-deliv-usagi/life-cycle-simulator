@@ -1,6 +1,7 @@
 {
   "startStats": { "stress": 20, "skill": 10, "credit": 50, "relations": 50 },
   "gacha": { "constitution": { "mean": 50, "sd": 15 }, "luck": { "mean": 50, "sd": 15 } },
+  "salary": { "peakAge": 50, "skillBase": 0.9, "skillRange": 0.2 },
   "takeHome": {
     "bands": [
       { "below": 3000000, "rate": 0.8 },
