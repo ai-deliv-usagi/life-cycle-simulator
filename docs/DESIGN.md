@@ -92,6 +92,8 @@ interface CharacterRoll {                 // ガチャ結果。引き直し = se
   education: Education;
   job: Exclude<JobId, 'none'>;
   familyTier: FamilyTier;
+  region: RegionId;                       // 出身地 = 開始時の居住地
+  hasCar: boolean;
   constitution: number;
   luck: number;
   initialCash: number;
@@ -121,7 +123,12 @@ interface Character {
   previousJob?: JobId;                    // ★ 再就職イベントの「前職に戻る」用
   studentLoan: StudentLoan | null;        // ★ 奨学金の条件(残高は assets.studentLoan)
   lastMonthlyPay: number;                 // ★ 直近の額面月給(失業給付の計算用)
+  region: RegionId;                       // ★ 住んでいる地域(初期ガチャ、引っ越しで変わる)
+  spouse: SpouseType | null;              // ★ 配偶者の働き方(未婚は null)
 }
+
+type RegionId = 'metro' | 'city' | 'rural';             // ★ 大都市 / 地方都市 / 田舎
+type SpouseType = 'fulltime' | 'parttime' | 'homemaker'; // ★ 共働き / 扶養内パート / 専業(扶養)
 
 interface PendingEvent {
   eventId: string;
@@ -153,12 +160,12 @@ interface LifeResult {
 | `recession` | number | 0 | 残り月数。>0 の間リストラ率×3 |
 | `parentSupport` | number | 0 | 残り月数。>0 の間、親への仕送り月3万円 |
 | `unemploymentBenefit` | number | 0 | 残り月数。>0 の間、失業給付 ★ |
-| `spouseWorks` | boolean | false | 配偶者が働いているか(結婚時に抽選) ★ |
+| `hasCar` | boolean | ガチャ | 車を持っているか。維持費・車イベント・事故率 ★ |
 | `welfare` | boolean | false | 生活保護を受けているか ★ |
 | `bankrupt` | boolean | false | 自己破産したことがあるか(リザルトの年表用) ★ |
 
 - `married` は `character.married` が正。イベント定義の `flags.married` / `setFlags.married` はエンジンが `character.married` に読み替える(仕様のイベント例との互換のため)
-- `married` が false → true になったとき、エンジンが `spouseWorks` を `balance.spouse.worksProb` で抽選する。離婚で false に戻す
+- `married` が false → true になったとき、エンジンが `character.spouse` を `balance.spouse.types` の確率で抽選する。離婚で null に戻す
 - 数値フラグのうち `balance.json` の `timers` に載っているもの(`recession` `parentSupport` `unemploymentBenefit`)は毎月 −1 して0で止める
 
 ## 4. 月次処理(stepMonth)の詳細
@@ -176,9 +183,10 @@ stepMonth(state, rng):
      if 年齢が65歳ちょうど and not retired: retire(s)   # 退職金を cash へ, job は維持して retired=true
 
   2. 収入   net = retired ? 年金×0.90 : 給与手取り(無職は0)
-                + 失業給付(timer) + 配偶者の手取り(spouseWorks かつ65歳未満)
+                + 失業給付(timer) + 配偶者の収入(§5.2.2)
             雇用中かつ厚生年金ありの職業なら pensionMonths += 1, avgMonthlyPay を逐次平均で更新
-  3. 支出   exp = 基本生活費 × 支出係数 × priceLevel + 健康費 + 実家送金 + 仕送り(timer)
+  3. 支出   exp = 基本生活費 × 地域の生活費係数 × 支出係数 × priceLevel
+                + 車の維持費(hasCar) + 健康費 + 実家送金 + 仕送り(timer)
                 + 奨学金の返済(残高 > 0 の間)
             # 生活保護中は支出係数を「節約」に固定
             s.assets.cash += net − exp
@@ -220,7 +228,7 @@ stepMonth(state, rng):
 初年度   = 職業.初年度年収 × 学歴.初任給係数
 ピーク   = 職業.ピーク年収 × 学歴.昇給係数
 基準年収 = 初年度 + (ピーク − 初年度) × p
-額面年収 = 基準年収 × 働き方係数 × (0.9 + 0.2 × スキル/100) × payMul
+額面年収 = 基準年収 × 働き方係数 × (0.9 + 0.2 × スキル/100) × payMul × 地域の給与係数
 ```
 
 - 学歴によるスタートの違いは「開始年齢」と「係数」で表し、カーブは各自の開始年齢から50歳まで線形
@@ -234,7 +242,8 @@ stepMonth(state, rng):
 - 退職金 = 職業.退職金 × `min(1, jobYears / 38)`。`jobYears` は雇用中の月ごとに +1/12
 - 転職・リストラ時も、その時点の職業と勤続年数で按分した退職金を受け取り、`jobYears` を0に戻す
 - バイトと無職は退職金・厚生年金なし
-- 失業給付: リストラで無職になったとき、会社員(バイト以外)は `unemploymentBenefit = 6`。給付額 = 直前の額面月給 × 0.6(非課税として手取りに直接足す)。再就職すると残りは打ち切り
+- 失業給付: リストラで無職になったら、職業に関係なく(バイトも雇用保険に入っている前提)`unemploymentBenefit = 6`。給付額 = 直前の額面月給 × 0.6(非課税として手取りに直接足す)。再就職すると残りは打ち切り
+- リストラされるかどうかは運と時代次第: 確率 = 職業のリストラ率 × 不況中×3 × 運補正(悪いイベント扱い)。不況は「不況」イベントで24ヶ月続く
 
 ### 5.2.1 奨学金
 
@@ -246,8 +255,17 @@ stepMonth(state, rng):
 
 ### 5.2.2 配偶者の収入
 
-- 結婚時に `balance.spouse.worksProb`(70%)で共働きになる。共働きなら配偶者の手取り月12万円を、本人が65歳になるまで毎月足す
-- 本人の退職後は配偶者分の基礎年金(仕様どおり基礎年金×2)のみ。配偶者の厚生年金は扱わない
+結婚時に配偶者の働き方を3通りから抽選する。配偶者は本人と同い年とし、本人が65歳になったら配偶者も退職する。
+
+| 働き方 | 確率 | 配偶者の手取り(月) | 本人の手取りへの影響 | 退職後の配偶者分の年金(月) |
+| --- | --- | --- | --- | --- |
+| 共働き(fulltime) | 35% | 18万円 | なし | 基礎年金 + 厚生年金6万円 |
+| 扶養内パート(parttime) | 35% | 8万円 | 配偶者控除で+5千円 | 基礎年金(第3号) |
+| 専業(homemaker) | 30% | 0 | 配偶者控除で+5千円 | 基礎年金(第3号) |
+
+- 仕様の「結婚フラグがあれば基礎年金を2倍」はこの表の「基礎年金」部分にあたる。共働きだけ配偶者の厚生年金を足す
+- 配偶者の働き方はMVPでは結婚後に変わらない(育休・時短・扶養の出入りは第2弾。§14)
+- 配偶者の手取りも「月の収入」として本人の手取りと合算する(安心・資金繰りの計算は世帯単位)。年間サマリーとメイン画面には「世帯の手取り」として出す
 
 ### 5.3 ステータス
 
@@ -289,6 +307,22 @@ k_h = 0.03, k_s = 0.03
 - 自己破産したあとも資金が足りない月は**生活保護**: 不足分を補填して `cash = 0` で止める(借金にしない)。受給中は支出方針に関係なく生活費係数を「節約」(0.8)で計算し、幸福度の「安心」は0にする
 - 収入が通常の支出を上回った月に生活保護は終わる
 - どちらも30個のイベントには数えないシステムイベント
+
+### 5.7 住む場所と車
+
+住む場所(地域)を初期ガチャに足す。出身地 = 開始時の居住地で、引っ越しイベントで変えられる。データは `region.json`。
+
+| 地域 | 出現率 | 生活費係数(家賃込み) | 給与係数 | 開始時に車あり | 車の維持費(月) | 車なしのとき |
+| --- | --- | --- | --- | --- | --- | --- |
+| 大都市 | 35% | 1.15 | 1.10 | 10% | 4万円 | 影響なし |
+| 地方都市 | 45% | 1.00 | 1.00 | 60% | 2.5万円 | 影響なし |
+| 田舎 | 20% | 0.85 | 0.90 | 100% | 2.5万円 | 自由時間 −15 |
+
+- 車の維持費は保険・税・ガソリン・駐車場をまとめた額。開始時の車は親のお下がり扱いで購入費0
+- 車があると「車が壊れる」の対象になり、「交通事故でけが」の確率 ×1.5
+- 地域はイベント確率にも効く: 転職の誘い 大都市×1.5・田舎×0.5、再就職 田舎×0.7
+- 給与係数は地域が変わると翌月から変わる(転職なしで引っ越せる簡略化。リモートワーク等とみなす)
+- マイホーム(購入・住宅ローン)は第2弾。MVPは全員賃貸で、家賃は生活費係数に含む
 
 ## 6. データJSON
 
@@ -356,13 +390,20 @@ k_h = 0.03, k_s = 0.03
   "family1Remittance": 20000,
   "studentLoan": { "interestFreeProb": 0.35, "annualRate": 0.01, "months": 240 },
   "unemployment": { "months": 6, "payRate": 0.6 },
-  "spouse": { "worksProb": 0.7, "monthlyNet": 120000 },
+  "spouse": {
+    "types": {
+      "fulltime":  { "prob": 0.35, "monthlyNet": 180000, "taxBenefit": 0,    "employeePension": 60000 },
+      "parttime":  { "prob": 0.35, "monthlyNet": 80000,  "taxBenefit": 5000, "employeePension": 0 },
+      "homemaker": { "prob": 0.30, "monthlyNet": 0,      "taxBenefit": 5000, "employeePension": 0 }
+    }
+  },
+  "car": { "accidentMul": 1.5, "newPrice": 2500000, "usedPrice": 800000 },
   "bankruptcy": { "minLimit": 500000, "incomeShare": 0.3333, "stress": 30 },
   "result": { "netWorthLine": 30000000, "happinessLine": 60 }
 }
 ```
 
-`education.json` `jobs.json` `family.json` は仕様の表をそのまま配列にする(id・表示名・各列)。表示名(日本語)はデータ側に持ち、UIはidからデータを引く。
+`education.json` `jobs.json` `family.json` は仕様の表を、`region.json` は §5.7 の表をそのまま配列にする(id・表示名・各列)。表示名(日本語)はデータ側に持ち、UIはidからデータを引く。
 
 ### 6.2 GameData の型
 
@@ -371,6 +412,7 @@ interface GameData {
   education: EducationDef[];   // { id, label, prob, startAge, startPayMul, raiseMul, loan: { prob, amount } | null }
   jobs: JobDef[];              // { id, label, startPay, peakPay, employeePension, severance, layoffRate }
   family: FamilyDef[];         // { tier, label, prob, initialCash, monthlyTransfer, inheritance }
+  regions: RegionDef[];        // { id, label, prob, livingMul, payMul, carProb, carMonthlyCost, noCarFreeTime }
   events: EventDef[];
   balance: Balance;            // balance.json の型
 }
@@ -397,6 +439,7 @@ interface EventDef {
     employed?: boolean;              // ★ job != 'none' かつ未退職
     retired?: boolean;               // ★
     minInvested?: number;            // ★ index+stocks+speculative の下限(円)
+    region?: RegionId[];             // ★ 住んでいる地域のどれか
   };
   baseProb: number;
   probFrom?: 'layoffRate';           // ★ baseProb の代わりに職業データの値を使う
@@ -413,10 +456,12 @@ type ProbMod =                       // ★ stat以外も条件にできるよ�
   | { flag: string; equals: boolean | number; mul: number }
   | { age: true; above?: number; below?: number; mul: number }
   | { work: WorkStyle[]; mul: number }
-  | { healthCare: HealthCare[]; mul: number };
+  | { healthCare: HealthCare[]; mul: number }
+  | { region: RegionId[]; mul: number };
 
 interface Choice {
   label: string;
+  conditions?: EventDef['conditions']; // ★ 満たさない選択肢は表示しない(田舎では「車を手放す」を出さない、など)
   effects?: Effects;
   outcomes?: { prob: number; text: string; effects: Effects }[];  // ★ 確率分岐(合計1)
   valueShift?: Partial<Values>;      // 符号だけ使い、大きさは balance.events.valueShiftStep
@@ -433,6 +478,7 @@ interface Effects {
   achievement?: number;
   assetShock?: { pct: number; targets?: (keyof Assets)[] };  // 既定 targets は index/stocks/speculative
   inheritance?: boolean;             // ★ family.json の相続額を cash へ
+  region?: RegionId;                 // ★ 引っ越し先の地域
 }
 ```
 
@@ -442,7 +488,9 @@ interface Effects {
 - `job` 効果で職業が変わるときは §5.2 の按分退職金を払い、`previousJob` を記録し、`jobYears=0`・`payMul=1` に戻す
 - ログの `text` は「タイトル: 選んだ選択肢 / outcome の text」
 
-### 7.2 MVPのイベント30個(初期値)
+### 7.2 MVPのイベント31個(初期値)
+
+仕様の30個に「車を買う」を足して31個(§5.7)。「引っ越し」は地域を変えるイベントに作り直した。
 
 確率は月あたり。CD=クールダウン(月)。目安は1人生40〜80回([§11](#11-テストとバランス確認))で、balance.ts で調整する。
 
@@ -456,7 +504,7 @@ interface Effects {
 | parent_ill | 親の病気で仕送り | 40〜75歳、parentAlive、once | 0.004 / 年齢>55 ×2 | 仕送りする: parentSupport=36、人間関係+5、v.relation− / 施設に任せる: cash−100万 / 断る: 人間関係−10、ストレス+10。全選択で parentIll=true |
 | parent_death | 親が亡くなる(相続) | 40歳〜、parentAlive、once | 0.003 / parentIll ×3 / 年齢>60 ×2 | (なし) 相続、parentAlive=false、parentSupport=0、ストレス+15 |
 | wedding_rush | 友人の結婚式ラッシュ | 25〜35歳 | 0.01、CD24 | 全部出席: cash−15万、人間関係+8 / ご祝儀だけ: cash−5万、人間関係+2 / 欠席: 人間関係−6 |
-| moving | 引っ越し | 20〜70歳 | 0.006、CD60 | 職場の近くへ: cash−30万、ストレス−8 / 今のまま |
+| moving | 引っ越し | 20〜70歳 | 0.006、CD60 | 都会へ出る(大都市以外のとき): region=metro、cash−40万、ストレス+5、v.risk+ / 地元・地方へ移る(大都市・地方都市のとき): region=rural、cash−30万、ストレス−8 / 近場で住み替え: cash−20万、ストレス−5 / やめる |
 | reunion | 同窓会 | 25〜70歳 | 0.008、CD36 | 行く: cash−1万、人間関係+5(未婚なら20%で partner=true) / 行かない: 人間関係−2 |
 
 **キャリア(8)** すべて `employed: true`
@@ -465,21 +513,22 @@ interface Effects {
 | --- | --- | --- | --- | --- |
 | promotion | 昇進 | 雇用中、バイト以外 | 0.006 / スキル>60 ×2 / 残業多め・激務 ×1.5。CD36。good | 受ける: payMul+0.1、ストレス+10、達成+15、v.work+ / 断る: ストレス−3、v.work− |
 | raise_skipped | 昇給見送り | 雇用中 | 0.005、CD24 | (なし) payMul−0.03、ストレス+5、達成−5 |
-| job_offer | 転職の誘い(職業変更) | 雇用中、〜55歳 | 0.004 / スキル>50 ×1.5。CD36 | 転職する: job=random_other、payMul=1.05、ストレス+5、v.risk+ / 断る: v.risk− |
+| job_offer | 転職の誘い(職業変更) | 雇用中、〜55歳 | 0.004 / スキル>50 ×1.5 / 大都市 ×1.5 / 田舎 ×0.5。CD36 | 転職する: job=random_other、payMul=1.05、ストレス+5、v.risk+ / 断る: v.risk− |
 | layoff | リストラ(無職へ) | 雇用中 | probFrom=layoffRate / recession>0 ×3。good=false | (なし) job=none、ストレス+20、達成−10 |
 | bonus_cut | 業績悪化でボーナスカット | 雇用中 | 0.006、CD12 | (なし) 月給−1ヶ月分、ストレス+5 |
 | certification | 資格取得のチャンス | 雇用中 | 0.006、CD24 | 挑戦する: cash−10万、ストレス+5、スキル+8、達成+5 / 見送る |
 | boss_trouble | 上司とのトラブル | 雇用中 | 0.006、CD24 | 我慢する: ストレス+15 / 言い返す: 60% ストレス−5・達成+3、40% payMul−0.05・ストレス+10 / 異動願い: スキル−3、ストレス−10 |
 | side_job | 副業の誘い | 雇用中 | 0.004、CD36 | 始める: 60% cash+60万・スキル+5・ストレス+10、40% cash−20万・ストレス+10、v.risk+ / 断る |
 
-**お金(7)**
+**お金(8)**
 
 | id | タイトル | 条件 | 確率 | 選択肢 → 主な効果 |
 | --- | --- | --- | --- | --- |
 | invest_jackpot | 投資の大当たり | 投資残高≥50万 | 0.003。good | (なし) stocks・speculative +50%、達成+5 |
 | scam | 投資詐欺の勧誘 | 25歳〜 | 0.004 / 信用<40 ×2 / v.risk>0 ×1.5。CD36 | 乗る: 85% cash−100万・ストレス+15、15% cash+30万 / 断る: v.risk− |
 | lottery | 宝くじ | 20歳〜 | 0.004、CD12 | 買う: cash−3000、0.2% +1億、2% +10万、残り はずれ / 買わない |
-| car_broke | 車が壊れる | 20〜80歳 | 0.004、CD24。good=false | 修理: cash−30万 / 買い替え: cash−150万、ストレス−5 / 手放す: ストレス+5、人間関係−3 |
+| car_broke | 車が壊れる | 20〜80歳、hasCar | 0.004、CD24。good=false | 修理: cash−30万 / 買い替え: cash−150万、ストレス−5 / 手放す(田舎以外): hasCar=false、ストレス+5 |
+| car_purchase | 車を買う | 20〜75歳、hasCar=false | 0.004 / 地方都市 ×2 / 田舎 ×4。CD36 | 新車: cash−250万、hasCar=true、達成+5 / 中古車: cash−80万、hasCar=true / 買わない: v.spending− |
 | appliance | 家電が壊れる | — | 0.008、CD12。good=false | (なし) cash−10万 |
 | windfall_bonus | 臨時ボーナス | 雇用中 | 0.004、CD12。good | (なし) 月給+1ヶ月分、ストレス−3 |
 | friend_loan | 友人に借金を頼まれる | 22歳〜 | 0.004、CD36 | 貸す: 50% 返ってきた・人間関係+10、50% cash−50万・人間関係−5 / 断る: 人間関係−8 |
@@ -491,7 +540,7 @@ interface Effects {
 | cold | 風邪で休む | — | 0.015 / 健康<40 ×2。CD6。good=false | (なし) 健康−2、ストレス+2 |
 | checkup | 健康診断で再検査 | 35歳〜 | 0.006 / 健康:意識高め ×1.5。CD24 | 精密検査を受ける: cash−3万、健康+5 / 放置: 健康−5 |
 | hospital | 入院 | — | 0.003 / 健康<40 ×2.5 / 年齢>60 ×2。CD12。good=false | (なし) cash−30万、健康−10、ストレス+10 |
-| traffic_accident | 交通事故でけが | — | 0.002、CD24。good=false | (なし) cash−20万、健康−15、ストレス+10 |
+| traffic_accident | 交通事故でけが | — | 0.002 / hasCar ×1.5。CD24。good=false | (なし) cash−20万、健康−15、ストレス+10 |
 | back_pain | 腰痛 | 30歳〜 | 0.006 / 残業多め・激務 ×1.5。CD24 | 整体に通う: cash−5万、健康+3 / 我慢する: 健康−3、ストレス+5 |
 
 **社会(2)**
@@ -505,7 +554,7 @@ interface Effects {
 
 | id | タイトル | 条件 | 確率 | 選択肢 |
 | --- | --- | --- | --- | --- |
-| reemployment | 再就職 | job=none、未退職 | 0.05 + 0.15×スキル/100(probMods で表現) | 前職に戻る: job=previous、payMul=0.95 / 別の職業: job=random_other |
+| reemployment | 再就職 | job=none、未退職 | 0.05 + 0.15×スキル/100(probMods で表現)/ 田舎 ×0.7 | 前職に戻る: job=previous、payMul=0.95 / 別の職業: job=random_other |
 
 ## 8. 乱数とシード
 
@@ -551,8 +600,8 @@ class GameController {
 | 画面 | 構成 |
 | --- | --- |
 | title | タイトル、「新しい人生」「続きから」(セーブがあるときだけ)、シード入力欄、過去の人生(直近10件) |
-| setup | ガチャ結果カード(学歴・職業・実家の太さ・体質を★で表示、運は出さない)、「引き直し」、名前、価値観4軸スライダー(−2〜+2、0.5刻み、両端に極の名前)、初期方針4項目(ラジオ) |
-| main | 上段: 年齢・職業・手取り月収・金融資産・借金 / ステータスバー(健康・ストレス・スキル・信用・人間関係)/ 今月の幸福度 / 資産推移グラフ(年次)/ 直近ログ10件 / 下段固定: 再生・一時停止、速度、次のイベントまで、方針変更 |
+| setup | ガチャ結果カード(学歴・職業・実家の太さ・出身地・車の有無・体質・奨学金を表示。体質は★、運は出さない)、「引き直し」、名前、価値観4軸スライダー(−2〜+2、0.5刻み、両端に極の名前)、初期方針4項目(ラジオ) |
+| main | 上段: 年齢・職業・住んでいる地域・世帯の手取り月収・金融資産・借金 / ステータスバー(健康・ストレス・スキル・信用・人間関係)/ 今月の幸福度 / 資産推移グラフ(年次)/ 直近ログ10件 / 下段固定: 再生・一時停止、速度、次のイベントまで、方針変更 |
 | event | タイトル、本文、選択肢ボタン(縦並び)。選択後に結果テキストを1秒表示 |
 | yearSummary | 「○歳(○年目)」、健康状態(言葉で: 絶好調/良好/普通/不調/危険)、金融資産と前年比(±と%)、その年のイベント一覧 |
 | result | 享年・死因・最終資産・生涯幸福スコア・人生タイプ(大きく)、資産と幸福度の推移グラフ(2軸)、年表、「もう一度」「同じシードで再挑戦」「ログをJSONで保存」 |
@@ -588,7 +637,7 @@ interface LifeRecord {
 | ファイル | 内容 |
 | --- | --- |
 | `rng.test.ts` | 同seedで同じ列、`state` から再開して同じ列、normal の平均・分散がおおむね正しい |
-| `setup.test.ts` | 出現率が表どおり(1万回抽選で±2%)、初期ステータス、奨学金 |
+| `setup.test.ts` | 出現率が表どおり(1万回抽選で±2%。学歴・実家・地域・車)、初期ステータス、奨学金 |
 | `money.test.ts` | 手取り率の各帯と境界、昇給カーブ(開始・50歳・50歳以降)、年金額、退職金按分、借金の利息と返済、ショート時の売却順、奨学金(無利子・有利子の月額と240回で完済)、失業給付、配偶者の収入、自己破産と生活保護 |
 | `stats.test.ts` | 各方針の増減、回帰項、クランプ(0〜100) |
 | `death.test.ts` | q(20)≈0.0003、q(80)≈0.05、健康補正(100→0.25倍、0→4倍)、死因の重み |
@@ -619,10 +668,12 @@ CLAUDE.md の「仕様と食い違う実装をする前に確認」に従って�
 | 3 | 型の追加 | 承認済み・SPEC反映済み |
 | 4 | イベント定義の拡張 | 承認済み・SPEC反映済み |
 | 5 | 細かい決め | 承認済み・SPEC反映済み |
-| 6 | 自己破産と生活保護 | 追加提案(「基本ok」のためSPEC反映済み。反対があれば戻す) |
-| 7 | 失業給付 | 同上 |
-| 8 | 配偶者の収入(共働き) | 同上 |
-| 9 | 「次のイベントまで」ボタン | 同上 |
+| 6 | 自己破産と生活保護 | 承認済み・SPEC反映済み |
+| 7 | 失業給付(全職業が受給、リストラは運と時代次第) | 承認済み・SPEC反映済み |
+| 8 | 配偶者の収入(共働き / 扶養内パート / 専業) | 承認済み・SPEC反映済み |
+| 9 | 「次のイベントまで」ボタン | 承認済み・SPEC反映済み |
+| 10 | 住む場所(3地域)と車の有無 | 追加(住む場所で変わる、という指摘から)・SPEC反映済み |
+| — | 子ども・育休手当、マイホーム・住宅ローン | 第2弾のまま(確認済み)。§14 に申し送り |
 
 ### 変更1: 健康とストレスに「平常値への回帰」を入れる
 
@@ -651,7 +702,7 @@ CLAUDE.md の「仕様と食い違う実装をする前に確認」に従って�
 
 ### 変更4: イベント定義の拡張
 
-§7.1 の★(`good` `employed` `retired` `minInvested` `probFrom` 一般化した `probMods` `outcomes` `addFlags` `mulFlags` `inheritance`)。30個のイベントを JSON だけで書くのに必要な最小限。とくに `payMul`(昇進で年収が上がる)は額面年収の式に係数が1つ増える。
+§7.1 の★(`good` `employed` `retired` `minInvested` `probFrom` 一般化した `probMods` `outcomes` `addFlags` `mulFlags` `inheritance`)。31個のイベントを JSON だけで書くのに必要な最小限(変更10で `region` 条件・効果と選択肢ごとの `conditions` も追加)。とくに `payMul`(昇進で年収が上がる)は額面年収の式に係数が1つ増える。
 
 ### 変更5: 細かい決め
 
@@ -661,23 +712,27 @@ CLAUDE.md の「仕様と食い違う実装をする前に確認」に従って�
 - 無職中はストレス+1/月
 - リストラは職業の月次リストラ率をそのままイベント確率に使う(リストラ率とイベントの二重判定にしない)
 
-### 変更6: 自己破産と生活保護(追加提案)
+### 変更6: 自己破産と生活保護
 
 仕様のままだと、借金(年15%)が上限なく膨らむ。たとえばバイトで65歳を迎えると、年金は基礎年金だけで手取り約5.9万円、支出は約13.5万円で、月7.6万円ずつ借金が増える。20年後には利息込みで**約1.1億円**の借金になり、最終資産の中央値や人生タイプの判定がこうした極端な値に引っぱられる。
 
 そこで借入上限(年収の1/3、最低50万円)を設け、超えたら自己破産、その後も足りなければ生活保護で暮らす(§5.6)。「自己破産」は配信の見どころにもなる。ローン機能を足すわけではなく、借金が膨らみ続けないための下限の処理。
 
-### 変更7: 失業給付(追加提案)
+### 変更7: 失業給付
 
-仕様ではリストラされると収入がいきなり0になり、再就職まで貯金を削るしかない。会社員(バイト以外)はリストラ後6ヶ月、直前の額面月給の60%を受け取れるようにする(§5.2)。
+仕様ではリストラされると収入がいきなり0になり、再就職まで貯金を削るしかない。リストラされたら職業に関係なく(バイトも)6ヶ月、直前の額面月給の60%を受け取る(§5.2)。給付は必ず受けられる前提にし、運が絡むのは「リストラされるかどうか」の側: 職業のリストラ率 × 不況中×3 × 運補正。
 
-### 変更8: 配偶者の収入(追加提案)
+### 変更8: 配偶者の収入
 
-仕様では結婚すると生活費が13万→20万円に上がるだけで収入は増えないので、お金の面では結婚が必ず損になる。「家族重視」を選んだプレイヤーが金銭面で一方的に不利になり、「正解の人生はない」というコンセプトとずれる。結婚時に70%で共働きになり、配偶者の手取り月12万円が入るようにする(§5.2.2)。子どもはMVP範囲外なので扱わない。
+仕様では結婚すると生活費が13万→20万円に上がるだけで収入は増えないので、お金の面では結婚が必ず損になる。「家族重視」を選んだプレイヤーが金銭面で一方的に不利になり、「正解の人生はない」というコンセプトとずれる。結婚時に配偶者の働き方を「共働き / 扶養内パート / 専業」から抽選し、それぞれ収入・配偶者控除・年金が変わるようにした(§5.2.2)。育休手当は子どもとセットで第2弾(§14)。
 
-### 変更9: 「次のイベントまで」ボタン(追加提案)
+### 変更9: 「次のイベントまで」ボタン
 
 要件定義にある「何もなければ次のイベントまで飛ばす」が、MVP仕様では速度(1x/4x/16x)だけになっていた。UIだけで完結し、配信の尺調整に効くのでMVPに入れる(§9.2)。
+
+### 変更10: 住む場所と車
+
+仕様の基本生活費13万円(家賃込み)は全国一律で、車も「壊れる」イベントだけが前提なしに起きていた。住む場所(大都市 / 地方都市 / 田舎)を初期ガチャに足し、生活費・給与・車の必要性を変える(§5.7)。大都市は稼げるが生活費が高く車はいらない、田舎は生活費が安いが給料も低く車が必須、という違いが出る。「引っ越し」イベントで上京・地方移住ができ、配信の分岐にもなる。データは `region.json` を新設。イベントは「車を買う」を足して31個。
 
 ## 13. 実装の進め方
 
@@ -686,11 +741,20 @@ CLAUDE.md の「仕様と食い違う実装をする前に確認」に従って�
 | # | PR | この設計書の参照先 |
 | --- | --- | --- |
 | 1 | 雛形: Vite + TS + Vitest + ESLint、`types.ts`、`rng.ts` | §2, §3, §8 |
-| 2 | データと初期ガチャ: JSON 4種、`data/index.ts`(validateData)、`setup.ts` | §6 |
-| 3 | お金: `money.ts` | §4 の 1〜5, §5.1, §5.2, §5.5, §5.6 |
+| 2 | データと初期ガチャ: JSON 5種、`data/index.ts`(validateData)、`setup.ts` | §6, §5.7 |
+| 3 | お金: `money.ts` | §4 の 1〜5, §5.1, §5.2, §5.5, §5.6, §5.7 |
 | 4 | ステータスと死亡: `stats.ts`、`death.ts` | §5.3 |
 | 5 | 幸福度: `happiness.ts`、`result.ts` | §5.4 |
-| 6 | イベント: `events.ts`、`events.json` 30個 + 再就職 | §7 |
+| 6 | イベント: `events.ts`、`events.json` 31個 + 再就職 | §7 |
 | 7 | 統合とバランス: `step.ts`、`scripts/balance.ts` | §4, §11.2 |
 | 8 | UI: 5画面、controller、グラフ | §9 |
 | 9 | セーブとデプロイ: `storage.ts`、GitHub Pages | §10 |
+
+## 14. 第2弾への申し送り
+
+MVPでは作らないが、MVPの作りがじゃまにならないよう書き留めておく。
+
+- **子どもと育休手当**: 出産イベントで子どもを足す。育休中は休む側(本人または共働きの配偶者)に、額面月給の67%(最初の6ヶ月)→50%(残り6ヶ月)を非課税で支給し、その間の給与を止める。扶養内パート・専業の配偶者は育休手当なし。子どもの生活費・教育費、世代継承と合わせて設計する
+  - MVPでの備え: 配偶者を `character.spouse` に持たせてあるので、育休・時短・扶養の出入りはここを月ごとに変えられるよう拡張する。収入は「本人 + 配偶者 + 給付」の合算になっているので、給付の種類を足すだけで入る
+- **マイホームと住宅ローン**: 購入で家賃分の生活費が下がり、ローン返済と固定資産税が増える。地域ごとの住宅価格を `region.json` に足す。MVPの生活費係数(家賃込み)を「家賃」と「それ以外」に分ける必要がある
+- **地域の拡張**: 地域ごとの結婚しやすさ・職業の出やすさ・実家との距離(介護負担)など
