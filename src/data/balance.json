@@ -1,0 +1,100 @@
+{
+  "startStats": { "stress": 20, "skill": 10, "credit": 50, "relations": 50 },
+  "gacha": { "constitution": { "mean": 50, "sd": 15 }, "luck": { "mean": 50, "sd": 15 } },
+  "takeHome": {
+    "bands": [
+      { "below": 3000000, "rate": 0.8 },
+      { "below": 6000000, "rate": 0.77 },
+      { "below": 10000000, "rate": 0.73 },
+      { "below": null, "rate": 0.68 }
+    ],
+    "pension": 0.9
+  },
+  "work": {
+    "regular": { "income": 1.0, "freeTime": 80, "health": 0, "stress": -1, "skill": 0.1, "death": 1.0 },
+    "normal": { "income": 1.08, "freeTime": 60, "health": -0.05, "stress": 0, "skill": 0.2, "death": 1.0 },
+    "overtime": { "income": 1.2, "freeTime": 35, "health": -0.3, "stress": 1.5, "skill": 0.35, "death": 1.15 },
+    "grind": { "income": 1.35, "freeTime": 15, "health": -0.6, "stress": 3, "skill": 0.5, "death": 1.5 }
+  },
+  "spending": {
+    "frugal": { "living": 0.8, "stress": 0 },
+    "normal": { "living": 1.0, "stress": 0 },
+    "comfort": { "living": 1.25, "stress": 0 },
+    "lavish": { "living": 1.6, "stress": -0.5 }
+  },
+  "healthCare": {
+    "ignore": { "cost": 0, "health": -0.1, "stress": 0 },
+    "normal": { "cost": 5000, "health": 0, "stress": 0 },
+    "active": { "cost": 15000, "health": 0.3, "stress": -0.5 }
+  },
+  "living": { "single": 130000, "married": 200000 },
+  "retiredFreeTime": 90,
+  "unemployedStress": 1,
+  "debtAnnualRate": 0.15,
+  "investShare": 0.5,
+  "assets": {
+    "cash": { "mu": 0.001, "sigma": 0 },
+    "index": { "mu": 0.05, "sigma": 0.15 },
+    "stocks": { "mu": 0.06, "sigma": 0.3 },
+    "speculative": { "mu": 0.06, "sigma": 0.6, "crashProb": 0.003, "crashPct": -0.6 }
+  },
+  "pension": { "basicFull": 66000, "basicYears": 40, "employeeRate": 0.005481, "spouseBasicMul": 2, "retireAge": 65 },
+  "severanceYears": 38,
+  "stats": {
+    "age40Health": -0.05,
+    "age60Health": -0.1,
+    "highStress": 70,
+    "highStressHealth": -0.3,
+    "relationsDecay": -0.1,
+    "creditWithDebt": -0.5,
+    "creditNoDebt": 0.1,
+    "retiredStress": -1,
+    "healthReversion": 0.03,
+    "healthBase": 65,
+    "healthBaseConstitution": 0.4,
+    "healthBaseAgeFrom": 40,
+    "healthBaseAgeSlope": 0.4,
+    "stressReversion": 0.03,
+    "stressBase": 30,
+    "achievementDecay": 0.2
+  },
+  "death": {
+    "a": 0.0003,
+    "b": 0.085,
+    "ageOffset": 20,
+    "healthPivot": 50,
+    "healthScale": 25,
+    "highStressMul": 1.2,
+    "maxAge": 120,
+    "cause": { "overworkGrind": 40, "overworkOvertime": 10, "accidentBase": 10, "oldAgeFrom": 85, "oldAgeOffset": 80, "oldAgeMul": 5 }
+  },
+  "happiness": {
+    "minWeight": 0.2,
+    "marriedRelationsBonus": 15,
+    "securityMonths": 24,
+    "debtSecurityPenalty": 30,
+    "livingAbsScale": 200000,
+    "livingAbsMax": 60,
+    "livingRelMax": 40,
+    "livingRelSlope": 2,
+    "adaptMonths": 24
+  },
+  "events": { "luckGoodBase": 0.8, "luckGoodScale": 0.4, "luckBadBase": 1.2, "luckBadScale": -0.4, "valueShiftStep": 0.1 },
+  "timers": {
+    "recession": { "layoffMul": 3 },
+    "parentSupport": { "monthlyCost": 30000 },
+    "unemploymentBenefit": {}
+  },
+  "studentLoan": { "interestFreeProb": 0.35, "annualRate": 0.01, "months": 240 },
+  "unemployment": { "months": 6, "payRate": 0.6 },
+  "spouse": {
+    "types": {
+      "fulltime": { "prob": 0.35, "monthlyNet": 180000, "taxBenefit": 0, "employeePension": 60000 },
+      "parttime": { "prob": 0.35, "monthlyNet": 80000, "taxBenefit": 5000, "employeePension": 0 },
+      "homemaker": { "prob": 0.3, "monthlyNet": 0, "taxBenefit": 5000, "employeePension": 0 }
+    }
+  },
+  "car": { "accidentMul": 1.5, "newPrice": 2500000, "usedPrice": 800000 },
+  "bankruptcy": { "minLimit": 500000, "incomeShare": 0.3333, "stress": 30 },
+  "result": { "netWorthLine": 30000000, "happinessLine": 60 }
+}

@@ -211,7 +211,6 @@ export interface EventDef {
 }
 
 // ---- 調整用データ(src/data/*.json)----
-// Balance(balance.json)の型はステップ2でデータと一緒に定義する。
 
 export interface EducationDef {
   id: Education;
@@ -251,4 +250,97 @@ export interface RegionDef {
   carProb: number;
   carMonthlyCost: number;
   noCarFreeTime: number;
+}
+
+/** balance.json。係数・確率・金額をまとめたもの(DESIGN.md §6.1) */
+export interface Balance {
+  startStats: Omit<Stats, 'health'>; // 健康は体質で決まる
+  gacha: { constitution: { mean: number; sd: number }; luck: { mean: number; sd: number } };
+  takeHome: { bands: { below: number | null; rate: number }[]; pension: number };
+  work: Record<WorkStyle, { income: number; freeTime: number; health: number; stress: number; skill: number; death: number }>;
+  spending: Record<Spending, { living: number; stress: number }>;
+  healthCare: Record<HealthCare, { cost: number; health: number; stress: number }>;
+  living: { single: number; married: number };
+  retiredFreeTime: number;
+  unemployedStress: number;
+  debtAnnualRate: number;
+  investShare: number;
+  assets: {
+    cash: { mu: number; sigma: number };
+    index: { mu: number; sigma: number };
+    stocks: { mu: number; sigma: number };
+    speculative: { mu: number; sigma: number; crashProb: number; crashPct: number };
+  };
+  pension: { basicFull: number; basicYears: number; employeeRate: number; spouseBasicMul: number; retireAge: number };
+  severanceYears: number;
+  stats: {
+    age40Health: number;
+    age60Health: number;
+    highStress: number;
+    highStressHealth: number;
+    relationsDecay: number;
+    creditWithDebt: number;
+    creditNoDebt: number;
+    retiredStress: number;
+    healthReversion: number;
+    healthBase: number;
+    healthBaseConstitution: number;
+    healthBaseAgeFrom: number;
+    healthBaseAgeSlope: number;
+    stressReversion: number;
+    stressBase: number;
+    achievementDecay: number;
+  };
+  death: {
+    a: number;
+    b: number;
+    ageOffset: number;
+    healthPivot: number;
+    healthScale: number;
+    highStressMul: number;
+    maxAge: number;
+    cause: {
+      overworkGrind: number;
+      overworkOvertime: number;
+      accidentBase: number;
+      oldAgeFrom: number;
+      oldAgeOffset: number;
+      oldAgeMul: number;
+    };
+  };
+  happiness: {
+    minWeight: number;
+    marriedRelationsBonus: number;
+    securityMonths: number;
+    debtSecurityPenalty: number;
+    livingAbsScale: number;
+    livingAbsMax: number;
+    livingRelMax: number;
+    livingRelSlope: number;
+    adaptMonths: number;
+  };
+  events: { luckGoodBase: number; luckGoodScale: number; luckBadBase: number; luckBadScale: number; valueShiftStep: number };
+  /** 毎月 −1 する数値フラグと、その間の効果 */
+  timers: {
+    recession: { layoffMul: number };
+    parentSupport: { monthlyCost: number };
+    unemploymentBenefit: Record<string, never>;
+  };
+  studentLoan: { interestFreeProb: number; annualRate: number; months: number };
+  unemployment: { months: number; payRate: number };
+  spouse: {
+    types: Record<SpouseType, { prob: number; monthlyNet: number; taxBenefit: number; employeePension: number }>;
+  };
+  car: { accidentMul: number; newPrice: number; usedPrice: number };
+  bankruptcy: { minLimit: number; incomeShare: number; stress: number };
+  result: { netWorthLine: number; happinessLine: number };
+}
+
+export interface GameData {
+  education: EducationDef[];
+  jobs: JobDef[];
+  family: FamilyDef[];
+  regions: RegionDef[];
+  events: EventDef[];
+  balance: Balance;
 }
