@@ -442,6 +442,36 @@
           "grind"
         ],
         "mul": 1.5
+      },
+      {
+        "flag": "rank",
+        "above": 0.5,
+        "mul": 0.7
+      },
+      {
+        "flag": "rank",
+        "above": 1.5,
+        "mul": 0.7
+      },
+      {
+        "flag": "rank",
+        "above": 2.5,
+        "mul": 0.5
+      },
+      {
+        "flag": "rank",
+        "above": 3.5,
+        "mul": 0
+      },
+      {
+        "age": true,
+        "above": 45,
+        "mul": 0.5
+      },
+      {
+        "age": true,
+        "above": 55,
+        "mul": 0.2
       }
     ],
     "choices": [
@@ -449,7 +479,8 @@
         "label": "受ける",
         "effects": {
           "addFlags": {
-            "payMul": 0.1
+            "payMul": 0.1,
+            "rank": 1
           },
           "stats": {
             "stress": 10
@@ -598,9 +629,10 @@
     "title": "資格取得のチャンス",
     "text": "仕事に役立つ資格の講座があると聞いた。",
     "conditions": {
-      "employed": true
+      "employed": true,
+      "ageMax": 55
     },
-    "baseProb": 0.006,
+    "baseProb": 0.004,
     "cooldownMonths": 24,
     "choices": [
       {
@@ -608,11 +640,31 @@
         "effects": {
           "cash": -100000,
           "stats": {
-            "stress": 5,
-            "skill": 8
+            "stress": 5
+          }
+        },
+        "outcomes": [
+          {
+            "prob": 0.55,
+            "text": "合格した!",
+            "effects": {
+              "stats": {
+                "skill": 8
+              },
+              "achievement": 5
+            }
           },
-          "achievement": 5
-        }
+          {
+            "prob": 0.45,
+            "text": "不合格だった。受験料と時間が無駄になった",
+            "effects": {
+              "stats": {
+                "stress": 5
+              },
+              "achievement": -3
+            }
+          }
+        ]
       },
       {
         "label": "見送る"
@@ -643,7 +695,7 @@
         "label": "言い返す",
         "outcomes": [
           {
-            "prob": 0.6,
+            "prob": 0.4,
             "text": "筋の通った意見が認められた",
             "effects": {
               "stats": {
@@ -662,6 +714,20 @@
               "stats": {
                 "stress": 10
               }
+            }
+          },
+          {
+            "prob": 0.2,
+            "text": "にらまれて地方の支店に左遷された",
+            "effects": {
+              "addFlags": {
+                "payMul": -0.1
+              },
+              "stats": {
+                "stress": 15,
+                "relations": -5
+              },
+              "achievement": -5
             }
           }
         ],
@@ -695,7 +761,7 @@
         "label": "始める",
         "outcomes": [
           {
-            "prob": 0.6,
+            "prob": 0.35,
             "text": "副業が軌道に乗った",
             "effects": {
               "cash": 600000,
@@ -706,7 +772,7 @@
             }
           },
           {
-            "prob": 0.4,
+            "prob": 0.65,
             "text": "思ったより稼げず赤字になった",
             "effects": {
               "cash": -200000,
@@ -960,14 +1026,43 @@
     "id": "appliance",
     "category": "money",
     "title": "家電が壊れる",
-    "text": "冷蔵庫と洗濯機が立て続けに壊れた。",
+    "text": "長年使っていた家電が壊れた。",
     "conditions": {},
-    "baseProb": 0.008,
+    "baseProb": 0.004,
     "good": false,
-    "cooldownMonths": 12,
-    "effects": {
-      "cash": -100000
-    }
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "新しいものに買い替える",
+        "effects": {
+          "cash": -150000,
+          "stats": {
+            "stress": -2
+          }
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "型落ちを安く買う",
+        "effects": {
+          "cash": -50000
+        }
+      },
+      {
+        "label": "修理してだましだまし使う",
+        "effects": {
+          "cash": -20000,
+          "stats": {
+            "stress": 3
+          }
+        },
+        "valueShift": {
+          "spending": -0.1
+        }
+      }
+    ]
   },
   {
     "id": "windfall_bonus",
@@ -1061,7 +1156,8 @@
     "title": "健康診断で再検査",
     "text": "健康診断で「要再検査」の判定が出た。",
     "conditions": {
-      "ageMin": 35
+      "ageMin": 35,
+      "ageMax": 74
     },
     "baseProb": 0.006,
     "cooldownMonths": 24,
@@ -1102,7 +1198,7 @@
     "title": "入院",
     "text": "体調を崩して入院することになった。",
     "conditions": {},
-    "baseProb": 0.003,
+    "baseProb": 0.002,
     "good": false,
     "cooldownMonths": 12,
     "probMods": [
@@ -1131,7 +1227,7 @@
     "title": "交通事故でけが",
     "text": "交通事故に巻き込まれてけがをした。",
     "conditions": {},
-    "baseProb": 0.002,
+    "baseProb": 0.0004,
     "good": false,
     "cooldownMonths": 24,
     "probMods": [
@@ -1188,6 +1284,41 @@
         }
       }
     ]
+  },
+  {
+    "id": "serious_illness",
+    "category": "health",
+    "title": "大病",
+    "text": "体の不調を放っておいた結果、大きな病気が見つかった。長期の入院が必要だ。",
+    "conditions": {},
+    "baseProb": 0.0005,
+    "good": false,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "stat": "health",
+        "below": 30,
+        "mul": 6
+      },
+      {
+        "stat": "health",
+        "below": 15,
+        "mul": 2
+      },
+      {
+        "age": true,
+        "above": 50,
+        "mul": 2
+      }
+    ],
+    "effects": {
+      "cash": -1000000,
+      "stats": {
+        "health": -10,
+        "stress": 20
+      },
+      "achievement": -5
+    }
   },
   {
     "id": "recession",

@@ -163,10 +163,12 @@ interface LifeResult {
 | `hasCar` | boolean | ガチャ | 車を持っているか。維持費・車イベント・事故率 ★ |
 | `welfare` | boolean | false | 生活保護を受けているか ★ |
 | `bankrupt` | boolean | false | 自己破産したことがあるか(リザルトの年表用) ★ |
+| `blacklist` | number | 0 | 残り月数。>0 の間は自己破産後のブラックリスト(借りられない・節約固定・再破産不可) ★ |
+| `rank` | number | 0 | 役職 0=一般 1=主任 2=係長 3=課長 4=部長。昇進で+1、転職で0 ★ |
 
 - `married` は `character.married` が正。イベント定義の `flags.married` / `setFlags.married` はエンジンが `character.married` に読み替える(仕様のイベント例との互換のため)
 - `married` が false → true になったとき、エンジンが `character.spouse` を `balance.spouse.types` の確率で抽選する。離婚で null に戻す
-- 数値フラグのうち `balance.json` の `timers` に載っているもの(`recession` `parentSupport` `unemploymentBenefit`)は毎月 −1 して0で止める。値は「残り何ヶ月効くか」で、お金の処理(§4 の 2〜5)のあと・イベントの前に −1 する。こうするとイベントで N をセットした翌月から、ちょうど N ヶ月効く
+- 数値フラグのうち `balance.json` の `timers` に載っているもの(`recession` `parentSupport` `unemploymentBenefit` `blacklist`)は毎月 −1 して0で止める。値は「残り何ヶ月効くか」で、お金の処理(§4 の 2〜5)のあと・イベントの前に −1 する。こうするとイベントで N をセットした翌月から、ちょうど N ヶ月効く
 
 ## 4. 月次処理(stepMonth)の詳細
 
@@ -298,7 +300,7 @@ k_h = 0.03, k_s = 0.03
 
 ```text
 自由に使える手取り = 世帯の手取り − 決まった支出(車・健康費・実家への送金・親への仕送り・奨学金の返済)
-生活費(実質)     = 固定分(単身4万円 / 既婚8万円) + 自由に使える手取り × 0.6 × 支出係数
+生活費(実質)     = 固定分(単身4万円 / 既婚8万円) + 自由に使える手取り × 0.64 × 支出係数
 生活費(名目)     = 生活費(実質) × 地域の生活費係数 × 物価
 ```
 
@@ -318,7 +320,7 @@ k_h = 0.03, k_s = 0.03
 - **生活保護**: 節約しても収入で暮らせない月(収入 < 支出係数「節約」で計算した支出)は、不足分を補填して `cash = 0` で止める(借金にしない)。無職で失業給付が切れたあとや、年金の少ない老後が対象。受給中は支出方針に関係なく「節約」で計算し、幸福度の「安心」は0にする。収入が節約時の支出に届いた月に終わる
 - それ以外の不足(浪費、突発の出費)は借金になる
 - 借入上限 = max(200万円, 額面年収 × 1/2)。無職・年金生活は200万円
-- 上限を超えた月に**自己破産**: `debt = 0`、信用 = 0、ストレス +30、`bankrupt = true`(一度でも破産したか)、log 'event'(id: `bankruptcy`)。何度でも起こりうる
+- 上限を超えた月に**自己破産**: `debt = 0`、信用 = 0、ストレス +30、`bankrupt = true`(一度でも破産したか)、log 'event'(id: `bankruptcy`)。破産後84ヶ月(7年)は `blacklist` タイマーが残り、その間は借りられず支出は「節約」に固定、再び破産もできない(不足は延滞として借金に残る)
 - 収入が通常の支出を上回った月に生活保護は終わる
 - どちらも30個のイベントには数えないシステムイベント
 
@@ -344,47 +346,153 @@ k_h = 0.03, k_s = 0.03
 
 ```json
 {
-  "startStats": { "stress": 20, "skill": 10, "credit": 50, "relations": 50 },
-  "gacha": { "constitution": { "mean": 50, "sd": 15 }, "luck": { "mean": 50, "sd": 15 } },
-  "salary": { "peakAge": 50, "skillBase": 0.9, "skillRange": 0.2 },
+  "startStats": {
+    "stress": 20,
+    "skill": 10,
+    "credit": 50,
+    "relations": 50
+  },
+  "gacha": {
+    "constitution": {
+      "mean": 50,
+      "sd": 15
+    },
+    "luck": {
+      "mean": 50,
+      "sd": 15
+    }
+  },
+  "salary": {
+    "peakAge": 50,
+    "skillBase": 0.9,
+    "skillRange": 0.2
+  },
   "takeHome": {
     "bands": [
-      { "below": 3000000, "rate": 0.8 },
-      { "below": 6000000, "rate": 0.77 },
-      { "below": 10000000, "rate": 0.73 },
-      { "below": null, "rate": 0.68 }
+      {
+        "below": 3000000,
+        "rate": 0.8
+      },
+      {
+        "below": 6000000,
+        "rate": 0.77
+      },
+      {
+        "below": 10000000,
+        "rate": 0.73
+      },
+      {
+        "below": null,
+        "rate": 0.68
+      }
     ],
     "pension": 0.9
   },
   "work": {
-    "regular": { "income": 1.0, "freeTime": 80, "health": 0, "stress": -1, "skill": 0.1, "death": 1.0 },
-    "normal": { "income": 1.08, "freeTime": 60, "health": -0.05, "stress": 0, "skill": 0.2, "death": 1.0 },
-    "overtime": { "income": 1.2, "freeTime": 35, "health": -0.3, "stress": 1.5, "skill": 0.35, "death": 1.15 },
-    "grind": { "income": 1.35, "freeTime": 15, "health": -0.6, "stress": 3, "skill": 0.5, "death": 1.5 }
+    "regular": {
+      "income": 1.0,
+      "freeTime": 80,
+      "health": 0,
+      "stress": -1,
+      "skill": 0.1,
+      "death": 1.0
+    },
+    "normal": {
+      "income": 1.08,
+      "freeTime": 60,
+      "health": -0.05,
+      "stress": 0,
+      "skill": 0.2,
+      "death": 1.0
+    },
+    "overtime": {
+      "income": 1.2,
+      "freeTime": 35,
+      "health": -0.3,
+      "stress": 1.5,
+      "skill": 0.35,
+      "death": 1.15
+    },
+    "grind": {
+      "income": 1.35,
+      "freeTime": 15,
+      "health": -0.6,
+      "stress": 3,
+      "skill": 0.5,
+      "death": 1.5
+    }
   },
   "spending": {
-    "frugal": { "living": 0.8, "stress": 0 },
-    "normal": { "living": 1.0, "stress": 0 },
-    "comfort": { "living": 1.2, "stress": 0 },
-    "lavish": { "living": 1.4, "stress": -0.5 }
+    "frugal": {
+      "living": 0.8,
+      "stress": 0
+    },
+    "normal": {
+      "living": 1.0,
+      "stress": 0
+    },
+    "comfort": {
+      "living": 1.2,
+      "stress": 0
+    },
+    "lavish": {
+      "living": 1.4,
+      "stress": -0.5
+    }
   },
   "healthCare": {
-    "ignore": { "cost": 0, "health": -0.1, "stress": 0 },
-    "normal": { "cost": 5000, "health": 0, "stress": 0 },
-    "active": { "cost": 15000, "health": 0.3, "stress": -0.5 }
+    "ignore": {
+      "cost": 0,
+      "health": -0.1,
+      "stress": 0
+    },
+    "normal": {
+      "cost": 5000,
+      "health": 0,
+      "stress": 0
+    },
+    "active": {
+      "cost": 15000,
+      "health": 0.3,
+      "stress": -0.5
+    }
   },
-  "living": { "single": 40000, "married": 80000, "incomeShare": 0.6 },
+  "living": {
+    "single": 40000,
+    "married": 80000,
+    "incomeShare": 0.64
+  },
   "retiredFreeTime": 90,
   "unemployedStress": 1,
   "debtAnnualRate": 0.15,
   "investShare": 0.5,
   "assets": {
-    "cash": { "mu": 0.001, "sigma": 0 },
-    "index": { "mu": 0.05, "sigma": 0.15 },
-    "stocks": { "mu": 0.06, "sigma": 0.3 },
-    "speculative": { "mu": 0.06, "sigma": 0.6, "crashProb": 0.003, "crashPct": -0.6 }
+    "cash": {
+      "mu": 0.001,
+      "sigma": 0
+    },
+    "index": {
+      "mu": 0.05,
+      "sigma": 0.15
+    },
+    "stocks": {
+      "mu": 0.06,
+      "sigma": 0.3
+    },
+    "speculative": {
+      "mu": 0.06,
+      "sigma": 0.6,
+      "crashProb": 0.003,
+      "crashPct": -0.6
+    }
   },
-  "pension": { "basicFull": 66000, "basicYears": 40, "employeeRate": 0.005481, "spouseBasicMul": 2, "retireAge": 65 },
+  "pension": {
+    "basicFull": 66000,
+    "basicYears": 40,
+    "employeeRate": 0.005481,
+    "spouseBasicMul": 2,
+    "retireAge": 65
+  },
   "severanceYears": 38,
   "stats": {
     "age40Health": -0.05,
@@ -405,14 +513,21 @@ k_h = 0.03, k_s = 0.03
     "achievementDecay": 0.2
   },
   "death": {
-    "a": 0.0002,
+    "a": 0.00017,
     "b": 0.085,
     "ageOffset": 20,
     "healthPivot": 50,
-    "healthScale": 25,
+    "healthScale": 15,
     "highStressMul": 1.2,
     "maxAge": 120,
-    "cause": { "overworkGrind": 40, "overworkOvertime": 10, "accidentBase": 10, "oldAgeFrom": 85, "oldAgeOffset": 80, "oldAgeMul": 5 }
+    "cause": {
+      "overworkGrind": 40,
+      "overworkOvertime": 10,
+      "accidentBase": 10,
+      "oldAgeFrom": 85,
+      "oldAgeOffset": 80,
+      "oldAgeMul": 5
+    }
   },
   "happiness": {
     "minWeight": 0.2,
@@ -426,31 +541,92 @@ k_h = 0.03, k_s = 0.03
     "adaptMonths": 24,
     "skillAchievementShare": 0.5,
     "weights": {
-      "living": { "base": 1, "spending": 0.25 },
-      "security": { "base": 1, "risk": -0.2, "spending": -0.2 },
-      "relations": { "base": 1, "relation": -0.25 },
-      "freeTime": { "base": 1, "relation": 0.25, "work": -0.15 },
-      "health": { "base": 1 },
-      "achievement": { "base": 1, "risk": 0.2, "work": 0.25 }
+      "living": {
+        "base": 1,
+        "spending": 0.25
+      },
+      "security": {
+        "base": 1,
+        "risk": -0.2,
+        "spending": -0.2
+      },
+      "relations": {
+        "base": 1,
+        "relation": -0.25
+      },
+      "freeTime": {
+        "base": 1,
+        "relation": 0.25,
+        "work": -0.15
+      },
+      "health": {
+        "base": 1
+      },
+      "achievement": {
+        "base": 1,
+        "risk": 0.2,
+        "work": 0.25
+      }
     }
   },
-  "events": { "luckGoodBase": 0.8, "luckGoodScale": 0.4, "luckBadBase": 1.2, "luckBadScale": -0.4, "valueShiftStep": 0.1 },
-  "timers": {
-    "recession": { "layoffMul": 3 },
-    "parentSupport": { "monthlyCost": 30000 },
-    "unemploymentBenefit": {}
+  "events": {
+    "luckGoodBase": 0.8,
+    "luckGoodScale": 0.4,
+    "luckBadBase": 1.2,
+    "luckBadScale": -0.4,
+    "valueShiftStep": 0.1
   },
-  "studentLoan": { "interestFreeProb": 0.35, "annualRate": 0.01, "months": 240 },
-  "unemployment": { "months": 6, "payRate": 0.6 },
+  "timers": {
+    "recession": {
+      "layoffMul": 3
+    },
+    "parentSupport": {
+      "monthlyCost": 30000
+    },
+    "unemploymentBenefit": {},
+    "blacklist": {}
+  },
+  "studentLoan": {
+    "interestFreeProb": 0.35,
+    "annualRate": 0.01,
+    "months": 240
+  },
+  "unemployment": {
+    "months": 6,
+    "payRate": 0.6
+  },
   "spouse": {
     "types": {
-      "fulltime": { "prob": 0.35, "monthlyNet": 180000, "taxBenefit": 0, "employeePension": 60000 },
-      "parttime": { "prob": 0.35, "monthlyNet": 80000, "taxBenefit": 5000, "employeePension": 0 },
-      "homemaker": { "prob": 0.3, "monthlyNet": 0, "taxBenefit": 5000, "employeePension": 0 }
+      "fulltime": {
+        "prob": 0.35,
+        "monthlyNet": 180000,
+        "taxBenefit": 0,
+        "employeePension": 60000
+      },
+      "parttime": {
+        "prob": 0.35,
+        "monthlyNet": 80000,
+        "taxBenefit": 5000,
+        "employeePension": 0
+      },
+      "homemaker": {
+        "prob": 0.3,
+        "monthlyNet": 0,
+        "taxBenefit": 5000,
+        "employeePension": 0
+      }
     }
   },
-  "bankruptcy": { "minLimit": 2000000, "incomeShare": 0.5, "stress": 30 },
-  "result": { "netWorthLine": 30000000, "happinessLine": 52 }
+  "bankruptcy": {
+    "minLimit": 2000000,
+    "incomeShare": 0.5,
+    "stress": 30,
+    "blacklistMonths": 84
+  },
+  "result": {
+    "netWorthLine": 30000000,
+    "happinessLine": 52
+  }
 }
 ```
 
@@ -565,14 +741,14 @@ interface Effects {
 
 | id | タイトル | 条件 | 確率 | 選択肢 → 主な効果 |
 | --- | --- | --- | --- | --- |
-| promotion | 昇進 | 雇用中、バイト以外 | 0.006 / スキル>60 ×2 / 残業多め・激務 ×1.5。CD36。good | 受ける: payMul+0.1、ストレス+10、達成+15、v.work+ / 断る: ストレス−3、v.work− |
+| promotion | 昇進 | 雇用中、バイト以外 | 0.006 / スキル>60 ×2 / 残業多め・激務 ×1.5 / 役職(rank)が上がるごとに ×0.7・×0.7・×0.5、部長(4)で0 / 45歳超 ×0.5・55歳超 ×0.2。CD36。good | 受ける: payMul+0.1、rank+1、ストレス+10、達成+15、v.work+ / 断る: ストレス−3、v.work−。転職で rank は0に戻る |
 | raise_skipped | 昇給見送り | 雇用中 | 0.005、CD24 | (なし) payMul−0.03、ストレス+5、達成−5 |
 | job_offer | 転職の誘い(職業変更) | 雇用中、〜55歳 | 0.004 / スキル>50 ×1.5 / 大都市 ×1.5 / 田舎 ×0.5。CD36 | 転職する: job=random_other、payMul=1.05、ストレス+5、v.risk+ / 断る: v.risk− |
 | layoff | リストラ(無職へ) | 雇用中 | probFrom=layoffRate / recession>0 ×3。good=false | (なし) job=none、ストレス+20、達成−10 |
 | bonus_cut | 業績悪化でボーナスカット | 雇用中 | 0.006、CD12 | (なし) 月給−1ヶ月分、ストレス+5 |
-| certification | 資格取得のチャンス | 雇用中 | 0.006、CD24 | 挑戦する: cash−10万、ストレス+5、スキル+8、達成+5 / 見送る |
-| boss_trouble | 上司とのトラブル | 雇用中 | 0.006、CD24 | 我慢する: ストレス+15 / 言い返す: 60% ストレス−5・達成+3、40% payMul−0.05・ストレス+10 / 異動願い: スキル−3、ストレス−10 |
-| side_job | 副業の誘い | 雇用中 | 0.004、CD36 | 始める: 60% cash+60万・スキル+5・ストレス+10、40% cash−20万・ストレス+10、v.risk+ / 断る |
+| certification | 資格取得のチャンス | 雇用中、〜55歳 | 0.004、CD24 | 挑戦する: cash−10万・ストレス+5 → 55% 合格(スキル+8・達成+5)、45% 不合格(ストレス+5・達成−3) / 見送る |
+| boss_trouble | 上司とのトラブル | 雇用中 | 0.006、CD24 | 我慢する: ストレス+15 / 言い返す: 40% ストレス−5・達成+3、40% payMul−0.05・ストレス+10、20% 左遷(payMul−0.1・ストレス+15・人間関係−5・達成−5) / 異動願い: スキル−3、ストレス−10 |
+| side_job | 副業の誘い | 雇用中 | 0.004、CD36 | 始める: 35% cash+60万・スキル+5・ストレス+10、65% cash−20万・ストレス+10、v.risk+ / 断る |
 
 **お金(8)**
 
@@ -583,18 +759,19 @@ interface Effects {
 | lottery | 宝くじ | 20歳〜 | 0.004、CD12 | 買う: cash−3000、0.2% +1億、2% +10万、残り はずれ / 買わない |
 | car_broke | 車が壊れる | 20〜80歳、hasCar | 0.004、CD24。good=false | 修理: cash−30万 / 買い替え: cash−150万、ストレス−5 / 手放す(田舎以外): hasCar=false、ストレス+5 |
 | car_purchase | 車を買う | 20〜75歳、hasCar=false | 0.004 / 地方都市 ×2 / 田舎 ×4。CD36 | 新車: cash−250万、hasCar=true、達成+5 / 中古車: cash−80万、hasCar=true / 買わない: v.spending− |
-| appliance | 家電が壊れる | — | 0.008、CD12。good=false | (なし) cash−10万 |
+| appliance | 家電が壊れる | — | 0.004、CD24。good=false | 新しいものに買い替える: cash−15万・ストレス−2 / 型落ちを安く: cash−5万 / 修理して使う: cash−2万・ストレス+3 |
 | windfall_bonus | 臨時ボーナス | 雇用中 | 0.004、CD12。good | (なし) 月給+1ヶ月分、ストレス−3 |
 | friend_loan | 友人に借金を頼まれる | 22歳〜 | 0.004、CD36 | 貸す: 50% 返ってきた・人間関係+10、50% cash−50万・人間関係−5 / 断る: 人間関係−8 |
 
-**健康(5)**
+**健康(6)**
 
 | id | タイトル | 条件 | 確率 | 選択肢 → 主な効果 |
 | --- | --- | --- | --- | --- |
 | cold | 風邪で休む | — | 0.01 / 健康<40 ×2。CD6。good=false | (なし) 健康−2、ストレス+2 |
-| checkup | 健康診断で再検査 | 35歳〜 | 0.006 / 健康:意識高め ×1.5。CD24 | 精密検査を受ける: cash−3万、健康+5 / 放置: 健康−5 |
-| hospital | 入院 | — | 0.003 / 健康<40 ×2.5 / 年齢>60 ×2。CD12。good=false | (なし) cash−30万、健康−10、ストレス+10 |
-| traffic_accident | 交通事故でけが | — | 0.002 / hasCar ×1.5。CD24。good=false | (なし) cash−20万、健康−15、ストレス+10 |
+| checkup | 健康診断で再検査 | 35〜74歳 | 0.006 / 健康:意識高め ×1.5。CD24 | 精密検査を受ける: cash−3万、健康+5 / 放置: 健康−5 |
+| hospital | 入院 | — | 0.002 / 健康<40 ×2.5 / 年齢>60 ×2。CD12。good=false | (なし) cash−30万、健康−10、ストレス+10 |
+| traffic_accident | 交通事故でけが | — | 0.0004 / hasCar ×1.5。CD24。good=false | (なし) cash−20万、健康−15、ストレス+10 |
+| serious_illness | 大病 | — | 0.0005 / 健康<30 ×6 / 健康<15 ×2 / 50歳超 ×2。CD36。good=false | (なし) cash−100万、健康−10、ストレス+20、達成−5 |
 | back_pain | 腰痛 | 30歳〜 | 0.006 / 残業多め・激務 ×1.5。CD24 | 整体に通う: cash−5万、健康+3 / 我慢する: 健康−3、ストレス+5 |
 
 **社会(2)**
@@ -717,15 +894,15 @@ npx tsx scripts/balance.ts [--n 1000] [--seed 1] [--policy random|grind|...]
 
 ### 11.3 バランス確認の結果(ステップ7)
 
-`npx tsx scripts/balance.ts --n 1000 --seed 1` の結果(1,000人生 × 2、約27秒):
+`npx tsx scripts/balance.ts --n 1000 --seed 1` の結果(1,000人生 × 2、約27秒。変更13の調整後):
 
 | 指標 | 結果 | 目安 |
 | --- | --- | --- |
-| 平均寿命(全方針ランダム) | 79.9歳 | 78〜85歳 |
-| 激務を続けた場合の平均寿命 | 73.7歳(差 6.2歳) | 全体より5歳以上短い |
-| 最終資産の中央値 | 2,865万円 | 1,000万〜3,000万円 |
-| 人生タイプの割合 | 勝ち組 31.6% / 貧乏だけど幸せ 15.9% / 金持ち不幸 16.9% / 苦労人 35.6% | どれも10%以上 |
-| 1人生あたりのイベント数 | 72.2回 | 40〜80回 |
+| 平均寿命(全方針ランダム) | 82.1歳 | 78〜85歳 |
+| 激務を続けた場合の平均寿命 | 72.2歳(差 9.9歳) | 全体より5歳以上短い |
+| 最終資産の中央値 | 2,440万円 | 1,000万〜3,000万円 |
+| 人生タイプの割合 | 勝ち組 28.1% / 貧乏だけど幸せ 19.3% / 金持ち不幸 15.5% / 苦労人 37.1% | どれも10%以上 |
+| 1人生あたりのイベント数 | 65.9回 | 40〜80回 |
 | 全イベントが1回以上発生 | すべて発生 | 未発生なし |
 
 調整したもの:
@@ -752,7 +929,8 @@ CLAUDE.md の「仕様と食い違う実装をする前に確認」に従って�
 | 9 | 「次のイベントまで」ボタン | 承認済み・SPEC反映済み |
 | 10 | 住む場所(3地域)と車の有無 | 追加(住む場所で変わる、という指摘から)・SPEC反映済み |
 | 11 | 生活費を収入連動にする | バランス確認から追加(「基本ok」のためSPEC反映済み。反対があれば戻す) |
-| 12 | 生活保護は「節約しても暮らせない」ときだけ、自己破産は何度でも | 同上(変更6の不具合の修正) |
+| 12 | 生活保護は「節約しても暮らせない」ときだけ、自己破産は何度でも | 同上(変更6の不具合の修正)。破産の回数は変更13で7年に1回までに |
+| 13 | 遊んだ感想からの調整(イベントの頻度と中身、大病、健康補正、7年ルール) | 承認済み(A→B→Cの順で進める、の A)・SPEC反映済み |
 | — | 子ども・育休手当、マイホーム・住宅ローン | 第2弾のまま(確認済み)。§14 に申し送り |
 
 ### 変更1: 健康とストレスに「平常値への回帰」を入れる
@@ -818,11 +996,29 @@ CLAUDE.md の「仕様と食い違う実装をする前に確認」に従って�
 
 仕様の生活費は「単身13万円・既婚20万円 × 支出係数」で、収入に関係なく一律だった。1,000人生を回すと、低収入の人(高卒バイトの手取り約10.8万円)は初月から赤字で1年以内に破産し、高収入の人(ピーク時の手取り約44万円)は月30万円以上貯まって、最終資産の中央値が8,000万円を超えた。一律の額をどう動かしても両方は直らない。
 
-実際には収入が低い人ほど家賃の安いところに住むなど、生活費は収入に連動する。そこで生活費 = 固定分 + 自由に使える手取り × 0.6 × 支出係数 にした(§5.4.1)。車やローンなど決まった支出を先に引くのは、新卒で車と奨学金がある人が「普通」でも赤字になるのを防ぐため。
+実際には収入が低い人ほど家賃の安いところに住むなど、生活費は収入に連動する。そこで生活費 = 固定分 + 自由に使える手取り × 0.6 × 支出係数 にした(§5.4.1。割合は変更13で0.64に調整)。車やローンなど決まった支出を先に引くのは、新卒で車と奨学金がある人が「普通」でも赤字になるのを防ぐため。
 
 ### 変更12: 生活保護の条件を直す
 
 変更6では「自己破産したあとの不足はすべて生活保護で補う」としていたが、これだと破産した人は浪費を続けても借金にならず、生活保護(節約扱い)のまま給料を貯め続けられてしまった(破産したバイトの最終資産が数千万円になっていた)。生活保護は「節約しても収入で暮らせない」ときだけにし、それ以外の不足は借金、上限を超えたら何度でも破産、とした(§5.6)。あわせて、結婚式など一度の大きな出費ですぐ破産しないよう、借入上限を max(50万円, 年収の1/3)から max(200万円, 年収の1/2)に引き上げた。
+
+### 変更13: 遊んだ感想からの調整
+
+実際に遊んだ感想(交通事故・家電・昇進が多い、資格や副業や上司トラブルの損得が偏っている、老後の検診が不自然、健康が最悪でも倒れない、自己破産を何度もできる)を受けて調整した。1,000人生で数えた1人生あたりの回数と主な変更:
+
+| イベント | 調整前 | 主な変更 |
+| --- | --- | --- |
+| 交通事故 | 1.8回 | 確率を1/5に(現実は一生で0.2〜0.3回程度) |
+| 家電が壊れる | 5.2回 | 確率を半分・クールダウン2年に。選択肢つきにして金額に幅(2万〜15万円) |
+| 昇進 | 3.5回 | 役職(一般→主任→係長→課長→部長)を足し、上の役職ほど・年を取るほど話が来にくい |
+| 資格 | 2.6回 | 合格55%・不合格45%に。〜55歳 |
+| 副業 | 成功60% | 成功35% |
+| 上司トラブル「言い返す」 | 良い結果60% | 良い結果40%・評価ダウン40%・左遷20% |
+| 健康診断で再検査 | 年齢の上限なし | 74歳まで |
+
+健康補正は 2^((50−健康)/25) から 2^((50−健康)/15) にし(健康0で4倍 → 約10倍)、健康が悪いと起きやすい「大病」イベントを足した。そのぶん基本死亡率 a を 0.0002 → 0.00017 に、生活費の収入連動の割合を 0.6 → 0.64 にして、バランスの目安に合わせ直した。
+
+自己破産は、現実の免責(7年以内の再免責は不可)に合わせて、破産後7年はブラックリストにした。借りられず支出は「節約」に固定され、その間は再び破産できない(不足は延滞として借金に残る)。
 
 ## 13. 実装の進め方
 
