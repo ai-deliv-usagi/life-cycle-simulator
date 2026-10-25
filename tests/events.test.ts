@@ -21,11 +21,11 @@ const byId = (id: string): EventDef => {
 };
 
 describe('events.json', () => {
-  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ8・キャリア8・お金8・健康5・社会2 + 再就職)', () => {
+  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ20・キャリア9・お金11・健康8・社会2 + 再就職)', () => {
     expect(validateData(defaultData)).toEqual([]);
     const count: Record<string, number> = {};
     for (const e of defaultData.events) count[e.category] = (count[e.category] ?? 0) + 1;
-    expect(count).toEqual({ life: 8, career: 8, money: 8, health: 5, social: 2, system: 1 });
+    expect(count).toEqual({ life: 20, career: 9, money: 11, health: 8, social: 2, system: 1 });
   });
 });
 
@@ -102,13 +102,13 @@ describe('確率', () => {
 
   it('運: 良いイベントは運が高いほど、悪いイベントは運が低いほど起きやすい', () => {
     const good = byId('windfall_bonus');
-    const bad = byId('appliance');
+    const bad = byId('traffic_accident');
     const lucky = makeState({ luck: 100 });
     const unlucky = makeState({ luck: 0 });
     expect(eventProb(good, lucky)).toBeCloseTo(0.004 * 1.2);
     expect(eventProb(good, unlucky)).toBeCloseTo(0.004 * 0.8);
-    expect(eventProb(bad, lucky)).toBeCloseTo(0.008 * 0.8);
-    expect(eventProb(bad, unlucky)).toBeCloseTo(0.008 * 1.2);
+    expect(eventProb(bad, lucky)).toBeCloseTo(0.0004 * 0.8);
+    expect(eventProb(bad, unlucky)).toBeCloseTo(0.0004 * 1.2);
     expect(eventProb(byId('lottery'), lucky)).toBeCloseTo(0.004); // good 未指定は運の影響なし
   });
 
@@ -142,11 +142,11 @@ describe('確率', () => {
 describe('発生と選択', () => {
   it('選択肢なしのイベントは効果を即適用してログに残す', () => {
     const s = makeState();
-    fireEvent(s, byId('appliance'), flatRng);
-    expect(s.assets.cash).toBe(-100_000);
+    fireEvent(s, byId('traffic_accident'), flatRng);
+    expect(s.assets.cash).toBe(-200_000);
     expect(s.pendingEvent).toBeUndefined();
-    expect(s.log.at(-1)).toMatchObject({ type: 'event', id: 'appliance' });
-    expect(s.eventHistory.appliance).toEqual({ count: 1, lastMonth: 0 });
+    expect(s.log.at(-1)).toMatchObject({ type: 'event', id: 'traffic_accident' });
+    expect(s.eventHistory.traffic_accident).toEqual({ count: 1, lastMonth: 0 });
   });
 
   it('選択肢ありのイベントは pendingEvent をセットして止まる', () => {
@@ -264,6 +264,26 @@ describe('効果', () => {
     expect(s.flags.priceLevel).toBeCloseTo(1.1025);
     applyChoice(s, byId('promotion'), 0, flatRng);
     expect(s.flags.payMul).toBeCloseTo(1.1);
+  });
+
+  it('昇進は役職が上がるほど・年を取るほど話が来にくく、部長(4)より上はない', () => {
+    const promo = byId('promotion');
+    const s = setAge(makeState({ luck: 50 }), 30);
+    const p0 = eventProb(promo, s);
+    applyChoice(s, promo, 0, flatRng);
+    expect(s.flags.rank).toBe(1);
+    expect(eventProb(promo, s)).toBeCloseTo(p0 * 0.7);
+    s.flags.rank = 4;
+    expect(eventProb(promo, s)).toBe(0);
+    const old = setAge(makeState({ luck: 50 }), 56);
+    expect(eventProb(promo, old)).toBeCloseTo(p0 * 0.5 * 0.2);
+  });
+
+  it('転職すると役職は一般に戻る', () => {
+    const s = makeState({ job: 'sales' });
+    s.flags.rank = 3;
+    applyChoice(s, byId('job_offer'), 0, createRng(1));
+    expect(s.flags.rank).toBe(0);
   });
 
   it('ステータスは0〜100にクランプ', () => {

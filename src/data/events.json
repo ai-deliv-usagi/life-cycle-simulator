@@ -442,6 +442,36 @@
           "grind"
         ],
         "mul": 1.5
+      },
+      {
+        "flag": "rank",
+        "above": 0.5,
+        "mul": 0.7
+      },
+      {
+        "flag": "rank",
+        "above": 1.5,
+        "mul": 0.7
+      },
+      {
+        "flag": "rank",
+        "above": 2.5,
+        "mul": 0.5
+      },
+      {
+        "flag": "rank",
+        "above": 3.5,
+        "mul": 0
+      },
+      {
+        "age": true,
+        "above": 45,
+        "mul": 0.5
+      },
+      {
+        "age": true,
+        "above": 55,
+        "mul": 0.2
       }
     ],
     "choices": [
@@ -449,7 +479,8 @@
         "label": "受ける",
         "effects": {
           "addFlags": {
-            "payMul": 0.1
+            "payMul": 0.1,
+            "rank": 1
           },
           "stats": {
             "stress": 10
@@ -598,9 +629,10 @@
     "title": "資格取得のチャンス",
     "text": "仕事に役立つ資格の講座があると聞いた。",
     "conditions": {
-      "employed": true
+      "employed": true,
+      "ageMax": 55
     },
-    "baseProb": 0.006,
+    "baseProb": 0.004,
     "cooldownMonths": 24,
     "choices": [
       {
@@ -608,11 +640,31 @@
         "effects": {
           "cash": -100000,
           "stats": {
-            "stress": 5,
-            "skill": 8
+            "stress": 5
+          }
+        },
+        "outcomes": [
+          {
+            "prob": 0.55,
+            "text": "合格した!",
+            "effects": {
+              "stats": {
+                "skill": 8
+              },
+              "achievement": 5
+            }
           },
-          "achievement": 5
-        }
+          {
+            "prob": 0.45,
+            "text": "不合格だった。受験料と時間が無駄になった",
+            "effects": {
+              "stats": {
+                "stress": 5
+              },
+              "achievement": -3
+            }
+          }
+        ]
       },
       {
         "label": "見送る"
@@ -643,7 +695,7 @@
         "label": "言い返す",
         "outcomes": [
           {
-            "prob": 0.6,
+            "prob": 0.4,
             "text": "筋の通った意見が認められた",
             "effects": {
               "stats": {
@@ -662,6 +714,20 @@
               "stats": {
                 "stress": 10
               }
+            }
+          },
+          {
+            "prob": 0.2,
+            "text": "にらまれて地方の支店に左遷された",
+            "effects": {
+              "addFlags": {
+                "payMul": -0.1
+              },
+              "stats": {
+                "stress": 15,
+                "relations": -5
+              },
+              "achievement": -5
             }
           }
         ],
@@ -695,7 +761,7 @@
         "label": "始める",
         "outcomes": [
           {
-            "prob": 0.6,
+            "prob": 0.35,
             "text": "副業が軌道に乗った",
             "effects": {
               "cash": 600000,
@@ -706,7 +772,7 @@
             }
           },
           {
-            "prob": 0.4,
+            "prob": 0.65,
             "text": "思ったより稼げず赤字になった",
             "effects": {
               "cash": -200000,
@@ -754,7 +820,7 @@
     "conditions": {
       "ageMin": 25
     },
-    "baseProb": 0.004,
+    "baseProb": 0.0025,
     "good": false,
     "cooldownMonths": 36,
     "probMods": [
@@ -960,14 +1026,43 @@
     "id": "appliance",
     "category": "money",
     "title": "家電が壊れる",
-    "text": "冷蔵庫と洗濯機が立て続けに壊れた。",
+    "text": "長年使っていた家電が壊れた。",
     "conditions": {},
-    "baseProb": 0.008,
+    "baseProb": 0.004,
     "good": false,
-    "cooldownMonths": 12,
-    "effects": {
-      "cash": -100000
-    }
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "新しいものに買い替える",
+        "effects": {
+          "cash": -150000,
+          "stats": {
+            "stress": -2
+          }
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "型落ちを安く買う",
+        "effects": {
+          "cash": -50000
+        }
+      },
+      {
+        "label": "修理してだましだまし使う",
+        "effects": {
+          "cash": -20000,
+          "stats": {
+            "stress": 3
+          }
+        },
+        "valueShift": {
+          "spending": -0.1
+        }
+      }
+    ]
   },
   {
     "id": "windfall_bonus",
@@ -1038,7 +1133,7 @@
     "title": "風邪で休む",
     "text": "ひどい風邪をひいて数日寝込んだ。",
     "conditions": {},
-    "baseProb": 0.01,
+    "baseProb": 0.006,
     "good": false,
     "cooldownMonths": 6,
     "probMods": [
@@ -1061,7 +1156,8 @@
     "title": "健康診断で再検査",
     "text": "健康診断で「要再検査」の判定が出た。",
     "conditions": {
-      "ageMin": 35
+      "ageMin": 35,
+      "ageMax": 74
     },
     "baseProb": 0.006,
     "cooldownMonths": 24,
@@ -1102,7 +1198,7 @@
     "title": "入院",
     "text": "体調を崩して入院することになった。",
     "conditions": {},
-    "baseProb": 0.003,
+    "baseProb": 0.002,
     "good": false,
     "cooldownMonths": 12,
     "probMods": [
@@ -1131,7 +1227,7 @@
     "title": "交通事故でけが",
     "text": "交通事故に巻き込まれてけがをした。",
     "conditions": {},
-    "baseProb": 0.002,
+    "baseProb": 0.0004,
     "good": false,
     "cooldownMonths": 24,
     "probMods": [
@@ -1157,7 +1253,7 @@
     "conditions": {
       "ageMin": 30
     },
-    "baseProb": 0.006,
+    "baseProb": 0.004,
     "cooldownMonths": 24,
     "probMods": [
       {
@@ -1190,6 +1286,41 @@
     ]
   },
   {
+    "id": "serious_illness",
+    "category": "health",
+    "title": "大病",
+    "text": "体の不調を放っておいた結果、大きな病気が見つかった。長期の入院が必要だ。",
+    "conditions": {},
+    "baseProb": 0.0005,
+    "good": false,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "stat": "health",
+        "below": 30,
+        "mul": 6
+      },
+      {
+        "stat": "health",
+        "below": 15,
+        "mul": 2
+      },
+      {
+        "age": true,
+        "above": 50,
+        "mul": 2
+      }
+    ],
+    "effects": {
+      "cash": -1000000,
+      "stats": {
+        "health": -10,
+        "stress": 20
+      },
+      "achievement": -5
+    }
+  },
+  {
     "id": "recession",
     "category": "social",
     "title": "不況",
@@ -1219,6 +1350,668 @@
         "priceLevel": 1.05
       }
     }
+  },
+  {
+    "id": "travel",
+    "category": "life",
+    "title": "旅行のチャンス",
+    "text": "まとまった休みが取れそうだ。どこかへ出かけようか。",
+    "conditions": {
+      "ageMin": 20,
+      "ageMax": 80
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "海外旅行に行く",
+        "effects": {
+          "cash": -400000,
+          "stats": {
+            "stress": -15,
+            "relations": 3
+          },
+          "achievement": 3
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "国内旅行に行く",
+        "effects": {
+          "cash": -100000,
+          "stats": {
+            "stress": -8
+          }
+        }
+      },
+      {
+        "label": "家でゆっくりする",
+        "effects": {
+          "stats": {
+            "stress": -2
+          }
+        },
+        "valueShift": {
+          "spending": -0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "hobby",
+    "category": "life",
+    "title": "新しい趣味",
+    "text": "友人に誘われて、新しい趣味を始めてみないかと言われた。",
+    "conditions": {
+      "ageMin": 18,
+      "ageMax": 80
+    },
+    "baseProb": 0.003,
+    "cooldownMonths": 60,
+    "choices": [
+      {
+        "label": "始めてみる",
+        "effects": {
+          "cash": -50000,
+          "stats": {
+            "stress": -6,
+            "relations": 4
+          },
+          "achievement": 3
+        }
+      },
+      {
+        "label": "やめておく"
+      }
+    ]
+  },
+  {
+    "id": "pet",
+    "category": "life",
+    "title": "ペットを飼う",
+    "text": "保護犬の譲渡会で、目が合った子がいる。",
+    "conditions": {
+      "ageMin": 22,
+      "ageMax": 70,
+      "flags": {
+        "pet": false
+      }
+    },
+    "baseProb": 0.002,
+    "cooldownMonths": 60,
+    "choices": [
+      {
+        "label": "家族に迎える",
+        "effects": {
+          "cash": -200000,
+          "stats": {
+            "stress": -10,
+            "relations": 5
+          },
+          "setFlags": {
+            "pet": true
+          }
+        },
+        "valueShift": {
+          "relation": -0.1
+        }
+      },
+      {
+        "label": "今は飼えない"
+      }
+    ]
+  },
+  {
+    "id": "pet_loss",
+    "category": "life",
+    "title": "ペットとの別れ",
+    "text": "長年一緒に暮らしたペットが、静かに息を引き取った。",
+    "conditions": {
+      "flags": {
+        "pet": true
+      }
+    },
+    "baseProb": 0.006,
+    "once": false,
+    "effects": {
+      "stats": {
+        "stress": 15,
+        "relations": -3
+      },
+      "setFlags": {
+        "pet": false
+      }
+    }
+  },
+  {
+    "id": "oshi",
+    "category": "life",
+    "title": "推しができる",
+    "text": "気づけば、ある人の活動を追いかけるのが生きがいになっていた。",
+    "conditions": {
+      "ageMin": 18,
+      "ageMax": 65
+    },
+    "baseProb": 0.003,
+    "cooldownMonths": 36,
+    "choices": [
+      {
+        "label": "全力で推す",
+        "effects": {
+          "cash": -300000,
+          "stats": {
+            "stress": -12
+          },
+          "achievement": 3
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "ほどほどに楽しむ",
+        "effects": {
+          "cash": -50000,
+          "stats": {
+            "stress": -5
+          }
+        }
+      },
+      {
+        "label": "距離を置く"
+      }
+    ]
+  },
+  {
+    "id": "sns_buzz",
+    "category": "life",
+    "title": "SNSでバズる",
+    "text": "何気なく投稿した写真が、一晩で数万いいねを集めた。",
+    "conditions": {
+      "ageMin": 18,
+      "ageMax": 60
+    },
+    "baseProb": 0.0015,
+    "good": true,
+    "cooldownMonths": 60,
+    "effects": {
+      "stats": {
+        "relations": 5,
+        "stress": 3
+      },
+      "achievement": 5
+    }
+  },
+  {
+    "id": "volunteer",
+    "category": "life",
+    "title": "ボランティアの誘い",
+    "text": "地域の清掃や子ども食堂のボランティアに誘われた。",
+    "conditions": {
+      "ageMin": 25,
+      "ageMax": 80
+    },
+    "baseProb": 0.003,
+    "cooldownMonths": 48,
+    "choices": [
+      {
+        "label": "参加する",
+        "effects": {
+          "stats": {
+            "relations": 8,
+            "stress": -3
+          },
+          "achievement": 3
+        }
+      },
+      {
+        "label": "断る",
+        "effects": {
+          "stats": {
+            "relations": -2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "exercise",
+    "category": "health",
+    "title": "運動を始めるきっかけ",
+    "text": "健康番組を見て、そろそろ体を動かさないとと思った。",
+    "conditions": {
+      "ageMin": 30,
+      "ageMax": 75
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 48,
+    "choices": [
+      {
+        "label": "ジムに通う",
+        "effects": {
+          "cash": -100000,
+          "stats": {
+            "health": 8,
+            "stress": -5
+          }
+        }
+      },
+      {
+        "label": "ウォーキングを始める",
+        "effects": {
+          "stats": {
+            "health": 3,
+            "stress": -2
+          }
+        }
+      },
+      {
+        "label": "面倒なのでやめる"
+      }
+    ]
+  },
+  {
+    "id": "anniversary",
+    "category": "life",
+    "title": "結婚記念日",
+    "text": "今日は結婚記念日だ。",
+    "conditions": {
+      "flags": {
+        "married": true
+      }
+    },
+    "baseProb": 0.006,
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "豪華に祝う",
+        "effects": {
+          "cash": -200000,
+          "stats": {
+            "relations": 8,
+            "stress": -5
+          }
+        },
+        "valueShift": {
+          "relation": -0.1
+        }
+      },
+      {
+        "label": "ささやかに祝う",
+        "effects": {
+          "cash": -30000,
+          "stats": {
+            "relations": 3
+          }
+        }
+      },
+      {
+        "label": "うっかり忘れていた",
+        "effects": {
+          "stats": {
+            "relations": -8,
+            "stress": 3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "gambling",
+    "category": "money",
+    "title": "ギャンブルに誘われる",
+    "text": "友人に「今日は絶対来る」と競馬に誘われた。",
+    "conditions": {
+      "ageMin": 20,
+      "ageMax": 75
+    },
+    "baseProb": 0.003,
+    "cooldownMonths": 36,
+    "choices": [
+      {
+        "label": "行く",
+        "outcomes": [
+          {
+            "prob": 0.15,
+            "text": "大穴が来た!",
+            "effects": {
+              "cash": 500000,
+              "stats": {
+                "stress": -5
+              }
+            }
+          },
+          {
+            "prob": 0.85,
+            "text": "見事に外れた",
+            "effects": {
+              "cash": -300000,
+              "stats": {
+                "stress": 5
+              }
+            }
+          }
+        ],
+        "valueShift": {
+          "risk": 0.1
+        }
+      },
+      {
+        "label": "断る",
+        "valueShift": {
+          "risk": -0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "guarantor",
+    "category": "money",
+    "title": "保証人を頼まれる",
+    "text": "親戚から、借金の連帯保証人になってほしいと頼まれた。",
+    "conditions": {
+      "ageMin": 30,
+      "ageMax": 70
+    },
+    "baseProb": 0.0015,
+    "good": false,
+    "cooldownMonths": 120,
+    "choices": [
+      {
+        "label": "引き受ける",
+        "outcomes": [
+          {
+            "prob": 0.7,
+            "text": "何事もなく完済された",
+            "effects": {
+              "stats": {
+                "relations": 5
+              }
+            }
+          },
+          {
+            "prob": 0.3,
+            "text": "親戚が返せなくなり、肩代わりすることになった",
+            "effects": {
+              "cash": -2000000,
+              "stats": {
+                "stress": 20
+              }
+            }
+          }
+        ],
+        "valueShift": {
+          "relation": -0.1
+        }
+      },
+      {
+        "label": "断る",
+        "effects": {
+          "stats": {
+            "relations": -10
+          }
+        },
+        "valueShift": {
+          "relation": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "jukunen_divorce",
+    "category": "life",
+    "title": "熟年離婚の危機",
+    "text": "定年後、毎日顔を合わせるようになって、配偶者との溝が深まった。",
+    "conditions": {
+      "ageMin": 60,
+      "flags": {
+        "married": true
+      }
+    },
+    "baseProb": 0.001,
+    "good": false,
+    "once": true,
+    "probMods": [
+      {
+        "stat": "relations",
+        "below": 40,
+        "mul": 3
+      }
+    ],
+    "choices": [
+      {
+        "label": "じっくり話し合う",
+        "effects": {
+          "stats": {
+            "relations": 10,
+            "stress": 10
+          }
+        }
+      },
+      {
+        "label": "別々の道を歩む",
+        "effects": {
+          "setFlags": {
+            "married": false
+          },
+          "assetShock": {
+            "pct": -0.5,
+            "targets": [
+              "cash",
+              "index",
+              "stocks",
+              "speculative"
+            ]
+          },
+          "stats": {
+            "stress": 5
+          }
+        },
+        "valueShift": {
+          "relation": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "silver_job",
+    "category": "career",
+    "title": "シルバー人材センター",
+    "text": "地域のシルバー人材センターから、軽作業の仕事の誘いがあった。",
+    "conditions": {
+      "retired": true,
+      "ageMax": 80
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 36,
+    "choices": [
+      {
+        "label": "働いてみる",
+        "effects": {
+          "cash": 300000,
+          "stats": {
+            "relations": 5,
+            "stress": -3,
+            "health": 2
+          }
+        }
+      },
+      {
+        "label": "のんびり過ごす"
+      }
+    ]
+  },
+  {
+    "id": "ore_ore",
+    "category": "money",
+    "title": "オレオレ詐欺",
+    "text": "「オレだよ、事故を起こして示談金が必要なんだ」と電話がかかってきた。",
+    "conditions": {
+      "ageMin": 70
+    },
+    "baseProb": 0.003,
+    "good": false,
+    "cooldownMonths": 60,
+    "choices": [
+      {
+        "label": "言われた口座に振り込む",
+        "effects": {
+          "cash": -2000000,
+          "stats": {
+            "stress": 15
+          }
+        }
+      },
+      {
+        "label": "一度電話を切って確かめる",
+        "effects": {
+          "stats": {
+            "stress": 3
+          }
+        },
+        "valueShift": {
+          "risk": -0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "care_needed",
+    "category": "health",
+    "title": "介護が必要になる",
+    "text": "足腰が弱り、一人での生活が難しくなってきた。",
+    "conditions": {
+      "ageMin": 75
+    },
+    "baseProb": 0.003,
+    "once": true,
+    "probMods": [
+      {
+        "stat": "health",
+        "below": 40,
+        "mul": 3
+      }
+    ],
+    "choices": [
+      {
+        "label": "介護施設に入る",
+        "effects": {
+          "cash": -5000000,
+          "stats": {
+            "stress": -10,
+            "relations": -3
+          }
+        }
+      },
+      {
+        "label": "在宅介護サービスを使う",
+        "effects": {
+          "cash": -1500000,
+          "stats": {
+            "stress": 5
+          }
+        }
+      },
+      {
+        "label": "家族に頼る",
+        "effects": {
+          "stats": {
+            "relations": -10,
+            "stress": 10
+          }
+        },
+        "conditions": {
+          "flags": {
+            "married": true
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "shukatsu",
+    "category": "life",
+    "title": "終活",
+    "text": "そろそろ身の回りを整理しておこうかと考えるようになった。",
+    "conditions": {
+      "ageMin": 70
+    },
+    "baseProb": 0.004,
+    "once": true,
+    "choices": [
+      {
+        "label": "エンディングノートを書く",
+        "effects": {
+          "stats": {
+            "stress": -5
+          },
+          "achievement": 5
+        }
+      },
+      {
+        "label": "業者に生前整理を頼む",
+        "effects": {
+          "cash": -300000,
+          "stats": {
+            "stress": -10
+          }
+        }
+      },
+      {
+        "label": "まだ早い"
+      }
+    ]
+  },
+  {
+    "id": "old_friend_death",
+    "category": "life",
+    "title": "旧友の訃報",
+    "text": "古くからの友人が亡くなったという知らせが届いた。",
+    "conditions": {
+      "ageMin": 60
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 36,
+    "effects": {
+      "stats": {
+        "stress": 10,
+        "relations": -3
+      }
+    }
+  },
+  {
+    "id": "grand_reunion",
+    "category": "life",
+    "title": "昔の仲間との再会",
+    "text": "何十年ぶりに、昔の仲間で集まることになった。",
+    "conditions": {
+      "ageMin": 60,
+      "ageMax": 85
+    },
+    "baseProb": 0.003,
+    "cooldownMonths": 48,
+    "choices": [
+      {
+        "label": "参加する",
+        "effects": {
+          "cash": -30000,
+          "stats": {
+            "relations": 8,
+            "stress": -5
+          }
+        }
+      },
+      {
+        "label": "体調を理由に断る",
+        "effects": {
+          "stats": {
+            "relations": -2
+          }
+        }
+      }
+    ]
   },
   {
     "id": "reemployment",

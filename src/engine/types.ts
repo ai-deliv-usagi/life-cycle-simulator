@@ -333,13 +333,14 @@ export interface Balance {
     recession: { layoffMul: number };
     parentSupport: { monthlyCost: number };
     unemploymentBenefit: Record<string, never>;
+    blacklist: Record<string, never>; // 自己破産後、借りられず再破産もできない残り月数
   };
   studentLoan: { interestFreeProb: number; annualRate: number; months: number };
   unemployment: { months: number; payRate: number };
   spouse: {
     types: Record<SpouseType, { prob: number; monthlyNet: number; taxBenefit: number; employeePension: number }>;
   };
-  bankruptcy: { minLimit: number; incomeShare: number; stress: number };
+  bankruptcy: { minLimit: number; incomeShare: number; stress: number; blacklistMonths: number };
   result: { netWorthLine: number; happinessLine: number };
 }
 

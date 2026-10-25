@@ -134,7 +134,8 @@ function findFamily(state: GameState, data: GameData) {
 }
 
 function spendingMul(state: GameState, data: GameData, welfare: boolean): number {
-  const policy = welfare ? 'frugal' : state.policy.spending; // 生活保護中は節約に固定
+  // 生活保護中と、自己破産後に借りられない期間(ブラックリスト)は節約に固定
+  const policy = welfare || num(state, 'blacklist', 0) > 0 ? 'frugal' : state.policy.spending;
   return data.balance.spending[policy].living;
 }
 
@@ -286,7 +287,8 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
       a.cash = 0;
     }
   }
-  if (a.debt > debtLimit(state, data)) declareBankruptcy(state, data);
+  // 免責から7年は再び自己破産できない(借金は延滞として残る)
+  if (a.debt > debtLimit(state, data) && num(state, 'blacklist', 0) <= 0) declareBankruptcy(state, data);
   if (bool(state, 'welfare') && income.total >= minimalLiving) state.flags.welfare = false;
 
   return { income, expenses };
@@ -311,6 +313,7 @@ export function declareBankruptcy(state: GameState, data: GameData = defaultData
   state.stats.credit = 0;
   state.stats.stress = clampStat(state.stats.stress + data.balance.bankruptcy.stress);
   state.flags.bankrupt = true;
+  state.flags.blacklist = data.balance.bankruptcy.blacklistMonths;
   addLog(state, 'event', '自己破産: 借金が返せなくなり、自己破産した', 'bankruptcy');
 }
 
@@ -336,5 +339,6 @@ export function changeJob(state: GameState, newJob: JobId, data: GameData = defa
   c.job = newJob;
   c.jobYears = 0;
   state.flags.payMul = 1;
+  state.flags.rank = 0; // 役職は転職でリセット
   state.flags.unemploymentBenefit = newJob === 'none' ? data.balance.unemployment.months : 0;
 }

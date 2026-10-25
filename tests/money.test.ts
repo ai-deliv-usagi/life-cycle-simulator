@@ -14,6 +14,7 @@ import {
   severancePay,
   takeHomeRate,
 } from '../src/engine/money';
+import { defaultData } from '../src/data/index';
 import { createRng } from '../src/engine/rng';
 import { flatRng, makeState, setAge } from './helpers';
 
@@ -180,19 +181,20 @@ describe('配偶者の収入', () => {
 describe('支出', () => {
   // 大卒エンジニア22歳・地方都市: 手取り 206,617円
   const net = Math.round((3_220_000 / 12) * 0.77);
+  const share = defaultData.balance.living.incomeShare;
 
-  it('生活費 = (固定分 + 自由に使える手取り × 0.6 × 支出方針) × 地域 × 物価', () => {
-    expect(calcExpenses(makeState()).living).toBe(Math.round(40_000 + 0.6 * net));
-    expect(calcExpenses(makeState({}, { spending: 'lavish' })).living).toBe(Math.round(40_000 + 0.6 * net * 1.4));
+  it('生活費 = (固定分 + 自由に使える手取り × 割合 × 支出方針) × 地域 × 物価', () => {
+    expect(calcExpenses(makeState()).living).toBe(Math.round(40_000 + share * net));
+    expect(calcExpenses(makeState({}, { spending: 'lavish' })).living).toBe(Math.round(40_000 + share * net * 1.4));
     const metro = makeState({ region: 'metro' });
-    expect(calcExpenses(metro).living).toBe(Math.round((40_000 + 0.6 * calcIncome(metro).total) * 1.15));
+    expect(calcExpenses(metro).living).toBe(Math.round((40_000 + share * calcIncome(metro).total) * 1.15));
     const married = makeState();
     married.character.married = true;
     married.character.spouse = 'homemaker';
-    expect(calcExpenses(married).living).toBe(Math.round(80_000 + 0.6 * (net + 5_000)));
+    expect(calcExpenses(married).living).toBe(Math.round(80_000 + share * (net + 5_000)));
     const inflated = makeState();
     inflated.flags.priceLevel = 1.05;
-    expect(calcExpenses(inflated).living).toBe(Math.round((40_000 + 0.6 * net) * 1.05));
+    expect(calcExpenses(inflated).living).toBe(Math.round((40_000 + share * net) * 1.05));
   });
 
   it('収入がなければ生活費は固定分だけ', () => {
@@ -206,17 +208,23 @@ describe('支出', () => {
     s.flags.parentSupport = 10;
     const e = calcExpenses(s);
     expect(e).toMatchObject({ car: 25_000, health: 15_000, remittance: 20_000, parentSupport: 30_000 });
-    expect(e.living).toBe(Math.round(40_000 + 0.6 * (net - 90_000)));
+    expect(e.living).toBe(Math.round(40_000 + share * (net - 90_000)));
     expect(e.total).toBe(e.living + 90_000);
     s.flags.parentAlive = false;
     expect(calcExpenses(s).remittance).toBe(0);
     expect(calcExpenses(makeState({ hasCar: true, region: 'metro' })).car).toBe(40_000);
   });
 
+  it('自己破産後のブラックリスト期間は支出方針に関係なく節約', () => {
+    const s = makeState({}, { spending: 'lavish' });
+    s.flags.blacklist = 10;
+    expect(calcExpenses(s).living).toBe(Math.round(40_000 + share * net * 0.8));
+  });
+
   it('生活保護中は支出方針に関係なく節約', () => {
     const s = makeState({}, { spending: 'lavish' });
     s.flags.welfare = true;
-    expect(calcExpenses(s).living).toBe(Math.round(40_000 + 0.6 * net * 0.8));
+    expect(calcExpenses(s).living).toBe(Math.round(40_000 + share * net * 0.8));
   });
 });
 
@@ -301,7 +309,7 @@ describe('月次の適用', () => {
     expect(t.flags.welfare).toBe(false);
   });
 
-  it('借入上限を超えたら自己破産: 借金0・信用0・ストレス+30・ログ(何度でも起こりうる)', () => {
+  it('借入上限を超えたら自己破産: 借金0・信用0・ストレス+30・ログ。7年間は再び破産できない', () => {
     const s = overspender();
     const limit = debtLimit(s);
     expect(limit).toBe(2_000_000);
@@ -312,7 +320,14 @@ describe('月次の適用', () => {
     expect(s.stats.stress).toBe(50);
     expect(s.flags.bankrupt).toBe(true);
     expect(s.log.at(-1)).toMatchObject({ type: 'event', id: 'bankruptcy' });
-    s.assets.debt = 1_999_000;
+    expect(s.flags.blacklist).toBe(84);
+    s.assets.debt = 3_000_000;
+    applyMonthlyMoney(s, flatRng);
+    // ブラックリスト中は破産せず、強制的な節約で返していく
+    expect(s.log.filter((e) => e.id === 'bankruptcy')).toHaveLength(1);
+    expect(s.assets.debt).toBeGreaterThan(0);
+    expect(s.assets.debt).toBeLessThan(3_000_000);
+    s.flags.blacklist = 0;
     applyMonthlyMoney(s, flatRng);
     expect(s.log.filter((e) => e.id === 'bankruptcy')).toHaveLength(2);
   });

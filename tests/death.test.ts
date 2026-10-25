@@ -8,22 +8,24 @@ import {
   pickCause,
   rollDeath,
 } from '../src/engine/death';
+import { defaultData } from '../src/data/index';
 import { createRng } from '../src/engine/rng';
 import { updateStats } from '../src/engine/stats';
 import type { Policy } from '../src/engine/types';
 import { makeState, setAge } from './helpers';
 
 describe('死亡率', () => {
-  it('基本死亡率: 20歳で0.02%、80歳で約3.3%、上限1', () => {
-    expect(baseAnnualMortality(20)).toBeCloseTo(0.0002, 6);
-    expect(baseAnnualMortality(80)).toBeCloseTo(0.0002 * Math.exp(0.085 * 60), 6);
+  const { a } = defaultData.balance.death;
+  it('基本死亡率: q = a·e^{0.085(年齢−20)}、上限1', () => {
+    expect(baseAnnualMortality(20)).toBeCloseTo(a, 8);
+    expect(baseAnnualMortality(80)).toBeCloseTo(a * Math.exp(0.085 * 60), 8);
     expect(baseAnnualMortality(200)).toBe(1);
   });
 
-  it('健康補正: 100で0.25倍、50で1倍、0で4倍', () => {
-    expect(healthFactor(100)).toBeCloseTo(0.25);
+  it('健康補正: 2^((50−健康)/15)。100で約0.1倍、50で1倍、0で約10倍', () => {
+    expect(healthFactor(100)).toBeCloseTo(2 ** (-50 / 15));
     expect(healthFactor(50)).toBeCloseTo(1);
-    expect(healthFactor(0)).toBeCloseTo(4);
+    expect(healthFactor(0)).toBeCloseTo(2 ** (50 / 15));
   });
 
   it('行動補正: 残業多め1.15、激務1.5、ストレス70以上でさらに1.2。退職後は働き方の補正なし', () => {
@@ -40,7 +42,7 @@ describe('死亡率', () => {
     const s = setAge(makeState({}, { work: 'grind' }), 50);
     s.stats.health = 25;
     s.stats.stress = 30;
-    expect(monthlyDeathProb(s)).toBeCloseTo((baseAnnualMortality(50) / 12) * 2 * 1.5, 10);
+    expect(monthlyDeathProb(s)).toBeCloseTo((baseAnnualMortality(50) / 12) * 2 ** (25 / 15) * 1.5, 10);
   });
 
   it('120歳で必ず老衰', () => {
