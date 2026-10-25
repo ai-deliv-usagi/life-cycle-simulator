@@ -21,11 +21,11 @@ const byId = (id: string): EventDef => {
 };
 
 describe('events.json', () => {
-  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ20・キャリア9・お金11・健康8・社会2 + 再就職・再雇用)', () => {
+  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ21・キャリア9・お金11・健康8・社会2 + 再就職・再雇用)', () => {
     expect(validateData(defaultData)).toEqual([]);
     const count: Record<string, number> = {};
     for (const e of defaultData.events) count[e.category] = (count[e.category] ?? 0) + 1;
-    expect(count).toEqual({ life: 20, career: 9, money: 11, health: 8, social: 2, system: 2 });
+    expect(count).toEqual({ life: 21, career: 9, money: 11, health: 8, social: 2, system: 2 });
   });
 });
 
@@ -264,7 +264,7 @@ describe('効果', () => {
     const s = makeState({ familyTier: 5 });
     s.assets = { ...s.assets, index: 1_000_000, stocks: 1_000_000, cash: 0 };
     fireEvent(s, byId('windfall_bonus'), flatRng);
-    expect(s.assets.cash).toBe(Math.round(3_220_000 / 12));
+    expect(s.assets.cash).toBe(Math.round(3_220_000 / 16)); // 月給(年収 ÷ (12 + ボーナス4ヶ月))の1ヶ月分
     fireEvent(s, byId('recession'), flatRng);
     expect(s.assets).toMatchObject({ index: 700_000, stocks: 700_000 });
     expect(s.flags.recession).toBe(24);

@@ -64,8 +64,9 @@ describe('手取り率の帯', () => {
     expect(takeHomeRate(annual)).toBe(rate);
   });
 
-  it('給与の手取り = 額面月給 × 手取り率', () => {
-    expect(calcIncome(makeState()).salary).toBe(Math.round((3_220_000 / 12) * 0.77));
+  it('給与の手取り = 額面月給 × 手取り率(月給 = 年収 ÷ (12 + ボーナスの月数))', () => {
+    expect(calcIncome(makeState()).salary).toBe(Math.round(Math.round(3_220_000 / 16) * 0.77));
+    expect(calcIncome(makeState({ job: 'parttime', education: 'university' })).bonus).toBe(0);
   });
 });
 
@@ -179,28 +180,43 @@ describe('配偶者の収入', () => {
 });
 
 describe('支出', () => {
-  // 大卒エンジニア22歳・地方都市: 手取り 206,617円
-  const net = Math.round((3_220_000 / 12) * 0.77);
-  const share = defaultData.balance.living.incomeShare;
+  // 大卒エンジニア22歳・地方都市・4月(ボーナスなしの月): 月給 = 年収/16、手取り 154,963円
+  const net = Math.round(Math.round(3_220_000 / 16) * 0.77);
+  const { incomeShare: share, single: floor, married: marriedFloor } = defaultData.balance.living;
+  /** 生活費 = (最低限×地域係数 + (自由に使える手取り − 最低限×地域係数) × 割合 × 支出係数) × 物価 */
+  const living = (disposable: number, mul = 1, opts: { region?: number; price?: number; base?: number } = {}) => {
+    const base = opts.base ?? floor;
+    const floorR = base * (opts.region ?? 1);
+    return Math.round((floorR + share * Math.max(0, disposable - floorR) * mul) * (opts.price ?? 1));
+  };
 
-  it('生活費 = (固定分 + 自由に使える手取り × 割合 × 支出方針) × 地域 × 物価', () => {
-    expect(calcExpenses(makeState()).living).toBe(Math.round(40_000 + share * net));
-    expect(calcExpenses(makeState({}, { spending: 'lavish' })).living).toBe(Math.round(40_000 + share * net * 1.4));
+  it('生活費 = 最低限の生活費 + 残りの手取り × 割合 × 支出方針(地域係数は最低限の分だけ、物価は全体)', () => {
+    expect(calcExpenses(makeState()).living).toBe(living(net));
+    expect(calcExpenses(makeState({}, { spending: 'lavish' })).living).toBe(living(net, 1.2));
     const metro = makeState({ region: 'metro' });
-    expect(calcExpenses(metro).living).toBe(Math.round((40_000 + share * calcIncome(metro).total) * 1.15));
+    expect(calcExpenses(metro).living).toBe(living(calcIncome(metro).total, 1, { region: 1.15 }));
     const married = makeState();
     married.character.married = true;
     married.character.spouse = 'homemaker';
-    expect(calcExpenses(married).living).toBe(Math.round(80_000 + share * (net + 5_000)));
+    expect(calcExpenses(married).living).toBe(living(net + 5_000, 1, { base: marriedFloor }));
     const inflated = makeState();
     inflated.flags.priceLevel = 1.05;
-    expect(calcExpenses(inflated).living).toBe(Math.round((40_000 + share * net) * 1.05));
+    expect(calcExpenses(inflated).living).toBe(living(net, 1, { price: 1.05 }));
   });
 
-  it('収入がなければ生活費は固定分だけ', () => {
+  it('普通の支出なら、月々の生活費は手取りを超えない(最低限の生活費を払えるかぎり)', () => {
+    for (const job of ['parttime', 'factory', 'engineer'] as const) {
+      for (const region of ['metro', 'city', 'rural'] as const) {
+        const s = makeState({ job, region, education: 'high' });
+        expect(calcExpenses(s).total).toBeLessThanOrEqual(calcIncome(s).total);
+      }
+    }
+  });
+
+  it('収入がなければ生活費は最低限の分だけ', () => {
     const s = makeState();
     s.character.job = 'none';
-    expect(calcExpenses(s).living).toBe(40_000);
+    expect(calcExpenses(s).living).toBe(floor);
   });
 
   it('車の維持費・健康費・実家への送金・親への仕送りは別に払い、そのぶん生活費を抑える', () => {
@@ -208,23 +224,32 @@ describe('支出', () => {
     s.flags.parentSupport = 10;
     const e = calcExpenses(s);
     expect(e).toMatchObject({ car: 25_000, health: 15_000, remittance: 20_000, parentSupport: 30_000 });
-    expect(e.living).toBe(Math.round(40_000 + share * (net - 90_000)));
+    expect(e.living).toBe(living(net - 90_000));
     expect(e.total).toBe(e.living + 90_000);
     s.flags.parentAlive = false;
     expect(calcExpenses(s).remittance).toBe(0);
     expect(calcExpenses(makeState({ hasCar: true, region: 'metro' })).car).toBe(40_000);
   });
 
+  it('ボーナス月はボーナスの一部を使い、残りは貯まる', () => {
+    const s = makeState();
+    s.month = 2; // 6月
+    const inc = calcIncome(s);
+    expect(inc.bonus).toBe(Math.round(Math.round(3_220_000 / 16) * 2 * 0.77));
+    const spendShare = defaultData.balance.living.bonusSpendShare;
+    expect(calcExpenses(s).living - (living(net) + spendShare * inc.bonus)).toBeLessThanOrEqual(1); // 円の丸め
+  });
+
   it('自己破産後のブラックリスト期間は支出方針に関係なく節約', () => {
     const s = makeState({}, { spending: 'lavish' });
     s.flags.blacklist = 10;
-    expect(calcExpenses(s).living).toBe(Math.round(40_000 + share * net * 0.8));
+    expect(calcExpenses(s).living).toBe(living(net, 0.8));
   });
 
   it('生活保護中は支出方針に関係なく節約', () => {
     const s = makeState({}, { spending: 'lavish' });
     s.flags.welfare = true;
-    expect(calcExpenses(s).living).toBe(Math.round(40_000 + share * net * 0.8));
+    expect(calcExpenses(s).living).toBe(living(net, 0.8));
   });
 });
 
@@ -259,10 +284,10 @@ describe('奨学金', () => {
 describe('月次の適用', () => {
   it('余剰はまず借金を返し、残りの50%を積み立てる', () => {
     const s = makeState({}, { invest: 'index' });
-    s.assets.debt = 20_000;
+    s.assets.debt = 5_000;
     const { income, expenses } = applyMonthlyMoney(s, flatRng);
-    const interest = Math.round((20_000 * 0.15) / 12);
-    const surplus = income.total - expenses.total - (20_000 + interest);
+    const interest = Math.round((5_000 * 0.15) / 12);
+    const surplus = income.total - expenses.total - (5_000 + interest);
     expect(s.assets.debt).toBe(0);
     expect(s.assets.index).toBe(Math.round(surplus * 0.5));
     const cash = surplus - Math.round(surplus * 0.5);
@@ -323,10 +348,9 @@ describe('月次の適用', () => {
     expect(s.flags.blacklist).toBe(84);
     s.assets.debt = 3_000_000;
     applyMonthlyMoney(s, flatRng);
-    // ブラックリスト中は破産せず、強制的な節約で返していく
+    // ブラックリスト中は上限を超えても破産しない(延滞として残る)
     expect(s.log.filter((e) => e.id === 'bankruptcy')).toHaveLength(1);
-    expect(s.assets.debt).toBeGreaterThan(0);
-    expect(s.assets.debt).toBeLessThan(3_000_000);
+    expect(s.assets.debt).toBeGreaterThan(debtLimit(s));
     s.flags.blacklist = 0;
     applyMonthlyMoney(s, flatRng);
     expect(s.log.filter((e) => e.id === 'bankruptcy')).toHaveLength(2);

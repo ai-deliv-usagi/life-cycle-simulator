@@ -206,6 +206,11 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   applyFlags(state, effects.addFlags, (old, v) => (typeof old === 'number' ? old : 0) + v, rng, data);
   applyFlags(state, effects.mulFlags, (old, v) => (typeof old === 'number' ? old : 1) * v, rng, data);
   if (effects.region) state.character.region = effects.region;
+  if (effects.relocate === 'down') {
+    const order = ['metro', 'city', 'rural'] as const;
+    const i = order.indexOf(state.character.region);
+    state.character.region = order[Math.min(order.length - 1, i + 1)]!;
+  }
   if (effects.loan) {
     const ok = takeLoan(state, effects.loan.amount, effects.loan.months, data);
     if (!ok) {

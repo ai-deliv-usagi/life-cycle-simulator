@@ -196,6 +196,8 @@ export interface Effects {
   assetShock?: { pct: number; targets?: (keyof Assets)[]; split?: boolean };
   inheritance?: boolean;
   region?: RegionId;
+  /** 住む場所を一段下げる(大都市→地方都市→田舎)。左遷の転勤など */
+  relocate?: 'down';
   /** ローンで払う。審査(信用・ブラックリスト)に落ちたら現金で払う */
   loan?: { amount: number; months: number };
 }
@@ -252,6 +254,7 @@ export interface JobDef {
   employeePension: boolean;
   severance: number; // 退職金(満額)
   layoffRate: number; // 月次リストラ率
+  bonusMonths: number; // 年間のボーナス(月給の何ヶ月分)。6月と12月に半分ずつ
 }
 
 export interface FamilyDef {
@@ -285,7 +288,7 @@ export interface Balance {
   spending: Record<Spending, { living: number; stress: number }>;
   healthCare: Record<HealthCare, { cost: number; health: number; stress: number }>;
   /** 基本生活費 = single/married の固定分 + incomeShare × 世帯の手取り */
-  living: { single: number; married: number; incomeShare: number };
+  living: { single: number; married: number; incomeShare: number; bonusSpendShare: number };
   retiredFreeTime: number;
   unemployedStress: number;
   debtAnnualRate: number;
@@ -363,6 +366,8 @@ export interface Balance {
   };
   bankruptcy: { minLimit: number; incomeShare: number; stress: number; blacklistMonths: number };
   loan: { annualRate: number; minCredit: number };
+  /** ボーナスの月(暦)と、ゲーム開始の月(暦) */
+  bonus: { months: number[]; startCalendarMonth: number };
   rehire: { months: number; payRate: number };
   result: { netWorthLine: number; happinessLine: number };
 }

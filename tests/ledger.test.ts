@@ -34,7 +34,7 @@ describe('年間の収支', () => {
     fireEvent(s, byId('traffic_accident'), flatRng);
     fireEvent(s, byId('windfall_bonus'), flatRng);
     expect(s.ledger!.eventOut).toBe(200_000);
-    expect(s.ledger!.eventIn).toBe(Math.round(3_220_000 / 12));
+    expect(s.ledger!.eventIn).toBe(Math.round(3_220_000 / 16));
   });
 
   it('退職金は収入の「退職金」に入る', () => {

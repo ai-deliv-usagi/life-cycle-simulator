@@ -85,11 +85,11 @@
       "stress": 0
     },
     "comfort": {
-      "living": 1.2,
+      "living": 1.1,
       "stress": 0
     },
     "lavish": {
-      "living": 1.4,
+      "living": 1.2,
       "stress": -0.5
     }
   },
@@ -111,9 +111,10 @@
     }
   },
   "living": {
-    "single": 40000,
-    "married": 80000,
-    "incomeShare": 0.64
+    "single": 80000,
+    "married": 120000,
+    "incomeShare": 0.85,
+    "bonusSpendShare": 0.7
   },
   "retiredFreeTime": 90,
   "unemployedStress": 1,
@@ -288,5 +289,12 @@
   "rehire": {
     "months": 60,
     "payRate": 0.5
+  },
+  "bonus": {
+    "months": [
+      6,
+      12
+    ],
+    "startCalendarMonth": 4
   }
 }

@@ -54,6 +54,11 @@
         "stat": "relations",
         "above": 60,
         "mul": 1.5
+      },
+      {
+        "age": true,
+        "above": 40,
+        "mul": 0.5
       }
     ],
     "cooldownMonths": 24,
@@ -101,14 +106,74 @@
         "label": "まだ早い",
         "effects": {
           "stats": {
-            "relations": -10
+            "relations": -5
           }
         },
         "valueShift": {
           "relation": 0.1
-        }
+        },
+        "outcomes": [
+          {
+            "prob": 0.7,
+            "text": "もう少し二人の時間を楽しむことにした",
+            "effects": {}
+          },
+          {
+            "prob": 0.3,
+            "text": "待ちきれず、恋人は去っていった",
+            "effects": {
+              "setFlags": {
+                "partner": false
+              },
+              "stats": {
+                "relations": -10,
+                "stress": 10
+              }
+            }
+          }
+        ]
       }
     ]
+  },
+  {
+    "id": "breakup",
+    "category": "life",
+    "title": "恋人と別れる",
+    "text": "すれ違いが重なり、恋人と別れることになった。",
+    "conditions": {
+      "flags": {
+        "partner": true,
+        "married": false
+      }
+    },
+    "baseProb": 0.006,
+    "good": false,
+    "probMods": [
+      {
+        "stat": "relations",
+        "below": 40,
+        "mul": 2
+      },
+      {
+        "stat": "stress",
+        "above": 70,
+        "mul": 1.5
+      },
+      {
+        "age": true,
+        "above": 50,
+        "mul": 3
+      }
+    ],
+    "effects": {
+      "setFlags": {
+        "partner": false
+      },
+      "stats": {
+        "stress": 10,
+        "relations": -5
+      }
+    }
   },
   {
     "id": "divorce_crisis",
@@ -256,7 +321,17 @@
       },
       {
         "age": true,
+        "above": 55,
+        "mul": 1.5
+      },
+      {
+        "age": true,
         "above": 60,
+        "mul": 2
+      },
+      {
+        "age": true,
+        "above": 65,
         "mul": 2
       }
     ],
@@ -631,15 +706,18 @@
     "id": "bonus_cut",
     "category": "career",
     "title": "ボーナスカット",
-    "text": "業績悪化で、今期のボーナスがカットされた。",
+    "text": "業績悪化で、今期のボーナスがゼロになった。",
     "conditions": {
-      "employed": true
+      "employed": true,
+      "jobNotIn": [
+        "parttime"
+      ]
     },
     "baseProb": 0.006,
     "good": false,
     "cooldownMonths": 12,
     "effects": {
-      "cashMonthsOfPay": -1,
+      "cashMonthsOfPay": -2,
       "stats": {
         "stress": 5
       }
@@ -740,7 +818,7 @@
           },
           {
             "prob": 0.2,
-            "text": "にらまれて地方の支店に左遷された",
+            "text": "にらまれて、遠方の支店に左遷された",
             "effects": {
               "addFlags": {
                 "payMul": -0.1
@@ -749,7 +827,8 @@
                 "stress": 15,
                 "relations": -5
               },
-              "achievement": -5
+              "achievement": -5,
+              "relocate": "down"
             }
           }
         ],
@@ -909,7 +988,7 @@
         },
         "outcomes": [
           {
-            "prob": 0.002,
+            "prob": 1e-06,
             "text": "1等が当たった!",
             "effects": {
               "cash": 100000000,
@@ -917,14 +996,28 @@
             }
           },
           {
-            "prob": 0.02,
-            "text": "そこそこ当たった",
+            "prob": 0.0002,
+            "text": "高額当選した",
             "effects": {
-              "cash": 100000
+              "cash": 1000000
             }
           },
           {
-            "prob": 0.978,
+            "prob": 0.06,
+            "text": "1万円が当たった",
+            "effects": {
+              "cash": 10000
+            }
+          },
+          {
+            "prob": 0.1,
+            "text": "3,000円が当たった(元が取れた)",
+            "effects": {
+              "cash": 3000
+            }
+          },
+          {
+            "prob": 0.839799,
             "text": "はずれ",
             "effects": {}
           }
@@ -1118,7 +1211,7 @@
     "id": "windfall_bonus",
     "category": "money",
     "title": "臨時ボーナス",
-    "text": "会社の業績が好調で、臨時ボーナスが出た。",
+    "text": "会社の業績が好調で、決算賞与が出た。",
     "conditions": {
       "employed": true
     },

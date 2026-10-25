@@ -60,8 +60,28 @@ export function annualGross(state: GameState, data: GameData = defaultData): num
   );
 }
 
+/** 年間のボーナスが月給の何ヶ月分か(無職・バイトは0) */
+function bonusMonths(state: GameState, data: GameData): number {
+  const job = jobDef(state.character.job, data);
+  return job && !state.character.retired ? job.bonusMonths : 0;
+}
+
+/** 額面の月給(ボーナスを除く)。年収 = 月給 × (12 + ボーナスの月数) */
 export function monthlyGrossPay(state: GameState, data: GameData = defaultData): number {
-  return roundYen(annualGross(state, data) / 12);
+  return roundYen(annualGross(state, data) / (12 + bonusMonths(state, data)));
+}
+
+/** 暦の月(1〜12)。ゲームは4月に始まる */
+export function calendarMonthOf(state: GameState, data: GameData = defaultData): number {
+  return ((data.balance.bonus.startCalendarMonth - 1 + state.month) % 12) + 1;
+}
+
+/** 今月のボーナス(額面)。6月と12月に年間の半分ずつ */
+export function bonusGross(state: GameState, data: GameData = defaultData): number {
+  const months = bonusMonths(state, data);
+  const b = data.balance.bonus;
+  if (months <= 0 || !b.months.includes(calendarMonthOf(state, data))) return 0;
+  return roundYen((monthlyGrossPay(state, data) * months) / b.months.length);
 }
 
 /** 額面年収の帯で決まる手取り率(境界は「未満」で判定) */
@@ -102,7 +122,8 @@ export function severancePay(state: GameState, data: GameData = defaultData): nu
 }
 
 export interface MonthlyIncome {
-  salary: number; // 本人の給与の手取り
+  salary: number; // 本人の給与の手取り(ボーナスを除く)
+  bonus: number; // ボーナスの手取り(6月・12月)
   pension: number; // 年金の手取り(世帯)
   unemployment: number; // 失業給付
   spouse: number; // 配偶者の手取り + 配偶者控除による本人の手取り増
@@ -114,8 +135,14 @@ export function calcIncome(state: GameState, data: GameData = defaultData): Mont
   const c = state.character;
   const { balance } = data;
   let annual = annualGross(state, data);
-  if (isRehired(state)) annual = roundYen(c.lastMonthlyPay * balance.rehire.payRate) * 12; // 再雇用は退職前の月給の一定割合
-  const salary = roundYen((annual / 12) * takeHomeRate(annual, data));
+  let monthly = monthlyGrossPay(state, data);
+  if (isRehired(state)) {
+    monthly = roundYen(c.lastMonthlyPay * balance.rehire.payRate); // 再雇用は退職前の月給の一定割合(ボーナスなし)
+    annual = monthly * 12;
+  }
+  const rate = takeHomeRate(annual, data);
+  const salary = roundYen(monthly * rate);
+  const bonus = roundYen(bonusGross(state, data) * rate);
   const pension = c.retired ? roundYen(pensionMonthly(state, data) * balance.takeHome.pension) : 0;
   const unemployment =
     num(state, 'unemploymentBenefit', 0) > 0 ? roundYen(c.lastMonthlyPay * balance.unemployment.payRate) : 0;
@@ -129,7 +156,7 @@ export function calcIncome(state: GameState, data: GameData = defaultData): Mont
   const transfer = findFamily(state, data).monthlyTransfer;
   const family = transfer > 0 && bool(state, 'parentAlive') ? transfer : 0;
 
-  return { salary, pension, unemployment, spouse, family, total: salary + pension + unemployment + spouse + family };
+  return { salary, bonus, pension, unemployment, spouse, family, total: salary + bonus + pension + unemployment + spouse + family };
 }
 
 // ---- 支出 ----
@@ -147,13 +174,14 @@ function spendingMul(state: GameState, data: GameData, welfare: boolean): number
 }
 
 /** 生活費以外の決まった支出(車・健康費・実家への送金・親への仕送り・奨学金・ローン) */
-function obligations(state: GameState, data: GameData) {
+function obligations(state: GameState, data: GameData, welfare: boolean) {
   const { balance } = data;
   const region = regionDef(state, data);
   const transfer = findFamily(state, data).monthlyTransfer;
   return {
-    car: bool(state, 'hasCar') ? region.carMonthlyCost : 0,
-    health: balance.healthCare[state.policy.health].cost,
+    // 生活保護中は車を持てず(手放す)、医療費は医療扶助でかからない
+    car: bool(state, 'hasCar') && !welfare ? region.carMonthlyCost : 0,
+    health: welfare ? 0 : balance.healthCare[state.policy.health].cost,
     remittance: transfer < 0 && bool(state, 'parentAlive') ? -transfer : 0,
     parentSupport: num(state, 'parentSupport', 0) > 0 ? balance.timers.parentSupport.monthlyCost : 0,
     studentLoan: studentLoanPayment(state).payment,
@@ -162,22 +190,32 @@ function obligations(state: GameState, data: GameData) {
 }
 
 /**
- * 生活費(実質)= 世帯の固定分 + 自由に使える手取り(手取り − 決まった支出)× 割合 × 支出方針の係数。
+ * 生活費(実質)= 最低限の生活費(固定分) + (自由に使える手取り − 固定分)× 割合 × 支出方針の係数
+ *               + ボーナス × ボーナスで使う割合 × 支出方針の係数(ボーナス月だけ)。
  * 収入が多いほど生活水準も上がり、車やローンがある人はそのぶん生活費を抑える。
  * 生活保護中は支出方針に関係なく「節約」。
  */
-function livingReal(state: GameState, data: GameData, welfare: boolean): number {
+/** 生活費(物価を掛ける前)。最低限の生活費は地域係数込み(家賃の差)で先に取る */
+function livingNominal(state: GameState, data: GameData, welfare: boolean): number {
   const l = data.balance.living;
-  const fixed = state.character.married ? l.married : l.single;
-  const o = obligations(state, data);
+  const fixed = (state.character.married ? l.married : l.single) * regionDef(state, data).livingMul;
+  const o = obligations(state, data, welfare);
   const committed = o.car + o.health + o.remittance + o.parentSupport + o.studentLoan + o.loan;
-  const disposable = Math.max(0, calcIncome(state, data).total - committed);
-  return fixed + l.incomeShare * disposable * spendingMul(state, data, welfare);
+  // 毎月の生活費は月々の収入で決める。ボーナス月はボーナスの一部を使う(残りは貯まる)
+  const inc = calcIncome(state, data);
+  const disposable = Math.max(0, inc.total - inc.bonus - committed);
+  const mul = spendingMul(state, data, welfare);
+  // 固定分は最低限の生活費として先に取り、残りの一定割合を使う(普通・節約なら月々の収入を超えない)
+  const bonusSpend = Math.min(1, l.bonusSpendShare * mul) * inc.bonus; // ボーナス以上は使わない
+  return fixed + l.incomeShare * Math.max(0, disposable - fixed) * mul + bonusSpend;
 }
 
-/** 幸福度の生活水準に使う実質の生活費(地域差・物価・決まった支出を除く。DESIGN.md §5.4) */
+/** 幸福度の生活水準に使う実質の生活費(地域の家賃差・物価・決まった支出を除く。DESIGN.md §5.4) */
 export function realLivingSpending(state: GameState, data: GameData = defaultData): number {
-  return roundYen(livingReal(state, data, bool(state, 'welfare')));
+  const l = data.balance.living;
+  const floor = state.character.married ? l.married : l.single;
+  const rentGap = floor * (regionDef(state, data).livingMul - 1);
+  return roundYen(livingNominal(state, data, bool(state, 'welfare')) - rentGap);
 }
 
 /** 今月の奨学金の返済額(利息込み)と、そのうち元本に充てる額 */
@@ -245,9 +283,9 @@ export function calcExpenses(
   data: GameData = defaultData,
   welfare: boolean = bool(state, 'welfare'),
 ): MonthlyExpenses {
-  const region = regionDef(state, data);
-  const living = roundYen(livingReal(state, data, welfare) * region.livingMul * num(state, 'priceLevel', 1));
-  const { car, health, remittance, parentSupport, studentLoan, loan } = obligations(state, data);
+  // 地域の生活費係数は最低限の生活費(主に家賃)にだけ掛ける。収入に応じた分は、地域の給料の差にすでに含まれている
+  const living = roundYen(livingNominal(state, data, welfare) * num(state, 'priceLevel', 1));
+  const { car, health, remittance, parentSupport, studentLoan, loan } = obligations(state, data, welfare);
   return {
     living,
     car,
@@ -274,6 +312,8 @@ export interface MoneyResult {
   debtInterest: number;
   invested: number;
   prepaid: number;
+  returns: number; // 運用損益(預金の利息を含む)
+  welfare: number; // 生活保護で補った額
 }
 
 /**
@@ -287,12 +327,13 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
 
   // 2. 収入。年金の記録もここで更新する
   if (isEmployed(state)) {
-    const gross = monthlyGrossPay(state, data);
-    c.lastMonthlyPay = gross;
+    c.lastMonthlyPay = monthlyGrossPay(state, data);
     c.jobYears += 1 / 12;
     if (jobDef(c.job, data)?.employeePension) {
+      // 厚生年金はボーナスも含めた平均(年収/12)で計算する
+      const avg = roundYen(annualGross(state, data) / 12);
       c.pensionMonths += 1;
-      c.avgMonthlyPay += (gross - c.avgMonthlyPay) / c.pensionMonths;
+      c.avgMonthlyPay += (avg - c.avgMonthlyPay) / c.pensionMonths;
     }
   }
   const income = calcIncome(state, data);
@@ -336,7 +377,7 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
       if (state.invested) state.invested[key] += amount;
     }
   }
-  applyReturns(state, rng, data);
+  const returns = applyReturns(state, rng, data);
 
   // 5. 資金ショート
   if (a.cash < 0) {
@@ -351,10 +392,12 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   }
   // 生活保護は「節約しても収入で暮らせない」ときの下限。それ以外の不足は借金になる
   const minimalLiving = calcExpenses(state, data, true).total;
+  let welfare = 0;
   if (a.cash < 0) {
     if (income.total < minimalLiving) {
+      welfare = -a.cash;
       a.cash = 0;
-      state.flags.welfare = true;
+      if (!bool(state, 'welfare')) startWelfare(state);
     } else {
       a.debt += -a.cash;
       a.cash = 0;
@@ -364,13 +407,15 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   if (a.debt > debtLimit(state, data) && num(state, 'blacklist', 0) <= 0) declareBankruptcy(state, data);
   if (bool(state, 'welfare') && income.total >= minimalLiving) state.flags.welfare = false;
 
-  return { income, expenses, debtInterest, invested, prepaid };
+  return { income, expenses, debtInterest, invested, prepaid, returns, welfare };
 }
 
 /** 運用リターン。乱数の消費を保有額によらず一定にして、方針を変えても乱数列がずれないようにする */
-export function applyReturns(state: GameState, rng: Rng, data: GameData = defaultData): void {
+/** 運用リターンを反映し、増えた額(減ったらマイナス。預金の利息を含む)を返す */
+export function applyReturns(state: GameState, rng: Rng, data: GameData = defaultData): number {
   const cfg = data.balance.assets;
   const a = state.assets;
+  const before = a.cash + a.index + a.stocks + a.speculative;
   if (a.cash > 0) a.cash += roundYen((a.cash * cfg.cash.mu) / 12);
   for (const key of ['index', 'stocks', 'speculative'] as const) {
     const r = rng.normal(cfg[key].mu / 12, cfg[key].sigma / Math.sqrt(12));
@@ -379,6 +424,20 @@ export function applyReturns(state: GameState, rng: Rng, data: GameData = defaul
   if (rng.chance(cfg.speculative.crashProb)) {
     a.speculative = roundYen(a.speculative * (1 + cfg.speculative.crashPct));
   }
+  return a.cash + a.index + a.stocks + a.speculative - before;
+}
+
+/** 生活保護を受け始める。車は手放す(原則として持てない) */
+function startWelfare(state: GameState): void {
+  state.flags.welfare = true;
+  const hadCar = bool(state, 'hasCar');
+  state.flags.hasCar = false;
+  addLog(
+    state,
+    'event',
+    `生活保護: 貯金を使い切り、生活保護を受けることになった${hadCar ? '。車は手放した' : ''}`,
+    'welfare',
+  );
 }
 
 export function declareBankruptcy(state: GameState, data: GameData = defaultData): void {

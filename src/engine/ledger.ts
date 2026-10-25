@@ -13,17 +13,21 @@ export interface YearLedger {
   eventOut: number; // イベントでの出費(結婚式・家電・入院など)
   invested: number; // 投資に回した額
   prepaid: number; // 繰上げ返済した額
+  returns?: number; // 運用損益(値上がり・値下がり・預金の利息)。古いセーブにはない
+  welfare?: number; // 生活保護で補った額
 }
 
 export function emptyLedger(): YearLedger {
   return {
-    income: { salary: 0, pension: 0, unemployment: 0, spouse: 0, family: 0, severance: 0 },
+    income: { salary: 0, bonus: 0, pension: 0, unemployment: 0, spouse: 0, family: 0, severance: 0 },
     expenses: { living: 0, car: 0, health: 0, remittance: 0, parentSupport: 0, studentLoan: 0, loan: 0 },
     debtInterest: 0,
     eventIn: 0,
     eventOut: 0,
     invested: 0,
     prepaid: 0,
+    returns: 0,
+    welfare: 0,
   };
 }
 
@@ -43,15 +47,21 @@ export interface MonthMoney {
   debtInterest: number;
   invested: number;
   prepaid: number;
+  returns: number;
+  welfare: number;
 }
 
 export function recordMonth(state: GameState, m: MonthMoney): void {
   const l = ledgerOf(state);
-  for (const k of Object.keys(l.income) as IncomeKey[]) if (k !== 'severance') l.income[k] += m.income[k];
+  for (const k of Object.keys(m.income) as (keyof MonthlyIncome)[]) {
+    if (k !== 'total') l.income[k] = (l.income[k] ?? 0) + m.income[k];
+  }
   for (const k of Object.keys(l.expenses) as ExpenseKey[]) l.expenses[k] += m.expenses[k];
   l.debtInterest += m.debtInterest;
   l.invested += m.invested;
   l.prepaid += m.prepaid;
+  l.returns = (l.returns ?? 0) + m.returns;
+  l.welfare = (l.welfare ?? 0) + m.welfare;
 }
 
 /** イベントでの現金の出入り */
@@ -73,7 +83,7 @@ export function closeYear(state: GameState): void {
 }
 
 export function ledgerTotals(l: YearLedger): { income: number; expenses: number } {
-  const income = Object.values(l.income).reduce((a, b) => a + b, 0) + l.eventIn;
+  const income = Object.values(l.income).reduce((a, b) => a + b, 0) + l.eventIn + (l.welfare ?? 0);
   const expenses = Object.values(l.expenses).reduce((a, b) => a + b, 0) + l.debtInterest + l.eventOut;
   return { income, expenses };
 }
