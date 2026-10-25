@@ -1,0 +1,614 @@
+# 人生シミュレーター MVP設計書
+
+`docs/SPEC.md`(MVP実装仕様)を実装に落とすための設計。仕様が正であり、この設計書は仕様の「書かれていない部分」を埋めるもの。仕様からはみ出す判断は末尾の「[仕様への変更提案(要確認)](#12-仕様への変更提案要確認)」にまとめ、承認されたら `SPEC.md` 側に反映する。
+
+数値はすべて初期値。最終的には `scripts/balance.ts` で調整する。
+
+---
+
+## 1. 全体アーキテクチャ
+
+```
+┌──────────────── ui/ (DOM・Chart.js・localStorage) ────────────────┐
+│ screens/  title → setup → main ⇄ (event / yearSummary / policy) → result │
+│ controller.ts  ゲームループ(タイマー・速度・停止判定)                     │
+│ storage.ts     セーブ/ロード/過去の人生                                     │
+└───────────────┬───────────────────────────────────────────┘
+                │ 呼ぶのは engine/index.ts の公開APIだけ
+┌───────────────▼──────────── engine/ (純粋関数) ───────────────────┐
+│ setup → step(money → stats → events → happiness → death) → result       │
+│ rng.ts はすべての乱数の唯一の入口                                        │
+└───────────────┬───────────────────────────────────────────┘
+                │ import
+┌───────────────▼──────────── data/ (JSON) ─────────────────────────┐
+│ education / jobs / family / events / balance                             │
+└────────────────────────────────────────────────────────┘
+```
+
+- 依存の向きは `ui → engine → data` の一方向のみ。`engine` は `ui` を知らない
+- `scripts/balance.ts` は UI の代わりに engine を直接回す「もう1つのフロント」。engine の API はこの2者が使える形にする
+- 状態は `GameState` 1つ。engine の関数は `(state, ...) => newState` の形で、引数の state を書き換えない
+
+## 2. engine の公開API
+
+`src/engine/index.ts` から以下だけを export する。UI と balance.ts はこれ以外を import しない。
+
+```ts
+// rng.ts
+createRng(seed: number): Rng
+
+// setup.ts
+rollCharacter(seed: number, data?: GameData): CharacterRoll          // 初期ガチャ
+createGame(roll: CharacterRoll, values: Values, policy: Policy, name: string, data?: GameData): GameState
+
+// step.ts
+stepMonth(state: GameState, rng: Rng, data?: GameData): GameState     // 1ヶ月進める
+resolveChoice(state: GameState, choiceIndex: number, rng: Rng, data?: GameData): GameState
+changePolicy(state: GameState, policy: Policy): GameState            // logに 'policy' を残す
+
+// result.ts
+computeResult(state: GameState, data?: GameData): LifeResult
+
+// 補助(UI表示用。stateから導出するだけの純関数)
+getMonthlyView(state: GameState, data?: GameData): MonthlyView        // 手取り月収・金融資産など
+```
+
+- `data` は省略時に `src/data/index.ts` の既定データを使う。テストと balance.ts は差し替えたデータを渡せる
+- `rng` は呼び出し側が `createRng(state.rngState)` で作って渡す。`stepMonth` は使い終わった乱数の位置を新しい state の `rngState` に書き戻す(→ セーブ・ロードしても同じ人生になる。[§8](#8-乱数とシード))
+
+### 各モジュールの責務
+
+| ファイル | 主な関数(内部) | 責務 |
+| --- | --- | --- |
+| `types.ts` | — | 全型定義。データJSONの型(`GameData`)も置く |
+| `rng.ts` | `next` `normal` `int` `chance` `pick` `weighted` | mulberry32 と Box-Muller。状態は32bit整数1つ |
+| `setup.ts` | `rollCharacter` `createGame` | 学歴・職業・実家・体質・運の抽選、初期資産と初期ステータス |
+| `money.ts` | `annualGross` `takeHomeRate` `monthlyIncome` `monthlyExpenses` `applyDebtAndInvest` `applyReturns` `coverShortfall` `retire` `pensionMonthly` `severancePay` | お金のすべて。1ヶ月分を順に適用する関数群 |
+| `stats.ts` | `updateStats` | 隠しステータスの月次変化とクランプ |
+| `death.ts` | `monthlyDeathProb` `rollDeath` `pickCause` | 死亡判定と死因抽選 |
+| `happiness.ts` | `computeHappiness` `updateAdaptation` `weights` | 6要素・重み・慣れ |
+| `events.ts` | `eligibleEvents` `eventProb` `drawEvent` `applyEffects` `applyChoice` | 条件判定・確率・抽選・効果適用 |
+| `result.ts` | `computeResult` `lifeType` | 生涯幸福スコア・最終資産・人生タイプ |
+| `step.ts` | `stepMonth` `resolveChoice` `changePolicy` | 上記を[§4](#4-月次処理stepmonthの詳細)の順序で呼ぶだけ。計算は持たない |
+| `util.ts` | `clamp` `roundYen` `netWorth` `financialAssets` | 共通ヘルパー |
+
+## 3. 型の追加・詳細化
+
+`SPEC.md`の型に以下を足す(★は仕様の型への追加。[§12](#12-仕様への変更提案要確認)で確認)。
+
+```ts
+interface Rng {
+  next(): number;                         // [0,1)
+  normal(mean: number, sd: number): number;
+  int(maxExclusive: number): number;
+  chance(p: number): boolean;
+  pick<T>(items: readonly T[]): T;
+  weighted<T>(items: readonly { item: T; weight: number }[]): T;
+  readonly state: number;                 // 現在の内部状態(保存用)
+}
+
+interface CharacterRoll {                 // ガチャ結果。引き直し = seed を変えて再度 roll
+  seed: number;
+  education: Education;
+  job: Exclude<JobId, 'none'>;
+  familyTier: FamilyTier;
+  constitution: number;
+  luck: number;
+  initialCash: number;
+  studentLoan: number;                    // 0 / 200万 / 300万
+}
+
+interface GameState {
+  // ...SPEC.mdの項目すべて
+  rngState: number;                       // ★ 乱数の現在位置
+  startAge: number;                       // ★ 開始年齢(年金の加入年数・昇給カーブ用)
+  eventHistory: Record<string, { count: number; lastMonth: number }>; // ★ once/cooldown 判定用
+}
+
+interface Character {
+  // ...SPEC.mdの項目すべて
+  previousJob?: JobId;                    // ★ 再就職イベントの「前職に戻る」用
+}
+
+interface PendingEvent {
+  eventId: string;
+  month: number;                          // 発生した月
+}
+
+interface LifeResult {
+  ageAtDeath: number;                     // 享年(歳)
+  cause: DeathCause;
+  finalNetWorth: number;
+  lifetimeHappiness: number;              // 月次幸福度の平均
+  lifeType: 'winner' | 'poor_happy' | 'rich_unhappy' | 'hardship';
+  yearly: { age: number; netWorth: number; happiness: number }[]; // グラフ用
+  timeline: LogEntry[];                   // 年表(event/choice/death のみ)
+}
+```
+
+### flags の予約キー
+
+`flags` は自由に使えるが、以下はエンジンが読む予約キーとし、初期値を `createGame` で入れる。
+
+| キー | 型 | 初期値 | 読むところ |
+| --- | --- | --- | --- |
+| `partner` | boolean | false | イベント条件 |
+| `parentAlive` | boolean | true | 実家への送金、親イベント |
+| `parentIll` | boolean | false | 親が亡くなる確率 |
+| `payMul` | number | 1 | 額面年収に掛ける(昇進・昇給見送り) ★ |
+| `priceLevel` | number | 1 | 生活費に掛ける(物価上昇) |
+| `recession` | number | 0 | 残り月数。>0 の間リストラ率×3 |
+| `parentSupport` | number | 0 | 残り月数。>0 の間、親への仕送り月3万円 |
+
+- `married` は `character.married` が正。イベント定義の `flags.married` / `setFlags.married` はエンジンが `character.married` に読み替える(仕様のイベント例との互換のため)
+- 数値フラグのうち `balance.json` の `timers` に載っているもの(`recession` `parentSupport`)は毎月 −1 して0で止める
+
+## 4. 月次処理(stepMonth)の詳細
+
+仕様の10ステップを、曖昧だった部分を埋めて書き下す。
+
+```text
+stepMonth(state, rng):
+  if state.dead or state.pendingEvent: return state     # 止まっている間は進めない
+  s = clone(state)
+
+  1. 時間
+     s.month += 1; s.ageMonths += 1
+     timers を −1
+     if 年齢が65歳ちょうど and not retired: retire(s)   # 退職金を cash へ, job は維持して retired=true
+
+  2. 収入   net = retired ? 年金×0.90 : 給与手取り(無職は0)
+            雇用中かつ厚生年金ありの職業なら pensionMonths += 1, avgMonthlyPay を逐次平均で更新
+  3. 支出   exp = 基本生活費 × 支出係数 × priceLevel + 健康費 + 実家送金 + 仕送り(timer)
+            s.assets.cash += net − exp
+  4. 借金と投資
+            debt += round(debt × 年利/12)                  # 利息を先に
+            surplus = net − exp
+            if surplus > 0: 返済 = min(surplus, debt, cash) → cash と debt を減らす; surplus −= 返済
+            if surplus > 0 and 投資方針 != 預金: 積立 = round(surplus × 0.5) を cash → 対象資産
+            各資産に月次リターン(cash は正のときだけ預金金利)。speculative は暴落判定も
+  5. 資金ショート
+            if cash < 0: index → stocks → speculative の順に売って補填。足りなければ debt += 不足分, cash = 0
+  6. ステータス   updateStats(s)   # §5.3
+  7. イベント     ev = drawEvent(s, rng)
+                  選択肢なし → 効果を即適用、log 'event'
+                  選択肢あり → s.pendingEvent = {...}、log 'event'(選択は resolveChoice で 'choice')
+  8. 幸福度       h = computeHappiness(s); happinessHistory.push(h); 慣れを更新
+  9. 死亡判定     if rollDeath(s, rng): s.dead = {...}; log 'death'; return s
+ 10. 年間サマリー if (s.ageMonths − startAge×12) % 12 == 0: log 'year_summary'
+  s.rngState = rng.state
+  return s
+```
+
+- イベントで停止した月でも 8〜10 は実行する(=その月は完結させ、選択の効果は翌月以降の計算に効く)。死亡と選択待ちが同時に起きたら死亡を優先し、`pendingEvent` は消す
+- `resolveChoice` は効果適用・`valueShift`・log 'choice' を行い `pendingEvent` を消す。outcomes(確率分岐)があればここで rng を使う
+- 年齢は `ageMonths / 12` の実数で計算に使う(死亡率など)。「65歳になったら」は `ageMonths === 65*12`
+- 安全弁: `balance.json` の `maxAge`(120歳)に達したら老衰で死亡
+
+## 5. 計算の詳細化
+
+### 5.1 給与
+
+仕様の「職業の基準年収(年齢) × 学歴係数」を、学歴表の初任給係数・昇給係数の両方を使う形で定義する。
+
+```text
+進捗 p   = clamp((年齢 − 開始年齢) / (50 − 開始年齢), 0, 1)
+初年度   = 職業.初年度年収 × 学歴.初任給係数
+ピーク   = 職業.ピーク年収 × 学歴.昇給係数
+基準年収 = 初年度 + (ピーク − 初年度) × p
+額面年収 = 基準年収 × 働き方係数 × (0.9 + 0.2 × スキル/100) × payMul
+```
+
+- 学歴によるスタートの違いは「開始年齢」と「係数」で表し、カーブは各自の開始年齢から50歳まで線形
+- 転職しても年齢ベースなので年収カーブは継続(転職ペナルティは `payMul` リセットで表現。§7)
+- 手取り率は「額面年収」の帯で決める(帯の境界は以下・未満で判定: 300万円未満→0.80)
+
+### 5.2 年金・退職金
+
+- `avgMonthlyPay` = 厚生年金加入月の額面月給の平均。`avg ← avg + (pay − avg) / pensionMonths`
+- 基礎年金の加入年数 = `min(40, 65 − 開始年齢)`(無職期間も国民年金として加入扱い)
+- 退職金 = 職業.退職金 × `min(1, jobYears / 38)`。`jobYears` は雇用中の月ごとに +1/12
+- 転職・リストラ時も、その時点の職業と勤続年数で按分した退職金を受け取り、`jobYears` を0に戻す
+- バイトと無職は退職金・厚生年金なし
+
+### 5.3 ステータス
+
+仕様の表をそのまま適用したうえで、健康とストレスに「平常値への回帰」を加える([§12](#12-仕様への変更提案要確認) 提案1)。
+
+```text
+Δ健康   = Σ(表の増減)                       # 減少分のみ × (1.5 − 体質/100)
+        + k_h × (健康の平常値(年齢) − 健康)
+健康の平常値(年齢) = 65 + 0.4 × (体質 − 50) − 0.4 × max(0, 年齢 − 40)
+
+Δストレス = Σ(表の増減) + k_s × (30 − ストレス)
+k_h = 0.03, k_s = 0.03
+```
+
+- 退職後: 働き方の増減は0として扱い、ストレス −1/月(仕様どおり)。スキル変化0
+- 無職: 働き方は「定時」扱い + ストレス +1/月(職探しのストレス)
+- 人間関係 −0.1/月、信用は借金(`debt`)があれば −0.5、なければ +0.1(仕様どおり)
+- 達成感(`achievement`) −0.2/月の減衰はここで行う
+
+### 5.4 幸福度
+
+- 生活水準の `c` は「生活の中身」に使った額 = `基本生活費 × 支出係数`(物価で割った実質額)。健康費・送金・仕送りは含めない(送金で生活水準が上がって見えるのを防ぐ)
+- `adaptedSpending` の初期値は開始時の `c`。慣れも実質額で更新
+- 安心の「月の生活費」は名目の総支出 `exp`
+- 金融資産 = cash + index + stocks + speculative(借金は引かない)。「借金があれば −30」は `debt > 0` のとき
+- 人生タイプのしきい値は `balance.json` の `result`
+
+### 5.5 端数
+
+- 金額は計算の最後に `Math.round` で整数円にする(各ステップの代入時)
+- リターンや利息は実数で計算してから丸める。テストは丸め後の値で比較
+
+## 6. データJSON
+
+### 6.1 balance.json(全量の初期値)
+
+```json
+{
+  "startStats": { "stress": 20, "skill": 10, "credit": 50, "relations": 50 },
+  "gacha": { "constitution": { "mean": 50, "sd": 15 }, "luck": { "mean": 50, "sd": 15 } },
+  "takeHome": {
+    "bands": [ { "below": 3000000, "rate": 0.80 }, { "below": 6000000, "rate": 0.77 },
+               { "below": 10000000, "rate": 0.73 }, { "below": null, "rate": 0.68 } ],
+    "pension": 0.90
+  },
+  "work": {
+    "regular":  { "income": 1.00, "freeTime": 80, "health": 0,     "stress": -1,  "skill": 0.1,  "death": 1.0 },
+    "normal":   { "income": 1.08, "freeTime": 60, "health": -0.05, "stress": 0,   "skill": 0.2,  "death": 1.0 },
+    "overtime": { "income": 1.20, "freeTime": 35, "health": -0.3,  "stress": 1.5, "skill": 0.35, "death": 1.15 },
+    "grind":    { "income": 1.35, "freeTime": 15, "health": -0.6,  "stress": 3,   "skill": 0.5,  "death": 1.5 }
+  },
+  "spending": {
+    "frugal": { "living": 0.80, "stress": 0 }, "normal": { "living": 1.00, "stress": 0 },
+    "comfort": { "living": 1.25, "stress": 0 }, "lavish": { "living": 1.60, "stress": -0.5 }
+  },
+  "healthCare": {
+    "ignore": { "cost": 0,     "health": -0.1, "stress": 0 },
+    "normal": { "cost": 5000,  "health": 0,    "stress": 0 },
+    "active": { "cost": 15000, "health": 0.3,  "stress": -0.5 }
+  },
+  "living": { "single": 130000, "married": 200000 },
+  "retiredFreeTime": 90,
+  "unemployedStress": 1,
+  "debtAnnualRate": 0.15,
+  "investShare": 0.5,
+  "assets": {
+    "cash":        { "mu": 0.001, "sigma": 0 },
+    "index":       { "mu": 0.05,  "sigma": 0.15 },
+    "stocks":      { "mu": 0.06,  "sigma": 0.30 },
+    "speculative": { "mu": 0.06,  "sigma": 0.60, "crashProb": 0.003, "crashPct": -0.6 }
+  },
+  "pension": { "basicFull": 66000, "basicYears": 40, "employeeRate": 0.005481, "spouseBasicMul": 2, "retireAge": 65 },
+  "severanceYears": 38,
+  "stats": {
+    "age40Health": -0.05, "age60Health": -0.1, "highStress": 70, "highStressHealth": -0.3,
+    "relationsDecay": -0.1, "creditWithDebt": -0.5, "creditNoDebt": 0.1, "retiredStress": -1,
+    "healthReversion": 0.03, "healthBase": 65, "healthBaseConstitution": 0.4, "healthBaseAgeFrom": 40, "healthBaseAgeSlope": 0.4,
+    "stressReversion": 0.03, "stressBase": 30,
+    "achievementDecay": 0.2
+  },
+  "death": {
+    "a": 0.0003, "b": 0.085, "ageOffset": 20, "healthPivot": 50, "healthScale": 25,
+    "highStressMul": 1.2, "maxAge": 120,
+    "cause": { "overworkGrind": 40, "overworkOvertime": 10, "accidentBase": 10, "oldAgeFrom": 85, "oldAgeOffset": 80, "oldAgeMul": 5 }
+  },
+  "happiness": {
+    "minWeight": 0.2, "marriedRelationsBonus": 15, "securityMonths": 24, "debtSecurityPenalty": 30,
+    "livingAbsScale": 200000, "livingAbsMax": 60, "livingRelMax": 40, "livingRelSlope": 2, "adaptMonths": 24
+  },
+  "events": { "luckGoodBase": 0.8, "luckGoodScale": 0.4, "luckBadBase": 1.2, "luckBadScale": -0.4, "valueShiftStep": 0.1 },
+  "timers": {
+    "recession": { "layoffMul": 3 },
+    "parentSupport": { "monthlyCost": 30000 }
+  },
+  "family1Remittance": 20000,
+  "result": { "netWorthLine": 30000000, "happinessLine": 60 }
+}
+```
+
+`education.json` `jobs.json` `family.json` は仕様の表をそのまま配列にする(id・表示名・各列)。表示名(日本語)はデータ側に持ち、UIはidからデータを引く。
+
+### 6.2 GameData の型
+
+```ts
+interface GameData {
+  education: EducationDef[];   // { id, label, prob, startAge, startPayMul, raiseMul, loan: { prob, amount } | null }
+  jobs: JobDef[];              // { id, label, startPay, peakPay, employeePension, severance, layoffRate }
+  family: FamilyDef[];         // { tier, label, prob, initialCash, monthlyTransfer, inheritance }
+  events: EventDef[];
+  balance: Balance;            // balance.json の型
+}
+```
+
+`src/data/index.ts` で JSON を import して `GameData` として export。読み込み時にスキーマ検査(確率の合計=1、イベントidの重複なし、参照するflag/statの名前が正しいか)を行う `validateData()` をテストから呼ぶ。
+
+## 7. イベント設計
+
+### 7.1 定義の形式(仕様の形式を拡張)
+
+仕様の例(`proposal`)はそのまま読める。足すのは★の項目。
+
+```ts
+interface EventDef {
+  id: string;
+  category: 'life' | 'career' | 'money' | 'health' | 'social' | 'system';
+  title: string;
+  text: string;
+  good?: boolean;                    // ★ true=運で確率UP、false=運で確率DOWN、省略=運の影響なし
+  conditions: {
+    ageMin?: number; ageMax?: number;
+    flags?: Record<string, boolean | number>;   // 一致判定
+    employed?: boolean;              // ★ job != 'none' かつ未退職
+    retired?: boolean;               // ★
+    minInvested?: number;            // ★ index+stocks+speculative の下限(円)
+  };
+  baseProb: number;
+  probFrom?: 'layoffRate';           // ★ baseProb の代わりに職業データの値を使う
+  probMods?: ProbMod[];
+  once?: boolean;
+  cooldownMonths?: number;
+  effects?: Effects;                 // 選択肢なしイベントの効果
+  choices?: Choice[];
+}
+
+type ProbMod =                       // ★ stat以外も条件にできるよう一般化(stat形式は仕様どおり)
+  | { stat: keyof Stats; above?: number; below?: number; mul: number }
+  | { value: keyof Values; above?: number; below?: number; mul: number }
+  | { flag: string; equals: boolean | number; mul: number }
+  | { age: true; above?: number; below?: number; mul: number }
+  | { work: WorkStyle[]; mul: number }
+  | { healthCare: HealthCare[]; mul: number };
+
+interface Choice {
+  label: string;
+  effects?: Effects;
+  outcomes?: { prob: number; text: string; effects: Effects }[];  // ★ 確率分岐(合計1)
+  valueShift?: Partial<Values>;      // 符号だけ使い、大きさは balance.events.valueShiftStep
+}
+
+interface Effects {
+  cash?: number;
+  cashMonthsOfPay?: number;          // 現在の額面月給 × n(無職・退職後は0)
+  stats?: Partial<Stats>;
+  setFlags?: Record<string, boolean | number>;
+  addFlags?: Record<string, number>; // ★ 数値フラグに加算(payMul +0.1 など)
+  mulFlags?: Record<string, number>; // ★ 数値フラグに乗算(priceLevel ×1.05)
+  job?: JobId | 'random_other' | 'previous';   // 'random_other' は現職以外から等確率
+  achievement?: number;
+  assetShock?: { pct: number; targets?: (keyof Assets)[] };  // 既定 targets は index/stocks/speculative
+  inheritance?: boolean;             // ★ family.json の相続額を cash へ
+}
+```
+
+- 確率 = (`probFrom` があればその値、なければ `baseProb`) × probMods の積 × 運補正
+  - 運補正: good=true → `0.8 + 0.4×運/100`(仕様どおり)、good=false → `1.2 − 0.4×運/100`(★)
+- 抽選: 条件を満たす全イベントについて確率を出し、それぞれ独立に判定。当たったものが複数なら確率で重み付けして1件を選ぶ(定義順に依存しないため)
+- `job` 効果で職業が変わるときは §5.2 の按分退職金を払い、`previousJob` を記録し、`jobYears=0`・`payMul=1` に戻す
+- ログの `text` は「タイトル: 選んだ選択肢 / outcome の text」
+
+### 7.2 MVPのイベント30個(初期値)
+
+確率は月あたり。CD=クールダウン(月)。目安は1人生40〜80回([§11](#11-テストとバランス確認))で、balance.ts で調整する。
+
+**ライフ(8)**
+
+| id | タイトル | 条件 | 確率 | 選択肢 → 主な効果 |
+| --- | --- | --- | --- | --- |
+| partner | 恋人ができる | 18〜45歳、未婚、partner=false | 0.012 / 人間関係>60 ×1.5 / v.relation<0 ×1.3。good | (なし) partner=true、人間関係+10 |
+| proposal | プロポーズのチャンス | 仕様の例どおり | 0.02、CD24 | 仕様の例どおり |
+| divorce_crisis | 離婚の危機 | 既婚 | 0.003 / ストレス>70 ×3 / 人間関係<30 ×2。CD36 | 関係修復: cash−30万、ストレス+5、人間関係+10 / 離婚する: 既婚解除、全資産−50%、人間関係−15、v.relation+ |
+| parent_ill | 親の病気で仕送り | 40〜75歳、parentAlive、once | 0.004 / 年齢>55 ×2 | 仕送りする: parentSupport=36、人間関係+5、v.relation− / 施設に任せる: cash−100万 / 断る: 人間関係−10、ストレス+10。全選択で parentIll=true |
+| parent_death | 親が亡くなる(相続) | 40歳〜、parentAlive、once | 0.003 / parentIll ×3 / 年齢>60 ×2 | (なし) 相続、parentAlive=false、parentSupport=0、ストレス+15 |
+| wedding_rush | 友人の結婚式ラッシュ | 25〜35歳 | 0.01、CD24 | 全部出席: cash−15万、人間関係+8 / ご祝儀だけ: cash−5万、人間関係+2 / 欠席: 人間関係−6 |
+| moving | 引っ越し | 20〜70歳 | 0.006、CD60 | 職場の近くへ: cash−30万、ストレス−8 / 今のまま |
+| reunion | 同窓会 | 25〜70歳 | 0.008、CD36 | 行く: cash−1万、人間関係+5(未婚なら20%で partner=true) / 行かない: 人間関係−2 |
+
+**キャリア(8)** すべて `employed: true`
+
+| id | タイトル | 条件 | 確率 | 選択肢 → 主な効果 |
+| --- | --- | --- | --- | --- |
+| promotion | 昇進 | 雇用中、バイト以外 | 0.006 / スキル>60 ×2 / 残業多め・激務 ×1.5。CD36。good | 受ける: payMul+0.1、ストレス+10、達成+15、v.work+ / 断る: ストレス−3、v.work− |
+| raise_skipped | 昇給見送り | 雇用中 | 0.005、CD24 | (なし) payMul−0.03、ストレス+5、達成−5 |
+| job_offer | 転職の誘い(職業変更) | 雇用中、〜55歳 | 0.004 / スキル>50 ×1.5。CD36 | 転職する: job=random_other、payMul=1.05、ストレス+5、v.risk+ / 断る: v.risk− |
+| layoff | リストラ(無職へ) | 雇用中 | probFrom=layoffRate / recession>0 ×3。good=false | (なし) job=none、ストレス+20、達成−10 |
+| bonus_cut | 業績悪化でボーナスカット | 雇用中 | 0.006、CD12 | (なし) 月給−1ヶ月分、ストレス+5 |
+| certification | 資格取得のチャンス | 雇用中 | 0.006、CD24 | 挑戦する: cash−10万、ストレス+5、スキル+8、達成+5 / 見送る |
+| boss_trouble | 上司とのトラブル | 雇用中 | 0.006、CD24 | 我慢する: ストレス+15 / 言い返す: 60% ストレス−5・達成+3、40% payMul−0.05・ストレス+10 / 異動願い: スキル−3、ストレス−10 |
+| side_job | 副業の誘い | 雇用中 | 0.004、CD36 | 始める: 60% cash+60万・スキル+5・ストレス+10、40% cash−20万・ストレス+10、v.risk+ / 断る |
+
+**お金(7)**
+
+| id | タイトル | 条件 | 確率 | 選択肢 → 主な効果 |
+| --- | --- | --- | --- | --- |
+| invest_jackpot | 投資の大当たり | 投資残高≥50万 | 0.003。good | (なし) stocks・speculative +50%、達成+5 |
+| scam | 投資詐欺の勧誘 | 25歳〜 | 0.004 / 信用<40 ×2 / v.risk>0 ×1.5。CD36 | 乗る: 85% cash−100万・ストレス+15、15% cash+30万 / 断る: v.risk− |
+| lottery | 宝くじ | 20歳〜 | 0.004、CD12 | 買う: cash−3000、0.2% +1億、2% +10万、残り はずれ / 買わない |
+| car_broke | 車が壊れる | 20〜80歳 | 0.004、CD24。good=false | 修理: cash−30万 / 買い替え: cash−150万、ストレス−5 / 手放す: ストレス+5、人間関係−3 |
+| appliance | 家電が壊れる | — | 0.008、CD12。good=false | (なし) cash−10万 |
+| windfall_bonus | 臨時ボーナス | 雇用中 | 0.004、CD12。good | (なし) 月給+1ヶ月分、ストレス−3 |
+| friend_loan | 友人に借金を頼まれる | 22歳〜 | 0.004、CD36 | 貸す: 50% 返ってきた・人間関係+10、50% cash−50万・人間関係−5 / 断る: 人間関係−8 |
+
+**健康(5)**
+
+| id | タイトル | 条件 | 確率 | 選択肢 → 主な効果 |
+| --- | --- | --- | --- | --- |
+| cold | 風邪で休む | — | 0.015 / 健康<40 ×2。CD6。good=false | (なし) 健康−2、ストレス+2 |
+| checkup | 健康診断で再検査 | 35歳〜 | 0.006 / 健康:意識高め ×1.5。CD24 | 精密検査を受ける: cash−3万、健康+5 / 放置: 健康−5 |
+| hospital | 入院 | — | 0.003 / 健康<40 ×2.5 / 年齢>60 ×2。CD12。good=false | (なし) cash−30万、健康−10、ストレス+10 |
+| traffic_accident | 交通事故でけが | — | 0.002、CD24。good=false | (なし) cash−20万、健康−15、ストレス+10 |
+| back_pain | 腰痛 | 30歳〜 | 0.006 / 残業多め・激務 ×1.5。CD24 | 整体に通う: cash−5万、健康+3 / 我慢する: 健康−3、ストレス+5 |
+
+**社会(2)**
+
+| id | タイトル | 条件 | 確率 | 選択肢 → 主な効果 |
+| --- | --- | --- | --- | --- |
+| recession | 不況 | — | 0.002、CD120 | (なし) 投資資産−30%、recession=24 |
+| inflation | 物価上昇 | — | 0.003、CD60 | (なし) priceLevel ×1.05 |
+
+**システム(30個の外。仕様の「再就職」)**
+
+| id | タイトル | 条件 | 確率 | 選択肢 |
+| --- | --- | --- | --- | --- |
+| reemployment | 再就職 | job=none、未退職 | 0.05 + 0.15×スキル/100(probMods で表現) | 前職に戻る: job=previous、payMul=0.95 / 別の職業: job=random_other |
+
+## 8. 乱数とシード
+
+- `rng.ts` は mulberry32。`createRng(seed)` は内部状態を `seed >>> 0` で初期化し、`state` で現在値を返す。Box-Muller の余りはキャッシュしない(状態を32bit整数1つに保つため)
+- ガチャ: `rollCharacter(seed)` は seed から独立した rng を作る。「引き直し」は seed+1。タイトルでシードを入力すると同じガチャになる
+- 人生: `createGame` で `rngState = hash(seed, 'life')` を入れる(ガチャと乱数列を分けて、ガチャの抽選回数が変わっても人生側がずれないようにする)
+- 再現の条件: 同じ seed・同じ価値観・同じ選択・同じ月の方針変更 → 同じ人生。セーブからの再開でも `rngState` で続きの乱数が出る
+- `Math.random` は使わない。ESLint の `no-restricted-properties` で `Math.random` を禁止する
+
+## 9. UI設計
+
+フレームワークは使わず、素の TypeScript + DOM で作る(画面5つ・状態1つなので十分。依存を Chart.js だけにする)。
+
+### 9.1 画面遷移
+
+```
+title ──新しい人生──▶ setup ──開始──▶ main ──死亡──▶ result ──もう一度──▶ setup
+  │                                 │  ▲                       └同じシード──▶ setup(同seed)
+  └──続きから(セーブあり)──────────▶│  │
+                                    ▼  │ 選択/閉じる
+                     event / yearSummary / policy(モーダル)
+```
+
+### 9.2 controller.ts(ゲームループ)
+
+```ts
+class GameController {
+  state: GameState; rng: Rng;
+  speed: 1 | 4 | 16; playing: boolean;
+  tick(): void  // stepMonth → 表示更新 → 止まる条件を判定
+}
+```
+
+- `setInterval` ではなく `setTimeout` を1ヶ月ごとに張り直す(1x=1000ms, 4x=250ms, 16x=62.5ms)
+- 停止する条件: `pendingEvent` がある → イベントモーダル / 年の切れ目 → 年間サマリー(「自動で閉じる」ON なら1.5秒後に閉じて再開) / `dead` → result
+- 選択肢なしイベントは止めずに、メイン画面のログ欄にハイライトで流す
+- 方針変更モーダルを開いている間は一時停止。確定で `changePolicy` し、次の tick から反映
+- 1年ごと(年間サマリーのタイミング)に `storage.save(state)`
+
+### 9.3 画面の中身
+
+| 画面 | 構成 |
+| --- | --- |
+| title | タイトル、「新しい人生」「続きから」(セーブがあるときだけ)、シード入力欄、過去の人生(直近10件) |
+| setup | ガチャ結果カード(学歴・職業・実家の太さ・体質を★で表示、運は出さない)、「引き直し」、名前、価値観4軸スライダー(−2〜+2、0.5刻み、両端に極の名前)、初期方針4項目(ラジオ) |
+| main | 上段: 年齢・職業・手取り月収・金融資産・借金 / ステータスバー(健康・ストレス・スキル・信用・人間関係)/ 今月の幸福度 / 資産推移グラフ(年次)/ 直近ログ10件 / 下段固定: 再生・一時停止、速度、方針変更 |
+| event | タイトル、本文、選択肢ボタン(縦並び)。選択後に結果テキストを1秒表示 |
+| yearSummary | 「○歳(○年目)」、健康状態(言葉で: 絶好調/良好/普通/不調/危険)、金融資産と前年比(±と%)、その年のイベント一覧 |
+| result | 享年・死因・最終資産・生涯幸福スコア・人生タイプ(大きく)、資産と幸福度の推移グラフ(2軸)、年表、「もう一度」「同じシードで再挑戦」「ログをJSONで保存」 |
+
+- グラフ(`charts.ts`): 資産は年次の純資産(year_summary の snapshot)、幸福度は月次を年平均にして描く。Chart.js はアニメーション off(16xで重くならないように)
+- 「ログをJSONで保存」は `LogEntry[]` をそのままダウンロード。AI実況連携の素材確認用(実装は数行なのでMVPに入れる)
+- 健康の言葉: 80以上 絶好調 / 60 良好 / 40 普通 / 20 不調 / それ未満 危険(閾値は UI の定数。ゲームバランスに関係しないので data に置かない)
+
+## 10. セーブ
+
+| キー | 内容 |
+| --- | --- |
+| `lifesim.save.v1` | `{ version: 1, savedAt: ISO文字列, state: GameState }` |
+| `lifesim.history.v1` | `LifeRecord[]`(新しい順、最大50件) |
+
+```ts
+interface LifeRecord {
+  seed: number; name: string; endedAt: string;
+  education: Education; job: JobId; familyTier: FamilyTier;
+  ageAtDeath: number; cause: DeathCause; finalNetWorth: number;
+  lifetimeHappiness: number; lifeType: LifeResult['lifeType'];
+}
+```
+
+- ロード時に `version` が違う・JSON が壊れている場合はセーブを無視してタイトルに「セーブデータを読み込めませんでした」と出す
+- リザルト到達でセーブを消し、`LifeRecord` を history の先頭に追加
+- `storage.ts` は UI 層。engine は localStorage を知らない
+
+## 11. テストとバランス確認
+
+### 11.1 単体テスト(tests/)
+
+| ファイル | 内容 |
+| --- | --- |
+| `rng.test.ts` | 同seedで同じ列、`state` から再開して同じ列、normal の平均・分散がおおむね正しい |
+| `setup.test.ts` | 出現率が表どおり(1万回抽選で±2%)、初期ステータス、奨学金 |
+| `money.test.ts` | 手取り率の各帯と境界、昇給カーブ(開始・50歳・50歳以降)、年金額、退職金按分、借金の利息と返済、ショート時の売却順 |
+| `stats.test.ts` | 各方針の増減、回帰項、クランプ(0〜100) |
+| `death.test.ts` | q(20)≈0.0003、q(80)≈0.05、健康補正(100→0.25倍、0→4倍)、死因の重み |
+| `happiness.test.ts` | 重みの最小0.2、頭打ち、慣れ(上げた直後に上がって2年で戻る) |
+| `events.test.ts` | 条件外は出ない、once は1回、cooldown、確率分岐、全効果の種類、married の読み替え |
+| `step.test.ts` | 同seed・同選択で同じ死亡月・最終資産、セーブ(JSON往復)からの再開で同じ結果、方針変更が翌月から反映、価値観が−2〜+2を超えない |
+| `data.test.ts` | `validateData()` が通る |
+
+### 11.2 scripts/balance.ts
+
+```
+npx tsx scripts/balance.ts [--n 1000] [--seed 1] [--policy random|grind|...]
+```
+
+- 自動プレイヤー: 価値観・初期方針をランダム、10年ごとに方針を引き直す、選択肢はランダム
+- 出力: 仕様の5指標を目安と並べて ✓/✗ 表示、加えて「イベント別の発生回数(0回のものを警告)」「死因の内訳」「職業・学歴別の最終資産中央値」
+- `--policy grind` は働き方を激務に固定(激務の寿命の確認用)
+- 1,000人生が30秒以内に終わること(state のコピーは配列の追記のみで O(月数) に抑える)
+
+## 12. 仕様への変更提案(要確認)
+
+CLAUDE.md の「仕様と食い違う実装をする前に確認」に従い、ここで確認したい。承認されたものから `SPEC.md` に反映する。
+
+### 提案1: 健康とストレスに「平常値への回帰」を入れる(重要)
+
+仕様の式のままだと、健康が0か100に張り付き、寿命が目安(78〜85歳)から大きく外れる。死亡判定の式だけを取り出して試算した(イベントなし、体質50、22歳開始):
+
+| 働き方 / 健康方針 | 仕様のまま | 回帰あり(§5.3) |
+| --- | --- | --- |
+| 定時 / 普通 | 73.6歳(健康→0) | 80.2歳 |
+| 普通 / 気にしない | 65.6歳(健康→0) | 79.1歳 |
+| 普通 / 普通 | 68.8歳(健康→0) | 80.0歳 |
+| 普通 / 意識高め | 95.7歳(健康→100) | 82.9歳 |
+| 激務 / 普通 | 58.1歳 | 71.1歳 |
+| 16通りの平均 | 約68歳 | 約78歳 |
+
+原因は、健康の増減が毎月足されるだけで戻る力がなく、40歳以降の加齢減少(−0.05〜−0.1/月)だけで数十年かけて0まで落ちること。意識高め(+0.3/月)は逆に100に張り付く。ストレスも同様に、残業多め以上だと70を超えたまま戻らない。回帰を入れると「方針で平常値がずれる」動きになり、激務は−9歳、意識高めは+3歳と、差の大きさも配信向きになる。
+
+### 提案2: 奨学金を借金と分ける
+
+奨学金300万円に年15%の利息がつくと、新卒の余剰(月8〜9万円)は約4年間すべて返済に消え、利息だけで約90〜100万円になる。さらに返済中は毎月信用−0.5で、信用が約25下がる。リアル寄りのトーンにも合わないので、`Assets` に `studentLoan` を足し、年1%・20年(240回)の毎月定額返済にしたい。信用の減少は `debt`(資金ショートの借金)だけにかける。
+
+### 提案3: 型の追加
+
+`GameState.rngState` / `startAge` / `eventHistory`、`Character.previousJob`(§3)。とくに `rngState` は、ないと「セーブから再開すると乱数がずれて同じ人生にならない」。
+
+### 提案4: イベント定義の拡張
+
+§7.1 の★(`good` `employed` `retired` `minInvested` `probFrom` 一般化した `probMods` `outcomes` `addFlags` `mulFlags` `inheritance`)。30個のイベントを JSON だけで書くのに必要な最小限。とくに `payMul`(昇進で年収が上がる)は額面年収の式に係数が1つ増える。
+
+### 提案5: 細かい決め
+
+判断が分かれそうなものを決めた。違えば指摘してほしい。
+
+- 運は悪いイベントの確率も下げる(`1.2 − 0.4×運/100`)。仕様は良いイベントだけ
+- 転職・リストラ時にも按分した退職金を払う
+- 生活水準の幸福度に使う額から、健康費と実家への送金を除く
+- 無職中はストレス+1/月
+- リストラは職業の月次リストラ率をそのままイベント確率に使う(リストラ率とイベントの二重判定にしない)
+
+## 13. 実装の進め方
+
+`SPEC.md` の9ステップのとおり、1ステップ=1PR。この設計書を前提に各PRで実装とテストを入れる。
+
+| # | PR | この設計書の参照先 |
+| --- | --- | --- |
+| 1 | 雛形: Vite + TS + Vitest + ESLint、`types.ts`、`rng.ts` | §2, §3, §8 |
+| 2 | データと初期ガチャ: JSON 4種、`data/index.ts`(validateData)、`setup.ts` | §6 |
+| 3 | お金: `money.ts` | §4 の 1〜5, §5.1, §5.2, §5.5 |
+| 4 | ステータスと死亡: `stats.ts`、`death.ts` | §5.3 |
+| 5 | 幸福度: `happiness.ts`、`result.ts` | §5.4 |
+| 6 | イベント: `events.ts`、`events.json` 30個 + 再就職 | §7 |
+| 7 | 統合とバランス: `step.ts`、`scripts/balance.ts` | §4, §11.2 |
+| 8 | UI: 5画面、controller、グラフ | §9 |
+| 9 | セーブとデプロイ: `storage.ts`、GitHub Pages | §10 |
+
+提案1・2は、§12の確認が取れてから PR3・4 に入れる。
