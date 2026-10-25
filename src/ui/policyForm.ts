@@ -109,7 +109,7 @@ function allocationEditor(current: Policy): HTMLElement {
   const el = h(
     'fieldset',
     { class: 'choice-group' },
-    h('legend', {}, '投資の配分(余ったお金の半分をこの割合で回す)'),
+    h('legend', {}, '投資の配分(余ったお金をどこに回すか)'),
     h(
       'div',
       { class: 'segmented' },
@@ -151,7 +151,7 @@ export function policyForm(initial: PolicyInput | Policy): { el: HTMLElement; ge
     { class: 'policy-form' },
     ...GROUPS.slice(0, 2).map(({ key, label }) => radioGroup(id, key, label, current)),
     allocationEditor(current),
-    h('label', { class: 'check small' }, prepay, ' 繰上げ返済する(投資に回す分で、先にローンと奨学金を返す)'),
+    h('label', { class: 'check small' }, prepay, ' 繰上げ返済する(余ったお金で、先にローンと奨学金を返す)'),
     radioGroup(id, 'health', '健康', current),
   );
   return { el, get: () => ({ ...current, invest: { ...current.invest } }) };
