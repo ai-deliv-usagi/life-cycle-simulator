@@ -1,3 +1,5 @@
+import type { YearLedger } from './ledger';
+
 // ゲームの型定義。仕様は docs/SPEC.md「データ型」、追加分は docs/DESIGN.md §3。
 // 金額は円の整数、ステータスは 0〜100、価値観は -2〜+2。
 
@@ -20,12 +22,19 @@ export type LifeType = 'winner' | 'poor_happy' | 'rich_unhappy' | 'hardship';
 
 // ---- プレイヤーが決めるもの ----
 
+/** 投資の配分(%)。合計100、10%刻み。預金の分は現金のまま */
+export type InvestAllocation = Record<Invest, number>;
+
 export interface Policy {
   work: WorkStyle;
   spending: Spending;
-  invest: Invest;
+  invest: InvestAllocation;
   health: HealthCare;
+  prepay: boolean; // 繰上げ返済する(投資に回す分で先にローンと奨学金を返す)
 }
+
+/** 古いセーブや簡単な指定のための入力形。invest に1つの資産名を渡すと100%扱い */
+export type PolicyInput = Omit<Policy, 'invest' | 'prepay'> & { invest: InvestAllocation | Invest; prepay?: boolean };
 
 export interface Values {
   risk: number; // -2 安定志向 .. +2 挑戦志向
@@ -51,6 +60,7 @@ export interface Assets {
   speculative: number;
   debt: number; // 資金ショートの借金(年15%)
   studentLoan: number; // 奨学金の残高(debt とは別枠)
+  loan?: number; // ローンの残高(結婚式・車など。年3%・毎月返済)。古いセーブにはない
 }
 
 /** 投資資産ごとの元本(つぎ込んだ額)。運用成績の表示用 */
@@ -76,7 +86,8 @@ export interface Character {
   avgMonthlyPay: number; // 年金計算用の平均月収
   previousJob?: JobId; // 再就職の「前職に戻る」用
   studentLoan: StudentLoan | null;
-  lastMonthlyPay: number; // 直近の額面月給(失業給付用)
+  lastMonthlyPay: number; // 直近の額面月給(失業給付・再雇用の給料用)
+  loanPayment?: number; // ローンの毎月の返済額(複数のローンの合計)
   region: RegionId;
   spouse: SpouseType | null; // 未婚は null
 }
@@ -112,6 +123,8 @@ export interface GameState {
   stats: Stats;
   assets: Assets;
   invested?: InvestedPrincipal; // 古いセーブにはないので省略可
+  ledger?: YearLedger; // 今年の収支(古いセーブにはない)
+  lastLedger?: YearLedger; // 前の年の収支(年間サマリー用)
   adaptedSpending: number; // 慣れた生活水準(月額・実質)
   achievement: number; // 達成感の蓄積 0-100
   happinessHistory: number[]; // 月ごとの幸福度
@@ -183,6 +196,8 @@ export interface Effects {
   assetShock?: { pct: number; targets?: (keyof Assets)[]; split?: boolean };
   inheritance?: boolean;
   region?: RegionId;
+  /** ローンで払う。審査(信用・ブラックリスト)に落ちたら現金で払う */
+  loan?: { amount: number; months: number };
 }
 
 export interface Outcome {
@@ -339,6 +354,7 @@ export interface Balance {
     parentSupport: { monthlyCost: number };
     unemploymentBenefit: Record<string, never>;
     blacklist: Record<string, never>; // 自己破産後、借りられず再破産もできない残り月数
+    rehire: Record<string, never>; // 再雇用の残り月数
   };
   studentLoan: { interestFreeProb: number; annualRate: number; months: number };
   unemployment: { months: number; payRate: number };
@@ -346,6 +362,8 @@ export interface Balance {
     types: Record<SpouseType, { prob: number; monthlyNet: number; taxBenefit: number; employeePension: number }>;
   };
   bankruptcy: { minLimit: number; incomeShare: number; stress: number; blacklistMonths: number };
+  loan: { annualRate: number; minCredit: number };
+  rehire: { months: number; payRate: number };
   result: { netWorthLine: number; happinessLine: number };
 }
 

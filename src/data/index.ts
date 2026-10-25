@@ -101,7 +101,7 @@ export function validateData(data: GameData): string[] {
       if (!REGIONS.includes(r)) errors.push(`events.${ev.id}: 不明な地域 "${r}"`);
     }
     for (const j of ev.conditions.jobNotIn ?? []) {
-      if (!JOBS.includes(j)) errors.push(`events.${ev.id}: 不明な職業 "${j}"`);
+      if (![...JOBS, 'none'].includes(j)) errors.push(`events.${ev.id}: 不明な職業 "${j}"`);
     }
     const effectsList = [ev.effects, ...(ev.choices ?? []).flatMap((c) => [c.effects, ...(c.outcomes ?? []).map((o) => o.effects)])];
     for (const eff of effectsList) {
@@ -109,6 +109,9 @@ export function validateData(data: GameData): string[] {
         if (!STATS.includes(key)) errors.push(`events.${ev.id}: 不明なステータス "${key}"`);
       }
       if (eff?.region && !REGIONS.includes(eff.region)) errors.push(`events.${ev.id}: 不明な地域 "${eff.region}"`);
+      if (eff?.loan && (eff.loan.amount <= 0 || !Number.isInteger(eff.loan.months) || eff.loan.months <= 0)) {
+        errors.push(`events.${ev.id}: ローンの金額・回数が不正`);
+      }
       if (eff?.job && ![...JOBS, 'none', 'random_other', 'previous'].includes(eff.job)) {
         errors.push(`events.${ev.id}: 不明な職業 "${eff.job}"`);
       }

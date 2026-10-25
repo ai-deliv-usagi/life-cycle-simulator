@@ -1,8 +1,10 @@
 // 初期ガチャとキャラ生成(SPEC.md「初期値データ」、DESIGN.md §3・§5.2.1・§5.7・§8)
 import { defaultData } from '../data/index';
+import { emptyLedger } from './ledger';
 import { realLivingSpending } from './money';
 import { createRng, deriveSeed, type Rng } from './rng';
-import type { CharacterRoll, Flags, GameData, GameState, Policy, Values } from './types';
+import { normalizePolicy } from './policy';
+import type { CharacterRoll, Flags, GameData, GameState, PolicyInput, Values } from './types';
 import { annuityPayment, clampStat, clampValue } from './util';
 
 function gaussianStat(rng: Rng, mean: number, sd: number): number {
@@ -56,7 +58,7 @@ export function rollCharacter(seed: number, data: GameData = defaultData): Chara
 export function createGame(
   roll: CharacterRoll,
   values: Values,
-  policy: Policy,
+  policy: PolicyInput,
   name: string,
   data: GameData = defaultData,
 ): GameState {
@@ -80,6 +82,7 @@ export function createGame(
     blacklist: 0,
     rank: 0, // 役職 0=一般 1=主任 2=係長 3=課長 4=部長
     pet: false,
+    rehire: 0,
   };
 
   const loan = roll.studentLoan;
@@ -116,7 +119,7 @@ export function createGame(
       spending: clampValue(values.spending),
       work: clampValue(values.work),
     },
-    policy: { ...policy },
+    policy: normalizePolicy(policy),
     stats: {
       health: roll.constitution,
       stress: balance.startStats.stress,
@@ -131,8 +134,10 @@ export function createGame(
       speculative: 0,
       debt: 0,
       studentLoan: loan?.amount ?? 0,
+      loan: 0,
     },
     invested: { index: 0, stocks: 0, speculative: 0 },
+    ledger: emptyLedger(),
     adaptedSpending: 0,
     achievement: 0,
     happinessHistory: [],

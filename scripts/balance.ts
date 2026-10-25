@@ -38,14 +38,24 @@ function parseArgs(argv: string[]): Options {
 
 const WORKS = ['regular', 'normal', 'overtime', 'grind'] as const;
 const SPENDINGS = ['frugal', 'normal', 'comfort', 'lavish'] as const;
-const INVESTS = ['deposit', 'index', 'stocks', 'speculative'] as const;
+/** 自動プレイの投資配分(1つに全部 + よくある組み合わせ) */
+const ALLOCATIONS = [
+  { deposit: 100, index: 0, stocks: 0, speculative: 0 },
+  { deposit: 0, index: 100, stocks: 0, speculative: 0 },
+  { deposit: 0, index: 0, stocks: 100, speculative: 0 },
+  { deposit: 0, index: 0, stocks: 0, speculative: 100 },
+  { deposit: 30, index: 70, stocks: 0, speculative: 0 },
+  { deposit: 20, index: 50, stocks: 30, speculative: 0 },
+  { deposit: 0, index: 20, stocks: 50, speculative: 30 },
+] as const;
 const CARES = ['ignore', 'normal', 'active'] as const;
 
 function randomPolicy(rng: Rng, fixed: Options['policy']): Policy {
   return {
     work: fixed === 'grind' ? 'grind' : rng.pick(WORKS),
     spending: rng.pick(SPENDINGS),
-    invest: rng.pick(INVESTS),
+    invest: { ...rng.pick(ALLOCATIONS) },
+    prepay: rng.chance(0.3),
     health: rng.pick(CARES),
   };
 }

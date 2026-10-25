@@ -1,5 +1,5 @@
 // セーブと過去の人生(DESIGN.md §10)。localStorage を使うのは UI 層だけ
-import { computeResult, type DeathCause, type Education, type FamilyTier, type GameState, type JobId, type LifeType } from '../engine/index';
+import { computeResult, normalizePolicy, type DeathCause, type Education, type FamilyTier, type GameState, type JobId, type LifeType } from '../engine/index';
 
 export const SAVE_KEY = 'lifesim.save.v1';
 export const HISTORY_KEY = 'lifesim.history.v1';
@@ -81,7 +81,9 @@ export function loadGame(store: KV | null = defaultStorage()): LoadResult {
   try {
     const data = JSON.parse(raw) as { version?: unknown; savedAt?: unknown; state?: unknown };
     if (data.version !== SAVE_VERSION || !looksLikeState(data.state)) return { status: 'broken' };
-    return { status: 'ok', state: data.state, savedAt: typeof data.savedAt === 'string' ? data.savedAt : '' };
+    // 古いセーブの方針(投資を1つだけ選ぶ形)を配分に直す
+    const state = { ...data.state, policy: normalizePolicy(data.state.policy) };
+    return { status: 'ok', state, savedAt: typeof data.savedAt === 'string' ? data.savedAt : '' };
   } catch {
     return { status: 'broken' };
   }

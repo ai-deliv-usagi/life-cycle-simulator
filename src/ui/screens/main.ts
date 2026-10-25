@@ -143,6 +143,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     fields.debt.classList.toggle('down', v.debt > 0);
     const blacklist = Number(state.flags.blacklist ?? 0);
     const debtNotes = [
+      v.loan > 0 ? `ローン 残り${manYen(v.loan)}` : '',
       v.studentLoan > 0 ? `奨学金 残り${manYen(v.studentLoan)}` : '',
       blacklist > 0 ? `ブラックリスト 残り${Math.ceil(blacklist / 12)}年` : '',
     ].filter(Boolean);

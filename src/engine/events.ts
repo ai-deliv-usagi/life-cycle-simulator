@@ -1,7 +1,8 @@
 // イベントの条件判定・確率・抽選・効果適用(SPEC.md「イベント」、DESIGN.md §7)
 // stepMonth / resolveChoice が複製した state を直接更新する。
 import { defaultData } from '../data/index';
-import { changeJob, isEmployed, monthlyGrossPay } from './money';
+import { recordEventCash } from './ledger';
+import { changeJob, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
 import type {
   Choice,
@@ -178,12 +179,13 @@ function pickJob(state: GameState, target: NonNullable<Effects['job']>, rng: Rng
  */
 export function applyEffects(state: GameState, effects: Effects, rng: Rng, data: GameData = defaultData): void {
   const a = state.assets;
+  const cashBefore = a.cash;
   if (effects.cash) a.cash += effects.cash;
   if (effects.cashMonthsOfPay) a.cash += roundYen(monthlyGrossPay(state, data) * effects.cashMonthsOfPay);
   if (effects.assetShock) {
     const targets = effects.assetShock.targets ?? (['index', 'stocks', 'speculative'] as const);
     for (const key of targets) {
-      if (key === 'debt' || key === 'studentLoan') continue; // 借金は資産ショックの対象にしない
+      if (key === 'debt' || key === 'studentLoan' || key === 'loan') continue; // 借金は資産ショックの対象にしない
       a[key] = roundYen(a[key] * (1 + effects.assetShock.pct));
       if (effects.assetShock.split && state.invested && key !== 'cash') {
         state.invested[key] = roundYen(state.invested[key] * (1 + effects.assetShock.pct));
@@ -194,6 +196,7 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
     const family = data.family.find((f) => f.tier === state.character.familyTier);
     a.cash += family?.inheritance ?? 0;
   }
+  recordEventCash(state, a.cash - cashBefore); // 職業の変更(退職金)より前の、イベント自体のお金の出入り
   if (effects.job) changeJob(state, pickJob(state, effects.job, rng, data), data);
   for (const [key, delta] of Object.entries(effects.stats ?? {}) as [keyof Stats, number][]) {
     state.stats[key] = clampStat(state.stats[key] + delta);
@@ -203,6 +206,14 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   applyFlags(state, effects.addFlags, (old, v) => (typeof old === 'number' ? old : 0) + v, rng, data);
   applyFlags(state, effects.mulFlags, (old, v) => (typeof old === 'number' ? old : 1) * v, rng, data);
   if (effects.region) state.character.region = effects.region;
+  if (effects.loan) {
+    const ok = takeLoan(state, effects.loan.amount, effects.loan.months, data);
+    if (!ok) {
+      a.cash -= effects.loan.amount;
+      recordEventCash(state, -effects.loan.amount);
+      addLog(state, 'event', 'ローン審査に落ちた: 信用が足りず、現金で払うことになった', 'loan_rejected');
+    }
+  }
 }
 
 function applyFlags<V extends boolean | number>(

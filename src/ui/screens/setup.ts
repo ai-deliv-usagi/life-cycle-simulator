@@ -1,11 +1,16 @@
 // キャラ作成画面: 初期ガチャ・価値観・初期方針
-import { createGame, rollCharacter, type Policy, type Values } from '../../engine/index';
+import { createGame, rollCharacter, type PolicyInput, type Values } from '../../engine/index';
 import { h, mount } from '../dom';
 import { educationLabel, familyLabel, jobLabel, manYen, regionLabel, stars, VALUE_AXES, valueStepLabel } from '../format';
 import type { Nav } from '../nav';
 import { policyForm } from '../policyForm';
 
-const DEFAULT_POLICY: Policy = { work: 'normal', spending: 'normal', invest: 'index', health: 'normal' };
+const DEFAULT_POLICY: PolicyInput = {
+  work: 'normal',
+  spending: 'normal',
+  invest: { deposit: 30, index: 70, stocks: 0, speculative: 0 },
+  health: 'normal',
+};
 
 /** 価値観は5段階(-2〜+2)。数字ではなく「やや安定志向」のように言葉で出す */
 function valueSlider(axis: (typeof VALUE_AXES)[number], values: Values): HTMLElement {

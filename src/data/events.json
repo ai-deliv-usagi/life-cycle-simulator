@@ -77,6 +77,27 @@
         }
       },
       {
+        "label": "結婚する(式はブライダルローンで)",
+        "effects": {
+          "stats": {
+            "relations": 15,
+            "stress": -5
+          },
+          "setFlags": {
+            "married": true,
+            "partner": false
+          },
+          "achievement": 5,
+          "loan": {
+            "amount": 2000000,
+            "months": 60
+          }
+        },
+        "valueShift": {
+          "relation": -0.1
+        }
+      },
+      {
         "label": "まだ早い",
         "effects": {
           "stats": {
@@ -946,6 +967,18 @@
         }
       },
       {
+        "label": "ローンで買い替える",
+        "effects": {
+          "stats": {
+            "stress": -5
+          },
+          "loan": {
+            "amount": 1500000,
+            "months": 60
+          }
+        }
+      },
+      {
         "label": "手放す",
         "effects": {
           "setFlags": {
@@ -1001,6 +1034,22 @@
             "hasCar": true
           },
           "achievement": 5
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "新車をローンで買う",
+        "effects": {
+          "setFlags": {
+            "hasCar": true
+          },
+          "achievement": 5,
+          "loan": {
+            "amount": 2500000,
+            "months": 60
+          }
         },
         "valueShift": {
           "spending": 0.1
@@ -2057,6 +2106,44 @@
         "label": "別の職業に就く",
         "effects": {
           "job": "random_other"
+        }
+      }
+    ]
+  },
+  {
+    "id": "rehire_offer",
+    "category": "system",
+    "title": "定年後の働き方",
+    "text": "65歳で定年退職した。会社から、再雇用で働き続けないかと声がかかった。",
+    "conditions": {
+      "retired": true,
+      "ageMin": 65,
+      "ageMax": 65,
+      "jobNotIn": [
+        "none"
+      ]
+    },
+    "baseProb": 1,
+    "once": true,
+    "choices": [
+      {
+        "label": "再雇用で70歳まで働く(給料は退職前の半分)",
+        "effects": {
+          "setFlags": {
+            "rehire": 60
+          },
+          "stats": {
+            "stress": -3
+          },
+          "achievement": 3
+        }
+      },
+      {
+        "label": "引退してのんびり暮らす",
+        "effects": {
+          "stats": {
+            "stress": -8
+          }
         }
       }
     ]
