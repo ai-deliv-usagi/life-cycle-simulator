@@ -55,7 +55,7 @@ describe('生活水準(頭打ちと慣れ)', () => {
     expect(adapted).toBeLessThan(justAfter - 10);
     expect(adapted).toBeGreaterThan(before); // 絶対額の分は残る
     s.policy.spending = 'normal';
-    expect(happinessParts(s).living).toBeLessThan(before - 10);
+    expect(happinessParts(s).living).toBeLessThan(before - 5);
   });
 });
 

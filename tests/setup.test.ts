@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultData } from '../src/data/index';
+import { realLivingSpending } from '../src/engine/money';
 import { deriveSeed } from '../src/engine/rng';
 import { createGame, rollCharacter } from '../src/engine/setup';
 import type { CharacterRoll, Policy, Values } from '../src/engine/types';
@@ -106,7 +107,7 @@ describe('createGame', () => {
     expect(s.flags.hasCar).toBe(true);
     expect(s.flags.payMul).toBe(1);
     expect(s.flags.parentAlive).toBe(true);
-    expect(s.adaptedSpending).toBe(130_000);
+    expect(s.adaptedSpending).toBe(realLivingSpending(s));
     expect(s.log).toEqual([]);
   });
 
@@ -131,8 +132,10 @@ describe('createGame', () => {
     expect(p.work).toBe('normal');
   });
 
-  it('慣れの初期値は支出方針に合わせる', () => {
-    expect(createGame(univLoan, values, { ...policy, spending: 'lavish' }, 'x').adaptedSpending).toBe(208_000);
+  it('慣れの初期値は開始時の生活費(支出方針で変わる)', () => {
+    const normal = createGame(univLoan, values, policy, 'x').adaptedSpending;
+    const lavish = createGame(univLoan, values, { ...policy, spending: 'lavish' }, 'x').adaptedSpending;
+    expect(lavish).toBeGreaterThan(normal);
   });
 
   it('GameState は JSON で往復できる(セーブ用)', () => {

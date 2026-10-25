@@ -20,15 +20,15 @@
   "spending": {
     "frugal": { "living": 0.8, "stress": 0 },
     "normal": { "living": 1.0, "stress": 0 },
-    "comfort": { "living": 1.25, "stress": 0 },
-    "lavish": { "living": 1.6, "stress": -0.5 }
+    "comfort": { "living": 1.2, "stress": 0 },
+    "lavish": { "living": 1.4, "stress": -0.5 }
   },
   "healthCare": {
     "ignore": { "cost": 0, "health": -0.1, "stress": 0 },
     "normal": { "cost": 5000, "health": 0, "stress": 0 },
     "active": { "cost": 15000, "health": 0.3, "stress": -0.5 }
   },
-  "living": { "single": 130000, "married": 200000 },
+  "living": { "single": 40000, "married": 80000, "incomeShare": 0.6 },
   "retiredFreeTime": 90,
   "unemployedStress": 1,
   "debtAnnualRate": 0.15,
@@ -60,7 +60,7 @@
     "achievementDecay": 0.2
   },
   "death": {
-    "a": 0.0003,
+    "a": 0.0002,
     "b": 0.085,
     "ageOffset": 20,
     "healthPivot": 50,
@@ -104,6 +104,6 @@
       "homemaker": { "prob": 0.3, "monthlyNet": 0, "taxBenefit": 5000, "employeePension": 0 }
     }
   },
-  "bankruptcy": { "minLimit": 500000, "incomeShare": 0.3333, "stress": 30 },
-  "result": { "netWorthLine": 30000000, "happinessLine": 60 }
+  "bankruptcy": { "minLimit": 2000000, "incomeShare": 0.5, "stress": 30 },
+  "result": { "netWorthLine": 30000000, "happinessLine": 52 }
 }

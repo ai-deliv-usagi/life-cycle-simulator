@@ -1,5 +1,6 @@
 // 初期ガチャとキャラ生成(SPEC.md「初期値データ」、DESIGN.md §3・§5.2.1・§5.7・§8)
 import { defaultData } from '../data/index';
+import { realLivingSpending } from './money';
 import { createRng, deriveSeed, type Rng } from './rng';
 import type { CharacterRoll, Flags, GameData, GameState, Policy, Values } from './types';
 import { annuityPayment, clampStat, clampValue } from './util';
@@ -80,7 +81,7 @@ export function createGame(
 
   const loan = roll.studentLoan;
 
-  return {
+  const state: GameState = {
     seed: roll.seed,
     rngState: deriveSeed(roll.seed, 'life'), // ガチャと乱数列を分ける
     startAge: education.startAge,
@@ -128,11 +129,13 @@ export function createGame(
       debt: 0,
       studentLoan: loan?.amount ?? 0,
     },
-    // 慣れの初期値は開始時の生活の中身(実質額。地域差・健康費・送金を除く。DESIGN.md §5.4)
-    adaptedSpending: Math.round(balance.living.single * balance.spending[policy.spending].living),
+    adaptedSpending: 0,
     achievement: 0,
     happinessHistory: [],
     flags,
     log: [],
   };
+  // 慣れの初期値は開始時の生活の中身(実質額。DESIGN.md §5.4)
+  state.adaptedSpending = realLivingSpending(state, data);
+  return state;
 }
