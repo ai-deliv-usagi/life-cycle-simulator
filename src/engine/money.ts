@@ -138,14 +138,37 @@ function spendingMul(state: GameState, data: GameData, welfare: boolean): number
   return data.balance.spending[policy].living;
 }
 
-function baseLiving(state: GameState, data: GameData): number {
-  const l = data.balance.living;
-  return state.character.married ? l.married : l.single;
+/** 生活費以外の決まった支出(車・健康費・実家への送金・親への仕送り・奨学金) */
+function obligations(state: GameState, data: GameData) {
+  const { balance } = data;
+  const region = regionDef(state, data);
+  const transfer = findFamily(state, data).monthlyTransfer;
+  return {
+    car: bool(state, 'hasCar') ? region.carMonthlyCost : 0,
+    health: balance.healthCare[state.policy.health].cost,
+    remittance: transfer < 0 && bool(state, 'parentAlive') ? -transfer : 0,
+    parentSupport: num(state, 'parentSupport', 0) > 0 ? balance.timers.parentSupport.monthlyCost : 0,
+    studentLoan: studentLoanPayment(state).payment,
+  };
 }
 
-/** 幸福度の生活水準に使う実質の生活費(地域差・物価・健康費・送金を除く。DESIGN.md §5.4) */
+/**
+ * 生活費(実質)= 世帯の固定分 + 自由に使える手取り(手取り − 決まった支出)× 割合 × 支出方針の係数。
+ * 収入が多いほど生活水準も上がり、車やローンがある人はそのぶん生活費を抑える。
+ * 生活保護中は支出方針に関係なく「節約」。
+ */
+function livingReal(state: GameState, data: GameData, welfare: boolean): number {
+  const l = data.balance.living;
+  const fixed = state.character.married ? l.married : l.single;
+  const o = obligations(state, data);
+  const committed = o.car + o.health + o.remittance + o.parentSupport + o.studentLoan;
+  const disposable = Math.max(0, calcIncome(state, data).total - committed);
+  return fixed + l.incomeShare * disposable * spendingMul(state, data, welfare);
+}
+
+/** 幸福度の生活水準に使う実質の生活費(地域差・物価・決まった支出を除く。DESIGN.md §5.4) */
 export function realLivingSpending(state: GameState, data: GameData = defaultData): number {
-  return roundYen(baseLiving(state, data) * spendingMul(state, data, bool(state, 'welfare')));
+  return roundYen(livingReal(state, data, bool(state, 'welfare')));
 }
 
 /** 今月の奨学金の返済額(利息込み)と、そのうち元本に充てる額 */
@@ -173,17 +196,9 @@ export function calcExpenses(
   data: GameData = defaultData,
   welfare: boolean = bool(state, 'welfare'),
 ): MonthlyExpenses {
-  const { balance } = data;
   const region = regionDef(state, data);
-  const living = roundYen(
-    baseLiving(state, data) * region.livingMul * spendingMul(state, data, welfare) * num(state, 'priceLevel', 1),
-  );
-  const car = bool(state, 'hasCar') ? region.carMonthlyCost : 0;
-  const health = balance.healthCare[state.policy.health].cost;
-  const transfer = findFamily(state, data).monthlyTransfer;
-  const remittance = transfer < 0 && bool(state, 'parentAlive') ? -transfer : 0;
-  const parentSupport = num(state, 'parentSupport', 0) > 0 ? balance.timers.parentSupport.monthlyCost : 0;
-  const studentLoan = studentLoanPayment(state).payment;
+  const living = roundYen(livingReal(state, data, welfare) * region.livingMul * num(state, 'priceLevel', 1));
+  const { car, health, remittance, parentSupport, studentLoan } = obligations(state, data);
   return {
     living,
     car,
@@ -260,9 +275,10 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
       if (a.cash >= 0) break;
     }
   }
+  // 生活保護は「節約しても収入で暮らせない」ときの下限。それ以外の不足は借金になる
+  const minimalLiving = calcExpenses(state, data, true).total;
   if (a.cash < 0) {
-    if (bool(state, 'bankrupt')) {
-      // 自己破産のあとは生活保護で補う(借金にしない)
+    if (income.total < minimalLiving) {
       a.cash = 0;
       state.flags.welfare = true;
     } else {
@@ -271,11 +287,7 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
     }
   }
   if (a.debt > debtLimit(state, data)) declareBankruptcy(state, data);
-
-  // 生活保護は、収入が通常の支出を上回った月に終わる
-  if (bool(state, 'welfare') && income.total >= calcExpenses(state, data, false).total) {
-    state.flags.welfare = false;
-  }
+  if (bool(state, 'welfare') && income.total >= minimalLiving) state.flags.welfare = false;
 
   return { income, expenses };
 }

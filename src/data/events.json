@@ -359,7 +359,7 @@
       "ageMin": 25,
       "ageMax": 70
     },
-    "baseProb": 0.008,
+    "baseProb": 0.006,
     "cooldownMonths": 36,
     "choices": [
       {
@@ -1038,7 +1038,7 @@
     "title": "風邪で休む",
     "text": "ひどい風邪をひいて数日寝込んだ。",
     "conditions": {},
-    "baseProb": 0.015,
+    "baseProb": 0.01,
     "good": false,
     "cooldownMonths": 6,
     "probMods": [

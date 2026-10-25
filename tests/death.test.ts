@@ -14,9 +14,9 @@ import type { Policy } from '../src/engine/types';
 import { makeState, setAge } from './helpers';
 
 describe('死亡率', () => {
-  it('基本死亡率: 20歳で約0.03%、80歳で約5%、上限1', () => {
-    expect(baseAnnualMortality(20)).toBeCloseTo(0.0003, 6);
-    expect(baseAnnualMortality(80)).toBeCloseTo(0.049, 3);
+  it('基本死亡率: 20歳で0.02%、80歳で約3.3%、上限1', () => {
+    expect(baseAnnualMortality(20)).toBeCloseTo(0.0002, 6);
+    expect(baseAnnualMortality(80)).toBeCloseTo(0.0002 * Math.exp(0.085 * 60), 6);
     expect(baseAnnualMortality(200)).toBe(1);
   });
 
@@ -97,10 +97,11 @@ function expectedLifespan(policy: Partial<Policy>): number {
 }
 
 describe('寿命のバランス(イベントなし)', () => {
-  it('普通の働き方・普通の健康管理で78〜83歳', () => {
+  // イベントで健康が削られる分、イベントなしの寿命は目安(78〜85歳)より少し長めにしてある
+  it('普通の働き方・普通の健康管理で80〜86歳', () => {
     const life = expectedLifespan({ work: 'normal', health: 'normal' });
-    expect(life).toBeGreaterThan(78);
-    expect(life).toBeLessThan(83);
+    expect(life).toBeGreaterThan(80);
+    expect(life).toBeLessThan(86);
   });
 
   it('激務は普通より5歳以上短く、健康意識高めは長い', () => {

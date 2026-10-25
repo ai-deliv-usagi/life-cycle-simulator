@@ -264,7 +264,8 @@ export interface Balance {
   work: Record<WorkStyle, { income: number; freeTime: number; health: number; stress: number; skill: number; death: number }>;
   spending: Record<Spending, { living: number; stress: number }>;
   healthCare: Record<HealthCare, { cost: number; health: number; stress: number }>;
-  living: { single: number; married: number };
+  /** 基本生活費 = single/married の固定分 + incomeShare × 世帯の手取り */
+  living: { single: number; married: number; incomeShare: number };
   retiredFreeTime: number;
   unemployedStress: number;
   debtAnnualRate: number;
