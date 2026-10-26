@@ -2742,6 +2742,9 @@
         },
         "valueShift": {
           "spending": 0.1
+        },
+        "conditions": {
+          "maxFinancial": 1000000
         }
       },
       {
@@ -2855,7 +2858,8 @@
     "text": "カード会社から「毎月の支払いが一定で安心」とリボ払いを勧められた。ずっと欲しかった品がある。",
     "conditions": {
       "ageMin": 20,
-      "ageMax": 75
+      "ageMax": 75,
+      "maxFinancial": 1000000
     },
     "baseProb": 0.0005,
     "cooldownMonths": 36,
