@@ -238,6 +238,16 @@
         "stat": "relations",
         "below": 30,
         "mul": 2
+      },
+      {
+        "flag": "pregnant",
+        "above": 0,
+        "mul": 0.2
+      },
+      {
+        "flag": "postpartum",
+        "above": 0,
+        "mul": 1.5
       }
     ],
     "choices": [
@@ -4578,7 +4588,8 @@
           },
           "achievement": 10,
           "setFlags": {
-            "parentalLeave": 12
+            "parentalLeave": 12,
+            "postpartum": 24
           }
         },
         "conditions": {
@@ -4599,7 +4610,8 @@
           },
           "achievement": 10,
           "setFlags": {
-            "spouseLeave": 12
+            "spouseLeave": 12,
+            "postpartum": 24
           }
         },
         "conditions": {
@@ -4617,7 +4629,10 @@
             "relations": 5,
             "stress": 5
           },
-          "achievement": 10
+          "achievement": 10,
+          "setFlags": {
+            "postpartum": 24
+          }
         },
         "valueShift": {
           "work": 0.1

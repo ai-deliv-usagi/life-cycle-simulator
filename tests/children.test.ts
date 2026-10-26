@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultData } from '../src/data/index';
 import { childAllowance, childCost, childCostScale, childEffects, dependents, independentAge } from '../src/engine/children';
-import { applyChoice, availableChoices, isEligible } from '../src/engine/events';
+import { applyChoice, availableChoices, eventProb, isEligible } from '../src/engine/events';
 import { calcExpenses, calcIncome, monthlyGrossPay } from '../src/engine/money';
 import { normalizePolicy } from '../src/engine/policy';
 import { createRng } from '../src/engine/rng';
@@ -163,5 +163,20 @@ describe('幸福度と方針', () => {
 
   it('古いセーブの方針には教育がないので、公立中心にする', () => {
     expect(normalizePolicy({ work: 'normal', spending: 'normal', invest: 'index', health: 'normal' }).education).toBe('public');
+  });
+});
+
+describe('妊娠中と産後の夫婦の危機', () => {
+  it('妊娠中は離婚の危機が起きにくく(×0.2)、出産から2年は起きやすい(×1.5)', () => {
+    const ev = byId('divorce_crisis');
+    const s = family([]);
+    const base = eventProb(ev, s);
+    s.flags.pregnant = 5;
+    expect(eventProb(ev, s)).toBeCloseTo(base * 0.2);
+    s.flags.pregnant = 1;
+    applyChoice(s, byId('birth'), 2, flatRng); // 育休は取らない
+    s.flags.pregnant = 0;
+    expect(s.flags.postpartum).toBe(24);
+    expect(eventProb(ev, s)).toBeCloseTo(base * 1.5);
   });
 });
