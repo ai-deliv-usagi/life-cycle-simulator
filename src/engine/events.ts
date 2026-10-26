@@ -5,8 +5,9 @@ import { addChild, afterGivingBirth, childAgeMonths, childrenOf } from './childr
 import { baseAnnualMortality, genderFactor } from './death';
 import { scaleNisaPrincipal } from './nisa';
 import { businessValue, hasBusiness, startBusiness } from './business';
+import { buyHome, ownsHome } from './housing';
 import { recordEventCash } from './ledger';
-import { changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
+import { annualGross, changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
 import type {
   Choice,
@@ -73,6 +74,8 @@ export function conditionsMet(cond: EventConditions | undefined, state: GameStat
   if (cond.jobIn && !cond.jobIn.includes(state.character.job)) return false;
   const c = state.character;
   if (cond.gender && c.gender !== cond.gender) return false;
+  if (cond.hasHome !== undefined && ownsHome(state) !== cond.hasHome) return false;
+  if (cond.homeYears !== undefined && (!state.home || state.month - state.home.boughtMonth < cond.homeYears * 12)) return false;
   if (cond.hasBusiness !== undefined && hasBusiness(state) !== cond.hasBusiness) return false;
   if (cond.minBusinessLevel !== undefined && (state.business?.level ?? 0) < cond.minBusinessLevel) return false;
   if (cond.spouseType && !(c.married && c.spouse && cond.spouseType.includes(c.spouse))) return false;
@@ -212,7 +215,6 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   if (effects.assetShock) {
     const targets = effects.assetShock.targets ?? (['index', 'stocks', 'speculative'] as const);
     for (const key of targets) {
-      if (key === 'debt' || key === 'studentLoan' || key === 'loan') continue; // 借金は資産ショックの対象にしない
       a[key] = roundYen(a[key] * (1 + effects.assetShock.pct));
       if (effects.assetShock.split && state.invested && key !== 'cash') {
         state.invested[key] = roundYen(state.invested[key] * (1 + effects.assetShock.pct));
@@ -226,6 +228,8 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
     const family = data.family.find((f) => f.tier === state.character.familyTier);
     a.cash += family?.inheritance ?? 0;
   }
+  // 家の頭金と諸費用(現金で払う分)も、足りなければ下のローンでまかなう
+  if (effects.buyHome !== undefined && !ownsHome(state)) buyHome(state, effects.buyHome, annualGross(state, data), data);
   coverWithLoan(state, cashBefore - a.cash, data); // 貯金で払えない大きな出費はローンにする
   // 職業の変更(退職金)より前の、イベント自体のお金の出入り。ローンにした分は、毎月の返済として支出に入る
   recordEventCash(state, a.cash - cashBefore);
@@ -238,6 +242,7 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   }
   if (effects.sellBusiness && state.business) changeJob(state, 'none', data); // 会社を売ったら無職(失業給付なし)
   if (effects.businessLevel && state.business) state.business.level *= effects.businessLevel;
+  if (effects.homeValue && state.assets.home) state.assets.home = roundYen(state.assets.home * effects.homeValue);
   for (const [key, delta] of Object.entries(effects.stats ?? {}) as [keyof Stats, number][]) {
     state.stats[key] = clampStat(state.stats[key] + delta);
   }
@@ -253,7 +258,12 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   applyFlags(state, effects.mulFlags, (old, v) => (typeof old === 'number' ? old : 1) * v, rng, data);
   if (effects.addChild && state.character.gender === 'female') afterGivingBirth(state, data);
   if (effects.region) state.character.region = effects.region;
-  if (effects.relocate === 'down') {
+  if (effects.relocate === 'down' && ownsHome(state)) {
+    // 持ち家があるので、家族を残して単身赴任(住む場所は変わらない)
+    state.stats.stress = clampStat(state.stats.stress + data.balance.housing.soloTransfer.stress);
+    state.stats.relations = clampStat(state.stats.relations + data.balance.housing.soloTransfer.relations);
+    addLog(state, 'event', '単身赴任: 持ち家があるので、ひとりで転勤先に移った', 'solo_transfer');
+  } else if (effects.relocate === 'down') {
     const order = ['metro', 'city', 'rural'] as const;
     const i = order.indexOf(state.character.region);
     state.character.region = order[Math.min(order.length - 1, i + 1)]!;

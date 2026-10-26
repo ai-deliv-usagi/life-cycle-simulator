@@ -412,7 +412,8 @@
     "text": "今の家の更新時期が来た。住む場所を見直すチャンスだ。",
     "conditions": {
       "ageMin": 20,
-      "ageMax": 70
+      "ageMax": 70,
+      "hasHome": false
     },
     "baseProb": 0.006,
     "cooldownMonths": 60,
@@ -1791,6 +1792,126 @@
         }
       }
     ]
+  },
+  {
+    "id": "home_purchase",
+    "category": "money",
+    "title": "マイホームの検討",
+    "text": "モデルルームを見に行ったら、営業担当から「今が買いどきですよ」と勧められた。",
+    "conditions": {
+      "ageMin": 28,
+      "ageMax": 50,
+      "employed": true,
+      "hasHome": false
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "flag": "married",
+        "equals": true,
+        "mul": 2.5
+      },
+      {
+        "value": "risk",
+        "below": 0,
+        "mul": 1.2
+      }
+    ],
+    "choices": [
+      {
+        "label": "頭金を1割入れて買う",
+        "effects": {
+          "buyHome": 0.1,
+          "achievement": 10,
+          "stats": {
+            "stress": 5
+          }
+        },
+        "valueShift": {
+          "risk": -0.1
+        }
+      },
+      {
+        "label": "頭金なし(フルローン)で買う",
+        "effects": {
+          "buyHome": 0,
+          "achievement": 10,
+          "stats": {
+            "stress": 8
+          }
+        },
+        "valueShift": {
+          "risk": 0.1
+        }
+      },
+      {
+        "label": "賃貸のままでいい",
+        "valueShift": {
+          "risk": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "home_repair",
+    "category": "money",
+    "title": "家の修繕",
+    "text": "築年数がたち、外壁や水回りの修繕が必要になった。",
+    "good": false,
+    "conditions": {
+      "hasHome": true,
+      "homeYears": 10
+    },
+    "baseProb": 0.006,
+    "cooldownMonths": 72,
+    "choices": [
+      {
+        "label": "しっかり直す(200万円)",
+        "effects": {
+          "cash": -2000000,
+          "homeValue": 1.03,
+          "stats": {
+            "stress": 3
+          }
+        }
+      },
+      {
+        "label": "最低限だけ直す(50万円)",
+        "effects": {
+          "cash": -500000,
+          "homeValue": 0.95
+        }
+      },
+      {
+        "label": "先送りする",
+        "effects": {
+          "homeValue": 0.88,
+          "stats": {
+            "stress": 5
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "natural_disaster",
+    "category": "social",
+    "title": "自然災害",
+    "text": "大きな台風で、家の屋根と窓が壊れた。",
+    "good": false,
+    "conditions": {
+      "hasHome": true
+    },
+    "baseProb": 0.0008,
+    "cooldownMonths": 60,
+    "effects": {
+      "cash": -800000,
+      "homeValue": 0.9,
+      "stats": {
+        "stress": 15
+      }
+    }
   },
   {
     "id": "windfall_bonus",
