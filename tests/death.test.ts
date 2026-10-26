@@ -121,9 +121,11 @@ describe('寿命のバランス(イベントなし)', () => {
     expect(life).toBeLessThan(89);
   });
 
-  it('激務は普通より5歳以上短く、健康意識高めは長い', () => {
+  it('激務で健康を気にしない(出世派の方針)は普通より5〜12歳短く、健康意識高めは長い', () => {
     const normal = expectedLifespan({ work: 'normal', health: 'normal' });
-    expect(normal - expectedLifespan({ work: 'grind', health: 'normal' })).toBeGreaterThan(5);
+    const hustle = normal - expectedLifespan({ work: 'grind', health: 'ignore' });
+    expect(hustle).toBeGreaterThan(5);
+    expect(hustle).toBeLessThan(12);
     expect(expectedLifespan({ work: 'normal', health: 'active' })).toBeGreaterThan(normal);
   });
 });
