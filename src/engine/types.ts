@@ -35,13 +35,16 @@ export interface Policy {
   health: HealthCare;
   prepay: boolean; // 繰上げ返済する(投資に回す分で先にローンと奨学金を返す)
   education: EducationPolicy; // 子どもの教育(第2弾。子どもがいるときだけ効く)
+  /** 毎月決まった額(円)を積み立てる。0 なら余ったお金の半分を配分どおりに回す */
+  investMonthly: number;
 }
 
 /** 古いセーブや簡単な指定のための入力形。invest に1つの資産名を渡すと100%扱い */
-export type PolicyInput = Omit<Policy, 'invest' | 'prepay' | 'education'> & {
+export type PolicyInput = Omit<Policy, 'invest' | 'prepay' | 'education' | 'investMonthly'> & {
   invest: InvestAllocation | Invest;
   prepay?: boolean;
   education?: EducationPolicy;
+  investMonthly?: number;
 };
 
 export interface Values {
@@ -244,10 +247,15 @@ export type ProbMod =
   | { healthCare: HealthCare[]; mul: number }
   | { spending: Spending[]; mul: number }
   | { partnerYears: true; above?: number; below?: number; mul: number } // 恋人と付き合っている年数
+  | { financial: true; above?: number; below?: number; mul: number } // 金融資産(円)
   | { region: RegionId[]; mul: number };
+
+export type LuxuryItem = 'car' | 'brand' | 'furniture';
 
 export interface Effects {
   cash?: number;
+  /** 高級品を買う。値段は金融資産と支出の方針で決まる(balance.luxury)。pay: 現金 / ローン / リボ */
+  luxury?: { item: LuxuryItem; pay: 'cash' | 'loan' | 'revolving' };
   cashMonthsOfPay?: number; // 現在の額面月給 × n(無職・退職後は0)
   stats?: Partial<Stats>;
   setFlags?: Flags;
@@ -450,6 +458,8 @@ export interface Balance {
     valueShiftStep: number;
     spendingCostMul: Record<Spending, number>; // scaleBySpending のイベントの出費に掛ける
   };
+  /** 高級品の値段 = 金融資産 × share × spendingCostMul を min〜max に収め、priceStep 円単位に丸める */
+  luxury: Record<LuxuryItem, { share: number; min: number; max: number; loanMonths: number }> & { priceStep: number };
   /** 毎月 −1 する数値フラグと、その間の効果 */
   timers: {
     recession: { layoffMul: number };

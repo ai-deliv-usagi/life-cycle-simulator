@@ -13,7 +13,7 @@ export interface PolicyPreset {
   id: string;
   label: string;
   description: string;
-  policy: Omit<Policy, 'prepay' | 'education'>;
+  policy: Omit<Policy, 'prepay' | 'education' | 'investMonthly'>;
 }
 
 const DEPOSIT_ONLY: InvestAllocation = { deposit: 100, index: 0, stocks: 0, speculative: 0 };

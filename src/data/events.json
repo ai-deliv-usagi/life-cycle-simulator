@@ -2042,6 +2042,25 @@
         }
       },
       {
+        "label": "高級車を買う",
+        "effects": {
+          "luxury": {
+            "item": "car",
+            "pay": "cash"
+          },
+          "setFlags": {
+            "hasCar": true
+          },
+          "stats": {
+            "stress": -3
+          },
+          "achievement": 5
+        },
+        "valueShift": {
+          "spending": 0.2
+        }
+      },
+      {
         "label": "買わない",
         "valueShift": {
           "spending": -0.1
@@ -2344,6 +2363,292 @@
     "scaleBySpending": true
   },
   {
+    "id": "luxury_car",
+    "category": "money",
+    "title": "高級車の誘惑",
+    "text": "ディーラーで、ワンランク上の高級車を勧められた。乗ってみると気分がいい。",
+    "conditions": {
+      "ageMin": 25,
+      "ageMax": 75
+    },
+    "baseProb": 0.0004,
+    "cooldownMonths": 60,
+    "probMods": [
+      {
+        "financial": true,
+        "above": 10000000,
+        "mul": 2
+      },
+      {
+        "financial": true,
+        "above": 30000000,
+        "mul": 2
+      },
+      {
+        "spending": [
+          "lavish"
+        ],
+        "mul": 4
+      },
+      {
+        "spending": [
+          "comfort"
+        ],
+        "mul": 2
+      },
+      {
+        "spending": [
+          "frugal"
+        ],
+        "mul": 0.3
+      },
+      {
+        "value": "spending",
+        "above": 0.5,
+        "mul": 1.5
+      },
+      {
+        "value": "spending",
+        "below": -0.5,
+        "mul": 0.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "高級車を買う",
+        "effects": {
+          "luxury": {
+            "item": "car",
+            "pay": "cash"
+          },
+          "setFlags": {
+            "hasCar": true
+          },
+          "stats": {
+            "stress": -5
+          },
+          "achievement": 3
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "ローンで買う",
+        "effects": {
+          "luxury": {
+            "item": "car",
+            "pay": "loan"
+          },
+          "setFlags": {
+            "hasCar": true
+          },
+          "stats": {
+            "stress": -5
+          },
+          "achievement": 3
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "見送る",
+        "valueShift": {
+          "spending": -0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "luxury_brand",
+    "category": "money",
+    "title": "ブランド品・高級時計",
+    "text": "前から気になっていたブランドの新作が出た。身につけると自信が持てそうだ。",
+    "conditions": {
+      "ageMin": 22
+    },
+    "baseProb": 0.0005,
+    "cooldownMonths": 24,
+    "probMods": [
+      {
+        "financial": true,
+        "above": 10000000,
+        "mul": 2
+      },
+      {
+        "financial": true,
+        "above": 30000000,
+        "mul": 2
+      },
+      {
+        "spending": [
+          "lavish"
+        ],
+        "mul": 4
+      },
+      {
+        "spending": [
+          "comfort"
+        ],
+        "mul": 2
+      },
+      {
+        "spending": [
+          "frugal"
+        ],
+        "mul": 0.3
+      },
+      {
+        "value": "spending",
+        "above": 0.5,
+        "mul": 1.5
+      },
+      {
+        "value": "spending",
+        "below": -0.5,
+        "mul": 0.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "買う",
+        "effects": {
+          "luxury": {
+            "item": "brand",
+            "pay": "cash"
+          },
+          "stats": {
+            "stress": -5
+          },
+          "achievement": 1
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "リボ払いで買う",
+        "effects": {
+          "luxury": {
+            "item": "brand",
+            "pay": "revolving"
+          },
+          "stats": {
+            "stress": -5,
+            "credit": -3
+          },
+          "achievement": 1
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "見送る",
+        "effects": {
+          "stats": {
+            "stress": 2
+          }
+        },
+        "valueShift": {
+          "spending": -0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "luxury_furniture",
+    "category": "money",
+    "title": "高級家具・家電",
+    "text": "ショールームで、上質なソファと最新の家電一式に心をひかれた。",
+    "conditions": {
+      "ageMin": 25
+    },
+    "baseProb": 0.0003,
+    "cooldownMonths": 48,
+    "probMods": [
+      {
+        "financial": true,
+        "above": 10000000,
+        "mul": 2
+      },
+      {
+        "financial": true,
+        "above": 30000000,
+        "mul": 2
+      },
+      {
+        "spending": [
+          "lavish"
+        ],
+        "mul": 4
+      },
+      {
+        "spending": [
+          "comfort"
+        ],
+        "mul": 2
+      },
+      {
+        "spending": [
+          "frugal"
+        ],
+        "mul": 0.3
+      },
+      {
+        "value": "spending",
+        "above": 0.5,
+        "mul": 1.5
+      },
+      {
+        "value": "spending",
+        "below": -0.5,
+        "mul": 0.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "一式そろえる",
+        "effects": {
+          "luxury": {
+            "item": "furniture",
+            "pay": "cash"
+          },
+          "stats": {
+            "stress": -5
+          },
+          "achievement": 1
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "ローンで買う",
+        "effects": {
+          "luxury": {
+            "item": "furniture",
+            "pay": "loan"
+          },
+          "stats": {
+            "stress": -5
+          },
+          "achievement": 1
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "見送る",
+        "valueShift": {
+          "spending": -0.1
+        }
+      }
+    ]
+  },
+  {
     "id": "revolving",
     "category": "money",
     "title": "リボ払いの誘い",
@@ -2584,7 +2889,7 @@
     "conditions": {
       "ageMin": 30
     },
-    "baseProb": 0.004,
+    "baseProb": 0.0015,
     "cooldownMonths": 24,
     "probMods": [
       {

@@ -15,8 +15,8 @@ describe('選択肢の金額の目安', () => {
   it('現金の出費(支出の方針で増減する分も)、ローン、起業の元手', () => {
     const lavish = setAge(makeState({}, { spending: 'lavish' }), 30);
     expect(choiceCost(byId('travel'), choice('travel', 0), lavish)).toEqual({ spend: 720_000, borrow: 0 });
-    expect(choiceCost(byId('car_purchase'), choice('car_purchase', 1), lavish)).toEqual({ spend: 0, borrow: 2_500_000 });
-    expect(choiceCost(byId('revolving'), choice('revolving', 0), lavish)).toEqual({ spend: 0, borrow: 720_000 });
+    expect(choiceCost(byId('car_purchase'), choice('car_purchase', 1), lavish)).toEqual({ spend: 0, borrow: 2_500_000, borrowRate: 0.03 });
+    expect(choiceCost(byId('revolving'), choice('revolving', 0), lavish)).toEqual({ spend: 0, borrow: 720_000, borrowRate: 0.15 });
     expect(choiceCost(byId('startup_chance'), choice('startup_chance', 0), lavish).spend).toBe(3_000_000);
     expect(choiceCost(byId('travel'), choice('travel', 2), lavish)).toEqual({ spend: 0, borrow: 0 });
   });
@@ -26,7 +26,7 @@ describe('選択肢の金額の目安', () => {
     s.assets.cash = 10_000_000;
     const cost = choiceCost(byId('home_purchase'), choice('home_purchase', 0), s);
     const price = homePrice(s, annualGross(s));
-    expect(cost).toEqual({ spend: Math.round(price * 0.17), borrow: Math.round(price * 0.9), homePrice: price });
+    expect(cost).toEqual({ spend: Math.round(price * 0.17), borrow: Math.round(price * 0.9), borrowRate: 0.01, homePrice: price });
     applyChoice(s, byId('home_purchase'), 0, flatRng);
     expect(s.assets.cash).toBe(10_000_000 - cost.spend);
     expect(s.assets.mortgage).toBe(cost.borrow);

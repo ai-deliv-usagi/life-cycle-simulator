@@ -140,6 +140,22 @@ export function happinessFace(happiness: number): string {
   return '😢';
 }
 
+/** 幸福度を言葉で(数値は出さない) */
+export function happinessWord(happiness: number): string {
+  if (happiness >= 75) return 'とても幸せ';
+  if (happiness >= 60) return '幸せ';
+  if (happiness >= 45) return 'ふつう';
+  if (happiness >= 30) return 'つらい';
+  return 'とてもつらい';
+}
+
+/** 幸福度の要素の満たされ具合を言葉で */
+export function happinessPartWord(value: number): string {
+  if (value >= 65) return '十分';
+  if (value >= 40) return 'ふつう';
+  return '足りない';
+}
+
 /** ステータスが下がる(ストレスは上がる)と何が起きるか */
 export const STAT_EFFECTS: Record<keyof typeof STAT_LABELS, { what: string; bad: string; good: string }> = {
   health: {
@@ -195,4 +211,10 @@ export function logTitle(text: string): string {
 /** ログのお金の増減(「−12万円」)。動いていなければ空 */
 export function moneyLabel(money: number | undefined): string {
   return money ? signedManYen(money) : '';
+}
+
+/** 年利・利回り(「年3%」「年0.1%」)。0 は「無利子」 */
+export function annualRateLabel(rate: number): string {
+  if (rate === 0) return '無利子';
+  return `年${Number((rate * 100).toFixed(1))}%`;
 }

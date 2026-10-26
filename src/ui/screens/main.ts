@@ -1,10 +1,11 @@
 // メイン画面: 状態の表示・資産推移・直近のログ・操作
-import { gameData, getMonthlyView, upcoming, type GameState, type LogEntry, type Stats } from '../../engine/index';
+import { debtRates, gameData, getMonthlyView, upcoming, type GameState, type LogEntry, type Stats } from '../../engine/index';
 import { NetWorthChart } from '../charts';
 import { GameController, type Speed } from '../controller';
 import { clear, h, mount } from '../dom';
 import {
   ageMonthLabel,
+  annualRateLabel,
   bigYen,
   calendarMonth,
   collapseLog,
@@ -13,6 +14,7 @@ import {
   regionLabel,
   signedManYen,
   happinessFace,
+  happinessWord,
   IMPORTANT_EVENTS,
   logTitle,
   moneyLabel,
@@ -46,7 +48,6 @@ export interface MainScreenHooks {
   onYearEnd?(state: GameState): boolean | void;
 }
 
-const TOAST_MS = 2500;
 const SNACK_MS = 4000; // 大事な出来事はその倍
 const SNACK_MAX = 3;
 const LEVEL_ORDER = ['good', 'normal', 'caution', 'danger'] as const;
@@ -113,15 +114,6 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
   const statWarning = h('p', { class: 'stat-warning small' });
   const upcomingList = h('ul', { class: 'upcoming-list' });
   const upcomingCard = h('section', { class: 'card' }, h('h2', {}, 'これから'), upcomingList);
-  const toast = h('div', { class: 'toast', role: 'status', 'aria-live': 'polite', hidden: true });
-  let toastTimer: ReturnType<typeof setTimeout> | undefined;
-  const showToast = (text: string, cls = '') => {
-    toast.textContent = text;
-    toast.className = `toast ${cls}`;
-    toast.hidden = false;
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => (toast.hidden = true), TOAST_MS);
-  };
   // 選択肢のない出来事のスナックバー(画面の下、操作ボタンの上に積む)
   const snackbars = h('div', { class: 'snackbars', role: 'status', 'aria-live': 'polite' });
   const showSnack = (e: LogEntry, stopped: boolean) => {
@@ -172,7 +164,6 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
         ),
         h('div', { class: 'muted small' }, fields.job, ' / ', fields.region, ' / ', fields.family),
       ),
-      toast,
       h(
         'section',
         { class: 'tiles' },
@@ -310,22 +301,23 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     debtTile.hidden = owed <= 0 && blacklist <= 0;
     fields.debt.textContent = manYen(owed);
     fields.debt.classList.toggle('down', v.debt > 0);
+    const rates = debtRates(state);
     const debtNotes = [
-      v.debt > 0 ? `カードローン ${manYen(v.debt)}` : '',
-      v.loan > 0 ? `ローン ${manYen(v.loan)}` : '',
-      mortgage > 0 ? `住宅ローン ${manYen(mortgage)}` : '',
-      v.studentLoan > 0 ? `奨学金 ${manYen(v.studentLoan)}` : '',
+      v.debt > 0 ? `カードローン ${manYen(v.debt)}(${annualRateLabel(rates.card)})` : '',
+      v.loan > 0 ? `ローン ${manYen(v.loan)}(${annualRateLabel(rates.loan)})` : '',
+      mortgage > 0 ? `住宅ローン ${manYen(mortgage)}(${annualRateLabel(rates.mortgage)})` : '',
+      v.studentLoan > 0 ? `奨学金 ${manYen(v.studentLoan)}(${annualRateLabel(rates.studentLoan)})` : '',
       blacklist > 0 ? `ブラックリスト 残り${Math.ceil(blacklist / 12)}年` : '',
     ].filter(Boolean);
     fields.debtSub.textContent = debtNotes.join(' / ');
-    fields.happiness.textContent = `${happinessFace(v.happiness)} ${Math.round(v.happiness)}`;
+    fields.happiness.textContent = `${happinessFace(v.happiness)} ${happinessWord(v.happiness)}`;
     const history = state.happinessHistory;
     const yearAgo = history.length > 12 ? history.slice(-24, -12) : [];
     const thisYear = history.slice(-12);
     const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
     const hDiff = yearAgo.length > 0 ? avg(thisYear) - avg(yearAgo) : null;
     fields.happinessDiff.textContent =
-      hDiff === null ? '' : `この1年 ${hDiff >= 0.5 ? '↑' : hDiff <= -0.5 ? '↓' : '→'} (前の年 ${Math.round(avg(yearAgo))})`;
+      hDiff === null ? '' : `この1年 ${hDiff >= 0.5 ? '↑ 上向き' : hDiff <= -0.5 ? '↓ 下向き' : '→ 変わらず'}`;
     fields.happinessDiff.className = `tile-sub small ${hDiff !== null && hDiff >= 0.5 ? 'up' : hDiff !== null && hDiff <= -0.5 ? 'down' : 'muted'}`;
     fields.policy.textContent = policySummary(state.policy, policyOptionsFor(state));
     // いちばん悪いステータスが注意・危険なら、何が起きやすいかを1行で
@@ -389,8 +381,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       // 年間サマリーを出したあと(スキップ中も)に、前年比の基準を進める
       previousFinancial = getMonthlyView(state).financialAssets;
       lastSummaryMonth = state.month;
-      // セーブできたら小さく知らせる(イベントの通知が出ているときは邪魔しない)
-      if (hooks.onYearEnd?.(state) === true && toast.hidden) showToast('セーブしました', 'toast-save');
+      hooks.onYearEnd?.(state);
     },
     onPlayingChange: (playing) => {
       playBtn.textContent = playing ? '⏸ 一時停止' : '▶ 再生';

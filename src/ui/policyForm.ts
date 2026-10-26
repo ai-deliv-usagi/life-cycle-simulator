@@ -114,7 +114,7 @@ function allocationEditor(current: Policy, onChange: () => void): HTMLElement {
   const el = h(
     'fieldset',
     { class: 'choice-group' },
-    h('legend', {}, '投資の配分(余ったお金をどこに回すか)'),
+    h('legend', {}, '投資の配分(どこに回すか)'),
     h(
       'div',
       { class: 'segmented' },
@@ -134,9 +134,67 @@ function allocationEditor(current: Policy, onChange: () => void): HTMLElement {
       ),
     ),
     h('div', { class: 'alloc' }, ...INVEST_KEYS.filter((k) => k !== 'deposit').map(row), row('deposit')),
+    monthlyEditor(current, onChange),
   );
   refresh();
   return el;
+}
+
+/** 積み立てる額: 余ったお金の半分(配分どおり)か、毎月決まった額(万円) */
+function monthlyEditor(current: Policy, onChange: () => void): HTMLElement {
+  const name = `monthly${formId++}`;
+  const input = h('input', {
+    type: 'number',
+    min: '1',
+    step: '1',
+    inputmode: 'numeric',
+    class: 'monthly-input',
+    'aria-label': '毎月の積立額(万円)',
+    value: current.investMonthly > 0 ? String(current.investMonthly / 10_000) : '3',
+  });
+  const help = h('p', { class: 'policy-help muted small' });
+  const refresh = () => {
+    const fixed = current.investMonthly > 0;
+    input.disabled = !fixed;
+    help.textContent = fixed
+      ? '毎月この額を、積立・個別株・信用/仮想通貨の比で買う(配分の「預金」は使わない)。赤字の月も、預金があるうちは続ける'
+      : '毎月、余ったお金の半分を上の配分どおりに回す(赤字の月は積み立てない)';
+  };
+  const fromInput = () => {
+    const man = Number(input.value);
+    current.investMonthly = Number.isFinite(man) && man > 0 ? Math.round(man) * 10_000 : 10_000;
+  };
+  const radio = (fixed: boolean, text: string) =>
+    h(
+      'label',
+      { class: 'segment' },
+      h('input', {
+        type: 'radio',
+        name,
+        checked: (current.investMonthly > 0) === fixed,
+        onchange: () => {
+          if (fixed) fromInput();
+          else current.investMonthly = 0;
+          refresh();
+          onChange();
+        },
+      }),
+      h('span', {}, text),
+    );
+  input.addEventListener('change', () => {
+    fromInput();
+    input.value = String(current.investMonthly / 10_000);
+    onChange();
+  });
+  refresh();
+  return h(
+    'div',
+    { class: 'monthly' },
+    h('p', { class: 'small' }, '積み立てる額'),
+    h('div', { class: 'segmented' }, radio(false, '余ったお金の半分'), radio(true, '毎月決まった額')),
+    h('div', { class: 'monthly-row' }, h('span', { class: 'small' }, '毎月'), input, h('span', { class: 'small' }, '万円')),
+    help,
+  );
 }
 
 /** 今の状況で意味のない項目は出さない(値は今のまま残す) */
@@ -152,7 +210,7 @@ export interface PolicyFormOptions {
 export function policyForm(
   initial: PolicyInput | Policy,
   opts: PolicyFormOptions = { showPrepay: true, showEducation: true },
-): { el: HTMLElement; get: () => Policy; set: (p: Omit<Policy, 'prepay' | 'education'>) => void } {
+): { el: HTMLElement; get: () => Policy; set: (p: Omit<Policy, 'prepay' | 'education' | 'investMonthly'>) => void } {
   const id = `policy${formId++}`;
   const current: Policy = normalizePolicy(initial);
   current.invest = { ...current.invest };
@@ -187,7 +245,7 @@ export function policyForm(
     refreshPresets();
   };
 
-  function set(p: Omit<Policy, 'prepay' | 'education'>): void {
+  function set(p: Omit<Policy, 'prepay' | 'education' | 'investMonthly'>): void {
     current.work = p.work;
     current.spending = p.spending;
     current.health = p.health;

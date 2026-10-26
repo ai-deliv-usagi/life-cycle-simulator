@@ -186,7 +186,7 @@
     },
     "karoshi": {
       "grindMonthly": 0.00015,
-      "overtimeMonthly": 0.00003,
+      "overtimeMonthly": 3e-05,
       "minStress": 70
     },
     "maxAge": 120,
@@ -516,6 +516,27 @@
     "soloTransfer": {
       "stress": 10,
       "relations": -8
+    }
+  },
+  "luxury": {
+    "priceStep": 100000,
+    "car": {
+      "share": 0.15,
+      "min": 3000000,
+      "max": 12000000,
+      "loanMonths": 60
+    },
+    "brand": {
+      "share": 0.03,
+      "min": 300000,
+      "max": 2000000,
+      "loanMonths": 24
+    },
+    "furniture": {
+      "share": 0.04,
+      "min": 500000,
+      "max": 3000000,
+      "loanMonths": 36
     }
   }
 }

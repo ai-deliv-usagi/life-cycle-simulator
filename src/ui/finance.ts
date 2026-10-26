@@ -1,7 +1,7 @@
 // 収支表とバランスシート(年間サマリーと資産の画面で共通)
-import { ledgerTotals, netWorth, type ExpenseKey, type GameState, type IncomeKey, type MonthlyIncome, type YearLedger } from '../engine/index';
+import { debtRates, ledgerTotals, netWorth, type ExpenseKey, type GameState, type IncomeKey, type MonthlyIncome, type YearLedger } from '../engine/index';
 import { h } from './dom';
-import { manYen, signedManYen, yen } from './format';
+import { annualRateLabel, manYen, signedManYen, yen } from './format';
 
 const INCOME_LABELS: Record<IncomeKey, string> = {
   salary: '給料(手取り)',
@@ -152,12 +152,15 @@ export function liabilitiesAndNet(state: GameState): HTMLElement {
   const a = state.assets;
   const loan = a.loan ?? 0;
   const mortgage = a.mortgage ?? 0;
+  const r = debtRates(state);
+  // 年利と、毎月の返済(カードローンは毎月の利息の目安)
+  const note = (rate: number, extra: string) => [annualRateLabel(rate), extra].filter(Boolean).join('・');
   const rows: [string, number, string][] = [
-    ['カードローン', a.debt, ''],
-    ['ローン', loan, loan > 0 ? `毎月${manYen(state.character.loanPayment ?? 0)}` : ''],
-    ['奨学金', a.studentLoan, ''],
+    ['カードローン', a.debt, a.debt > 0 ? note(r.card, `利息 月${manYen(Math.round((a.debt * r.card) / 12))}`) : ''],
+    ['ローン', loan, loan > 0 ? note(r.loan, `毎月${manYen(state.character.loanPayment ?? 0)}`) : ''],
+    ['奨学金', a.studentLoan, a.studentLoan > 0 ? note(r.studentLoan, `毎月${manYen(state.character.studentLoan?.monthlyPayment ?? 0)}`) : ''],
   ];
-  if (state.home) rows.push(['住宅ローン', mortgage, mortgage > 0 ? `毎月${manYen(state.home.payment)}` : '']);
+  if (state.home) rows.push(['住宅ローン', mortgage, mortgage > 0 ? note(r.mortgage, `毎月${manYen(state.home.payment)}`) : '']);
   const totalDebts = a.debt + loan + a.studentLoan + mortgage;
   const net = netWorth(state.assets);
   return h(

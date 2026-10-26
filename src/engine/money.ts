@@ -8,8 +8,9 @@ import { homeOwnershipCost, housingDeduction, loseHome, mortgagePayment, ownsHom
 import { childAllowance, childCost, parentalLeaveRate } from './children';
 import { recordSeverance } from './ledger';
 import { buyInvestment, resetNisaYear, sellForCash } from './nisa';
+import { fixedInvestShares } from './policy';
 import type { Rng } from './rng';
-import type { GameData, GameState, JobDef, JobId, RegionDef } from './types';
+import type { GameData, GameState, Invest, JobDef, JobId, RegionDef } from './types';
 import { addLog, ageYears, annuityPayment, clamp, clampStat, findById, roundYen } from './util';
 
 // ---- 参照 ----
@@ -434,7 +435,19 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
     a.cash -= repay;
     surplus -= repay;
   }
-  if (surplus > 0) {
+  const monthly = state.policy.investMonthly ?? 0;
+  if (monthly > 0) {
+    // 毎月決まった額を積み立てる(赤字の月も、預金があるうちは続ける)。繰上げ返済は余ったお金の半分で
+    if (state.policy.prepay && surplus > 0) prepaid = prepay(state, Math.min(roundYen(surplus * balance.investShare), Math.max(0, a.cash)));
+    const budget = Math.min(monthly, Math.max(0, a.cash));
+    for (const [key, share] of Object.entries(fixedInvestShares(state.policy)) as [Exclude<Invest, 'deposit'>, number][]) {
+      const amount = roundYen(budget * share);
+      if (amount <= 0) continue;
+      a.cash -= amount;
+      buyInvestment(state, key, amount, data);
+      invested += amount;
+    }
+  } else if (surplus > 0) {
     // 余剰のうち投資に回す分。繰上げ返済するなら先にローン・奨学金を返し、残りを配分どおりに積み立てる
     let budget = Math.min(roundYen(surplus * balance.investShare), Math.max(0, a.cash));
     if (state.policy.prepay) {
@@ -455,13 +468,17 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   // 5. 資金ショート。特定口座から先に売り、利益には税金がかかる(そのぶん多めに売る)
   let investTax = 0;
   if (a.cash < 0) {
+    const sold: string[] = [];
     for (const key of ['index', 'stocks', 'speculative'] as const) {
       if (a[key] <= 0) continue;
       const sale = sellForCash(state, key, -a.cash, data);
       a.cash += sale.gross - sale.tax;
       investTax += sale.tax;
+      if (sale.gross > 0) sold.push(`${FORCED_SALE_LABELS[key]}を${Math.max(1, Math.round(sale.gross / 10_000)).toLocaleString('ja-JP')}万円`);
       if (a.cash >= 0) break;
     }
+    // 知らないうちに投資がなくなったように見えないよう、ログに残す
+    if (sold.length > 0) addLog(state, 'event', `投資の取り崩し: 預金が足りず、${sold.join('・')}売ってあてた`, 'forced_sale');
   }
   // 生活保護は「節約しても収入で暮らせない」ときの下限。それ以外の不足は借金になる。
   // 住宅ローンと固定資産税はボーナスで払う月もあるので、ここでは数えない(返せなければ借金が膨らみ、家を売る)
@@ -550,6 +567,19 @@ export function coverWithLoan(state: GameState, spent: number, data: GameData = 
     'auto_loan',
   );
 }
+
+/** 借りているものごとの年利(UI の表示用)。奨学金は借りた条件、無利子なら 0 */
+export function debtRates(state: GameState, data: GameData = defaultData): { card: number; loan: number; mortgage: number; studentLoan: number } {
+  const b = data.balance;
+  return {
+    card: b.debtAnnualRate,
+    loan: b.loan.annualRate,
+    mortgage: b.housing.mortgage.annualRate,
+    studentLoan: state.character.studentLoan?.annualRate ?? 0,
+  };
+}
+
+const FORCED_SALE_LABELS = { index: '積立', stocks: '個別株', speculative: '信用・仮想通貨' } as const;
 
 /** 運用リターン。乱数の消費を保有額によらず一定にして、方針を変えても乱数列がずれないようにする */
 /** 運用リターンを反映し、増えた額(減ったらマイナス。預金の利息を含む)を返す */

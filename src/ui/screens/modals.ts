@@ -4,9 +4,12 @@ import { assetMixChart, assetMixPoints } from '../charts';
 import { append, clear, h, openModal } from '../dom';
 import {
   ageMonthLabel,
+  annualRateLabel,
   calendarMonth,
   HAPPINESS_PART_LABELS,
   happinessFace,
+  happinessPartWord,
+  happinessWord,
   healthWord,
   logTitle,
   manYen,
@@ -73,10 +76,10 @@ function financialTotal(state: GameState): number {
 /** 選択肢の下に出す金額の目安。ラベルにもう金額が書いてあれば出さない */
 function costHint(cost: ChoiceCost, label: string): string {
   if (cost.homePrice !== undefined) {
-    return `${manYen(cost.homePrice)}の家・頭金と諸費用 約${manYen(cost.spend)}・住宅ローン ${manYen(cost.borrow)}`;
+    return `${manYen(cost.homePrice)}の家・頭金と諸費用 約${manYen(cost.spend)}・住宅ローン ${manYen(cost.borrow)}(${annualRateLabel(cost.borrowRate ?? 0)})`;
   }
   if (label.includes('円')) return '';
-  const parts = [cost.spend > 0 ? `約${manYen(cost.spend)}` : '', cost.borrow > 0 ? `借りる額 ${manYen(cost.borrow)}` : ''];
+  const parts = [cost.spend > 0 ? `約${manYen(cost.spend)}` : '', cost.borrow > 0 ? `借りる額 ${manYen(cost.borrow)}(${annualRateLabel(cost.borrowRate ?? 0)})` : ''];
   return parts.filter(Boolean).join('・');
 }
 
@@ -391,6 +394,16 @@ function buyForm(state: GameState, key: InvestKey, label: string, buy: (amount: 
   });
 }
 
+/** 預金と投資の想定利回り(平均)と振れ幅 */
+function expectedYields(): string {
+  const c = gameData.balance.assets;
+  const swing = (sigma: number) => (sigma > 0 ? `、振れ幅 ±${Math.round(sigma * 100)}%` : '');
+  return [
+    `預金 ${annualRateLabel(c.cash.mu)}`,
+    ...INVEST_ROWS.map((r) => `${r.label} ${annualRateLabel(c[r.key].mu)}${swing(c[r.key].sigma)}`),
+  ].join(' / ') + `(信用・仮想通貨はまれに暴落して −${Math.round(Math.abs(c.speculative.crashPct) * 100)}%)`;
+}
+
 function assetsContent(
   state: GameState,
   body: HTMLElement,
@@ -523,7 +536,8 @@ function assetsContent(
     mix.el,
     state.ledger ? h('details', { class: 'summary-details' }, h('summary', {}, '今年のここまでの収支'), ledgerTable(state.ledger)) : null,
     inv === undefined ? h('p', { class: 'muted small' }, '古いセーブデータのため、元本と損益は表示できない。') : null,
-    h('p', { class: 'muted small' }, '元本はつぎ込んだ金額。損益は今の残高との差。'),
+    h('p', { class: 'muted small' }, '元本はつぎ込んだ金額。損益は今の残高との差(%は元本に対する損益率)。'),
+    h('p', { class: 'muted small' }, `想定利回り(年の平均): ${expectedYields()}。年ごとの振れ幅が大きいほど、損をする年も多い。`),
     h('button', { class: 'btn primary', onclick: close }, '閉じる'),
   ]);
   return mix;
@@ -589,13 +603,13 @@ export function happinessModal(state: GameState): Promise<void> {
         { class: 'bar bar-wide-label' },
         h('span', { class: 'bar-label' }, HAPPINESS_PART_LABELS[p], mark ? h('span', { class: 'weight-tag small' }, mark) : ''),
         h('div', { class: 'bar-track' }, h('div', { class: 'bar-fill', style: `width:${Math.round(parts[p])}%` })),
-        h('span', { class: 'bar-word muted small' }, String(Math.round(parts[p]))),
+        h('span', { class: 'bar-word muted small' }, happinessPartWord(parts[p])),
       );
     });
     const content = h(
       'div',
       { class: 'happiness-modal' },
-      h('h2', {}, `今月の幸福度 ${happinessFace(state.happinessHistory.at(-1) ?? 0)} ${Math.round(state.happinessHistory.at(-1) ?? 0)}`),
+      h('h2', {}, `今月の幸福度 ${happinessFace(state.happinessHistory.at(-1) ?? 0)} ${happinessWord(state.happinessHistory.at(-1) ?? 0)}`),
       h('p', { class: 'muted small' }, '6つの要素の重み付き平均。どれを重視するかは価値観で変わる(「重視」は重みが大きく、「軽め」は小さい要素)。'),
       h('div', { class: 'card bars' }, ...rows),
       h(
