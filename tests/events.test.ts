@@ -21,11 +21,11 @@ const byId = (id: string): EventDef => {
 };
 
 describe('events.json', () => {
-  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ31・キャリア18・お金15・健康14・社会3 + 再就職・再雇用・出産)', () => {
+  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ33・キャリア18・お金15・健康14・社会3 + 再就職・再雇用・出産)', () => {
     expect(validateData(defaultData)).toEqual([]);
     const count: Record<string, number> = {};
     for (const e of defaultData.events) count[e.category] = (count[e.category] ?? 0) + 1;
-    expect(count).toEqual({ life: 31, career: 18, money: 15, health: 14, social: 3, system: 3 });
+    expect(count).toEqual({ life: 33, career: 18, money: 15, health: 14, social: 3, system: 3 });
   });
 });
 
@@ -248,15 +248,31 @@ describe('効果', () => {
     expect(s.invested!.index).toBe(500_000);
   });
 
-  it('転職は現職以外へ、payMul は転職後の値になる', () => {
+  it('異業種への転職は現職・バイト以外へ。年収と職場はガチャ(payMul は転職後の値 × 0.85〜1.2)', () => {
     const rng = createRng(2);
+    const muls = new Set<number>();
     for (let i = 0; i < 50; i++) {
       const s = makeState({ job: 'sales' });
-      applyChoice(s, byId('job_offer'), 0, rng);
+      applyChoice(s, byId('job_offer'), 1, rng);
       expect(s.character.job).not.toBe('sales');
+      expect(s.character.job).not.toBe('parttime');
       expect(s.character.previousJob).toBe('sales');
-      expect(s.flags.payMul).toBe(1.05);
+      muls.add(s.flags.payMul as number);
     }
+    expect(muls).toEqual(new Set([1.2, 1.12, 0.88, 0.85]));
+  });
+
+  it('同業他社への転職は職業も役職もそのまま、勤続年数が0に戻り、年収は今の水準 × 0.9〜1.15', () => {
+    const s = makeState({ job: 'sales' });
+    s.flags.rank = 2;
+    s.flags.payMul = 1.2;
+    s.character.jobYears = 10;
+    applyChoice(s, byId('job_offer'), 0, createRng(1));
+    expect(s.character.job).toBe('sales');
+    expect(s.flags.rank).toBe(2);
+    expect(s.character.jobYears).toBe(0);
+    expect([1.2 * 1.15, 1.2 * 1.1, 1.2 * 0.92, 1.2 * 0.9].some((m) => Math.abs((s.flags.payMul as number) - m) < 1e-9)).toBe(true);
+    expect(s.log.at(-1)!.text).toMatch(/同業他社に転職する」 → 年収/);
   });
 
   it('リストラ → 再就職(前の職業に戻る)', () => {
@@ -306,7 +322,7 @@ describe('効果', () => {
   it('転職すると役職は一般に戻る', () => {
     const s = makeState({ job: 'sales' });
     s.flags.rank = 3;
-    applyChoice(s, byId('job_offer'), 0, createRng(1));
+    applyChoice(s, byId('job_offer'), 1, createRng(1)); // 異業種
     expect(s.flags.rank).toBe(0);
   });
 

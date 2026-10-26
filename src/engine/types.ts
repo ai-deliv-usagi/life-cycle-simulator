@@ -228,6 +228,7 @@ export interface EventConditions {
   childAge?: [number, number]; // 子どもの誰かがこの年齢(歳、両端を含む)
   hasBusiness?: boolean; // 会社を経営しているか
   hasHome?: boolean; // 持ち家があるか
+  ageWindows?: [number, number][]; // この年齢の範囲(歳、両端を含む)のどれかに入っているときだけ
   homeYears?: number; // 家を買ってからこの年数以上
   minBusinessLevel?: number; // 会社の業績がこれ以上
 }
@@ -240,6 +241,7 @@ export type ProbMod =
   | { work: WorkStyle[]; mul: number }
   | { healthCare: HealthCare[]; mul: number }
   | { spending: Spending[]; mul: number }
+  | { partnerYears: true; above?: number; below?: number; mul: number } // 恋人と付き合っている年数
   | { region: RegionId[]; mul: number };
 
 export interface Effects {
@@ -249,7 +251,10 @@ export interface Effects {
   setFlags?: Flags;
   addFlags?: Record<string, number>;
   mulFlags?: Record<string, number>;
-  job?: JobId | 'random_other' | 'previous';
+  /** 職業を変える。other_industry は今と違う会社員の仕事(バイト・社長にはならない) */
+  job?: JobId | 'random_other' | 'other_industry' | 'previous';
+  /** 同じ職業のまま別の会社に移る(按分した退職金を受け取り、勤続年数が0に戻る) */
+  changeEmployer?: boolean;
   achievement?: number;
   /** 資産を一律に増減。split=true は財産分与(元本も同じ割合で減らすので運用の損益にならない) */
   assetShock?: { pct: number; targets?: ('cash' | 'index' | 'stocks' | 'speculative')[]; split?: boolean };
@@ -305,6 +310,8 @@ export interface EventDef {
   cooldownMonths?: number;
   effects?: Effects;
   choices?: Choice[];
+  /** 出費(cash・debt のマイナス)を支出の方針で増減する(買い物・旅行など)。balance.events.spendingCostMul */
+  scaleBySpending?: boolean;
 }
 
 // ---- 調整用データ(src/data/*.json)----
@@ -431,7 +438,14 @@ export interface Balance {
     /** 重み w = base + Σ 係数 × 価値観(最小 minWeight) */
     weights: Record<HappinessPart, { base: number } & Partial<Record<keyof Values, number>>>;
   };
-  events: { luckGoodBase: number; luckGoodScale: number; luckBadBase: number; luckBadScale: number; valueShiftStep: number };
+  events: {
+    luckGoodBase: number;
+    luckGoodScale: number;
+    luckBadBase: number;
+    luckBadScale: number;
+    valueShiftStep: number;
+    spendingCostMul: Record<Spending, number>; // scaleBySpending のイベントの出費に掛ける
+  };
   /** 毎月 −1 する数値フラグと、その間の効果 */
   timers: {
     recession: { layoffMul: number };

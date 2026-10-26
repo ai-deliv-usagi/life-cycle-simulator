@@ -244,7 +244,13 @@
     "luckGoodScale": 0.4,
     "luckBadBase": 1.2,
     "luckBadScale": -0.4,
-    "valueShiftStep": 0.1
+    "valueShiftStep": 0.1,
+    "spendingCostMul": {
+      "frugal": 0.6,
+      "normal": 1.0,
+      "comfort": 1.3,
+      "lavish": 1.8
+    }
   },
   "timers": {
     "recession": {

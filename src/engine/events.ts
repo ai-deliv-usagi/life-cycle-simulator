@@ -7,7 +7,7 @@ import { scaleNisaPrincipal } from './nisa';
 import { businessValue, hasBusiness, startBusiness } from './business';
 import { buyHome, ownsHome } from './housing';
 import { recordEventCash } from './ledger';
-import { annualGross, changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
+import { annualGross, changeEmployer, changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
 import type {
   Choice,
@@ -56,6 +56,7 @@ export function conditionsMet(cond: EventConditions | undefined, state: GameStat
   const age = ageYears(state);
   if (cond.ageMin !== undefined && age < cond.ageMin) return false;
   if (cond.ageMax !== undefined && age >= cond.ageMax + 1) return false; // ageMax 歳のうちは対象
+  if (cond.ageWindows && !cond.ageWindows.some(([min, max]) => age >= min && age < max + 1)) return false;
   for (const [key, value] of Object.entries(cond.flags ?? {})) {
     const v = getFlag(state, key);
     // 未設定の真偽フラグは false、数値フラグは 0 とみなす
@@ -99,6 +100,10 @@ function modApplies(mod: ProbMod, state: GameState): boolean {
   if ('work' in mod) return isEmployed(state) && mod.work.includes(state.policy.work);
   if ('healthCare' in mod) return mod.healthCare.includes(state.policy.health);
   if ('spending' in mod) return mod.spending.includes(state.policy.spending);
+  if ('partnerYears' in mod) {
+    const since = state.flags.partnerSince;
+    return state.flags.partner === true && typeof since === 'number' && inRange((state.month - since) / 12, mod.above, mod.below);
+  }
   return mod.region.includes(state.character.region);
 }
 
@@ -152,6 +157,17 @@ export function drawEvent(state: GameState, rng: Rng, data: GameData = defaultDa
   return rng.weighted(hits);
 }
 
+/** scaleBySpending のイベントは、出費(cash・debt)を支出の方針で増減する */
+function scaled(ev: EventDef, effects: Effects, state: GameState, data: GameData): Effects {
+  if (!ev.scaleBySpending) return effects;
+  const mul = data.balance.events.spendingCostMul[state.policy.spending];
+  return {
+    ...effects,
+    ...(effects.cash !== undefined && effects.cash < 0 ? { cash: roundYen(effects.cash * mul) } : {}),
+    ...(effects.debt !== undefined && effects.debt > 0 ? { debt: roundYen(effects.debt * mul) } : {}),
+  };
+}
+
 /** イベントを起こす。選択肢があれば pendingEvent をセットして止まる */
 export function fireEvent(state: GameState, ev: EventDef, rng: Rng, data: GameData = defaultData): void {
   const hist = state.eventHistory[ev.id] ?? { count: 0, lastMonth: 0 };
@@ -161,7 +177,7 @@ export function fireEvent(state: GameState, ev: EventDef, rng: Rng, data: GameDa
     addLog(state, 'event', `${ev.title}: ${ev.text}`, ev.id);
     return;
   }
-  if (ev.effects) applyEffects(state, ev.effects, rng, data);
+  if (ev.effects) applyEffects(state, scaled(ev, ev.effects, state, data), rng, data);
   addLog(state, 'event', `${ev.title}: ${ev.text}`, ev.id);
 }
 
@@ -183,13 +199,17 @@ export function applyChoice(
   const entry = availableChoices(ev, state).find((c) => c.index === choiceIndex);
   if (!entry) throw new Error(`choice ${choiceIndex} is not available for ${ev.id}`);
   const { choice } = entry;
-  if (choice.effects) applyEffects(state, choice.effects, rng, data);
+  const cashBefore = state.assets.cash + state.assets.index + state.assets.stocks + state.assets.speculative - state.assets.debt;
+  if (choice.effects) applyEffects(state, scaled(ev, choice.effects, state, data), rng, data);
   let text = `${ev.title}: 「${choice.label}」`;
   if (choice.outcomes && choice.outcomes.length > 0) {
     const outcome = rng.weighted(choice.outcomes.map((o) => ({ item: o, weight: o.prob })));
-    applyEffects(state, outcome.effects, rng, data);
+    applyEffects(state, scaled(ev, outcome.effects, state, data), rng, data);
     text += ` → ${outcome.text}`;
   }
+  // 支出の方針で金額が変わるイベントは、いくら使ったかをログに残す
+  const spent = cashBefore - (state.assets.cash + state.assets.index + state.assets.stocks + state.assets.speculative - state.assets.debt);
+  if (ev.scaleBySpending && spent > 0) text += `(${Math.round(spent / 10_000).toLocaleString('ja-JP')}万円)`;
   const step = data.balance.events.valueShiftStep;
   for (const [axis, shift] of Object.entries(choice.valueShift ?? {}) as [keyof Values, number][]) {
     state.values[axis] = clampValue(state.values[axis] + Math.sign(shift) * step);
@@ -200,6 +220,9 @@ export function applyChoice(
 function pickJob(state: GameState, target: NonNullable<Effects['job']>, rng: Rng, data: GameData): JobId {
   if (target === 'previous') return state.character.previousJob ?? rng.pick(data.jobs).id;
   if (target === 'random_other') return rng.pick(data.jobs.filter((j) => j.id !== state.character.job)).id;
+  if (target === 'other_industry') {
+    return rng.pick(data.jobs.filter((j) => j.id !== state.character.job && j.id !== 'parttime')).id;
+  }
   return target;
 }
 
@@ -236,6 +259,7 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   if (effects.debt) a.debt += effects.debt;
   if (effects.addChild) addChild(state, rng, data);
   if (effects.job) changeJob(state, pickJob(state, effects.job, rng, data), data);
+  if (effects.changeEmployer) changeEmployer(state, data);
   if (effects.startBusiness) {
     changeJob(state, 'owner', data); // 前の会社の退職金を受け取る
     startBusiness(state, effects.startBusiness, data);
@@ -288,6 +312,9 @@ function applyFlags<V extends boolean | number>(
   for (const [key, v] of Object.entries(flags ?? {})) {
     const next = combine(getFlag(state, key), v);
     if (key === 'married') setMarried(state, next === true, rng, data);
-    else state.flags[key] = next;
+    else {
+      if (key === 'partner' && next === true && state.flags.partner !== true) state.flags.partnerSince = state.month;
+      state.flags[key] = next;
+    }
   }
 }

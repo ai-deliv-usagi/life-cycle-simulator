@@ -112,7 +112,7 @@ export function validateData(data: GameData): string[] {
       if (eff?.loan && (eff.loan.amount <= 0 || !Number.isInteger(eff.loan.months) || eff.loan.months <= 0)) {
         errors.push(`events.${ev.id}: ローンの金額・回数が不正`);
       }
-      if (eff?.job && ![...JOBS, 'none', 'random_other', 'previous'].includes(eff.job)) {
+      if (eff?.job && ![...JOBS, 'none', 'random_other', 'other_industry', 'previous'].includes(eff.job)) {
         errors.push(`events.${ev.id}: 不明な職業 "${eff.job}"`);
       }
     }
