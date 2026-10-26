@@ -309,9 +309,14 @@ export interface Choice {
 
 export type EventCategory = 'life' | 'career' | 'money' | 'health' | 'social' | 'system';
 
+/** イベントの金額の揺れ方(balance.events.spread)。none は制度や契約で決まる額 */
+export type CostSpread = 'none' | 'small' | 'medium' | 'large';
+
 export interface EventDef {
   id: string;
   category: EventCategory;
+  /** 金額の揺れ方。省略するとカテゴリで決まる(balance.events.spreadByCategory) */
+  spread?: CostSpread;
   title: string;
   text: string;
   good?: boolean; // true=運で確率UP、false=運で確率DOWN、省略=運の影響なし
@@ -462,6 +467,9 @@ export interface Balance {
     luckBadScale: number;
     valueShiftStep: number;
     spendingCostMul: Record<Spending, number>; // scaleBySpending のイベントの出費に掛ける
+    /** 金額の揺れ: 倍率 = exp(N(−sigma²/2, sigma)) を min〜max に収める(平均がほぼ1になる) */
+    spread: Record<CostSpread, { sigma: number; min: number; max: number }>;
+    spreadByCategory: Record<EventCategory, CostSpread>;
   };
   /** 高級品の値段 = 金融資産 × share × spendingCostMul を min〜max に収め、priceStep 円単位に丸める */
   luxury: Record<LuxuryItem, { share: number; min: number; max: number; loanMonths: number }> & { priceStep: number };

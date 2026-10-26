@@ -217,6 +217,7 @@
   {
     "id": "divorce_crisis",
     "category": "life",
+    "spread": "none",
     "title": "離婚の危機",
     "text": "すれ違いが続き、配偶者から離婚を切り出された。",
     "conditions": {
@@ -607,6 +608,7 @@
   {
     "id": "reunion",
     "category": "life",
+    "spread": "small",
     "title": "同窓会",
     "text": "節目の年の同窓会の案内が届いた。",
     "conditions": {
@@ -1972,6 +1974,7 @@
   {
     "id": "invest_jackpot",
     "category": "money",
+    "spread": "large",
     "title": "投資の大当たり",
     "text": "持っていた株が急騰した。",
     "conditions": {
@@ -2051,6 +2054,7 @@
   {
     "id": "lottery",
     "category": "money",
+    "spread": "none",
     "title": "宝くじ",
     "text": "売り場の前を通りかかった。今日は大安だ。",
     "conditions": {
@@ -2383,6 +2387,7 @@
   {
     "id": "home_repair",
     "category": "money",
+    "spread": "large",
     "title": "家の修繕",
     "text": "築年数がたち、外壁や水回りの修繕が必要になった。",
     "good": false,
@@ -2394,7 +2399,7 @@
     "cooldownMonths": 72,
     "choices": [
       {
-        "label": "しっかり直す(200万円)",
+        "label": "しっかり直す",
         "effects": {
           "cash": -2000000,
           "homeValue": 1.03,
@@ -2404,7 +2409,7 @@
         }
       },
       {
-        "label": "最低限だけ直す(50万円)",
+        "label": "最低限だけ直す",
         "effects": {
           "cash": -500000,
           "homeValue": 0.95
@@ -2424,6 +2429,7 @@
   {
     "id": "natural_disaster",
     "category": "social",
+    "spread": "large",
     "title": "自然災害",
     "text": "大きな台風で、家の屋根と窓が壊れた。",
     "good": false,
@@ -2464,6 +2470,7 @@
   {
     "id": "friend_loan",
     "category": "money",
+    "spread": "none",
     "title": "友人に借金を頼まれる",
     "text": "古い友人から「50万円貸してほしい」と頼まれた。",
     "conditions": {
@@ -3044,6 +3051,7 @@
   {
     "id": "hospital",
     "category": "health",
+    "spread": "large",
     "title": "入院",
     "text": "体調を崩して入院することになった。",
     "conditions": {},
@@ -3073,6 +3081,7 @@
   {
     "id": "traffic_accident",
     "category": "health",
+    "spread": "large",
     "title": "交通事故でけが",
     "text": "交通事故に巻き込まれてけがをした。",
     "conditions": {},
@@ -3162,6 +3171,7 @@
   {
     "id": "serious_illness",
     "category": "health",
+    "spread": "large",
     "title": "大病",
     "text": "検査で大きな病気が見つかった。治療には長い入院と通院が必要だ。",
     "conditions": {},
@@ -3277,6 +3287,7 @@
   {
     "id": "elderly_crash",
     "category": "health",
+    "spread": "large",
     "title": "運転中の事故",
     "text": "アクセルとブレーキを踏み間違えて事故を起こした。幸い大事には至らなかったが、免許を返納した。",
     "conditions": {
@@ -3774,6 +3785,7 @@
   {
     "id": "anniversary",
     "category": "life",
+    "spread": "small",
     "title": "結婚記念日",
     "text": "今日は結婚記念日だ。",
     "conditions": {
@@ -3922,6 +3934,7 @@
   {
     "id": "jukunen_divorce",
     "category": "life",
+    "spread": "none",
     "title": "熟年離婚の危機",
     "text": "定年後、毎日顔を合わせるようになって、配偶者との溝が深まった。",
     "conditions": {
@@ -4279,6 +4292,7 @@
   {
     "id": "grandchild",
     "category": "life",
+    "spread": "small",
     "title": "孫が生まれる",
     "text": "孫が生まれた。",
     "good": true,
@@ -4368,6 +4382,7 @@
   {
     "id": "care_needed",
     "category": "health",
+    "spread": "large",
     "title": "介護が必要になる",
     "text": "足腰が弱り、一人での生活が難しくなってきた。",
     "conditions": {
@@ -4426,6 +4441,7 @@
   {
     "id": "fall_fracture",
     "category": "health",
+    "spread": "large",
     "title": "転倒して骨折",
     "text": "家の中でつまずいて転び、足の骨を折ってしまった。",
     "good": false,
@@ -4657,6 +4673,7 @@
   {
     "id": "grand_reunion",
     "category": "life",
+    "spread": "small",
     "title": "昔の仲間との再会",
     "text": "何十年ぶりに、昔の仲間で集まることになった。",
     "conditions": {

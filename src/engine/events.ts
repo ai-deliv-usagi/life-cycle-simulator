@@ -11,6 +11,7 @@ import { annualGross, changeEmployer, changeJob, coverWithLoan, loanRejection, r
 import type { Rng } from './rng';
 import type {
   Choice,
+  CostSpread,
   Effects,
   LuxuryItem,
   EventConditions,
@@ -192,9 +193,51 @@ function scaled(ev: EventDef, raw: Effects, state: GameState, data: GameData): E
   };
 }
 
+// ---- 金額の揺れ ----
+
+/** イベントの金額の揺れ方。ラベルや本文に金額が書いてあるもの(「50万円貸して」など)は揺らさない */
+export function costSpread(ev: EventDef, data: GameData = defaultData, label = ''): CostSpread {
+  if (ev.text.includes('円') || label.includes('円')) return 'none';
+  return ev.spread ?? data.balance.events.spreadByCategory[ev.category];
+}
+
+function hasMoney(e: Effects): boolean {
+  return (e.cash ?? 0) !== 0 || (e.debt ?? 0) !== 0 || e.loan !== undefined || e.assetShock !== undefined;
+}
+
+/** 今回の金額の倍率を引く。お金の動かない効果では乱数を使わない */
+function drawSpread(ev: EventDef, effects: Effects[], rng: Rng, data: GameData, label = ''): number {
+  const s = data.balance.events.spread[costSpread(ev, data, label)];
+  if (s.sigma === 0 || !effects.some(hasMoney)) return 1;
+  return clamp(Math.exp(rng.normal(-(s.sigma ** 2) / 2, s.sigma)), s.min, s.max);
+}
+
+/** 80%の場合に収まる倍率の幅(選択肢の目安に出す) */
+export function spreadRange(ev: EventDef, data: GameData = defaultData, label = ''): [number, number] | null {
+  const s = data.balance.events.spread[costSpread(ev, data, label)];
+  if (s.sigma === 0) return null;
+  const mu = -(s.sigma ** 2) / 2;
+  const z = 1.2816; // 正規分布の上下10%点
+  return [clamp(Math.exp(mu - z * s.sigma), s.min, s.max), clamp(Math.exp(mu + z * s.sigma), s.min, s.max)];
+}
+
+/** 金額(cash・リボ・ローン・資産の増減)に倍率を掛ける。円は千円単位、ローンは万円単位に丸める */
+function applySpread(e: Effects, k: number): Effects {
+  if (k === 1) return e;
+  const yen = (x: number) => Math.round((x * k) / 1000) * 1000;
+  return {
+    ...e,
+    ...(e.cash ? { cash: yen(e.cash) } : {}),
+    ...(e.debt ? { debt: yen(e.debt) } : {}),
+    ...(e.loan ? { loan: { ...e.loan, amount: Math.round((e.loan.amount * k) / 10_000) * 10_000 } } : {}),
+    ...(e.assetShock ? { assetShock: { ...e.assetShock, pct: Math.max(-0.9, e.assetShock.pct * k) } } : {}),
+  };
+}
+
 export interface ChoiceCost {
   spend: number; // 今払うお金の目安(円)。確率で決まる結果(outcomes)は含めない
   borrow: number; // ローン・リボなどで借りる額
+  range?: [number, number]; // 金額が揺れるとき、spend・borrow に掛ける倍率の幅(80%の場合)
   borrowRate?: number; // 借りる額の年利(借りないときはなし)
   homePrice?: number; // 家を買う選択肢なら、買う家の値段
 }
@@ -208,7 +251,10 @@ export function choiceCost(ev: EventDef, choice: Choice, state: GameState, data:
   let borrow = (e.loan?.amount ?? 0) + (e.debt ?? 0);
   // リボ(カードローン)のほうが金利が高いので、混ざるときはそちらを出す
   const borrowRate = e.debt ? data.balance.debtAnnualRate : e.loan ? data.balance.loan.annualRate : undefined;
-  if (e.buyHome === undefined) return borrowRate === undefined ? { spend, borrow } : { spend, borrow, borrowRate };
+  const range = spend > 0 || borrow > 0 ? spreadRange(ev, data, choice.label) : null;
+  if (e.buyHome === undefined) {
+    return { spend, borrow, ...(borrowRate !== undefined ? { borrowRate } : {}), ...(range ? { range } : {}) };
+  }
   const price = homePrice(state, annualGross(state, data), data);
   spend += roundYen(price * (e.buyHome + data.balance.housing.closingCost));
   borrow += roundYen(price * (1 - e.buyHome));
@@ -225,7 +271,10 @@ export function fireEvent(state: GameState, ev: EventDef, rng: Rng, data: GameDa
     return;
   }
   const before = netWorth(state.assets);
-  if (ev.effects) applyEffects(state, scaled(ev, ev.effects, state, data), rng, data);
+  if (ev.effects) {
+    const e = scaled(ev, ev.effects, state, data);
+    applyEffects(state, applySpread(e, drawSpread(ev, [e], rng, data)), rng, data);
+  }
   addLog(state, 'event', `${ev.title}: ${ev.text}`, ev.id);
   withMoney(state, netWorth(state.assets) - before);
 }
@@ -277,11 +326,14 @@ export function applyChoice(
   if (!entry) throw new Error(`choice ${choiceIndex} is not available for ${ev.id}`);
   const { choice } = entry;
   const worthBefore = netWorth(state.assets); // 使った・得た額はログの money に残す
-  if (choice.effects) applyEffects(state, scaled(ev, choice.effects, state, data), rng, data);
+  // 金額の倍率は選択肢と結果で共通に1回だけ引く
+  const effects = scaled(ev, choice.effects ?? {}, state, data);
+  const k = drawSpread(ev, [effects, ...(choice.outcomes ?? []).map((o) => o.effects)], rng, data, choice.label);
+  if (choice.effects) applyEffects(state, applySpread(effects, k), rng, data);
   let text = `${ev.title}: 「${choice.label}」`;
   if (choice.outcomes && choice.outcomes.length > 0) {
     const outcome = rng.weighted(choice.outcomes.map((o) => ({ item: o, weight: o.prob })));
-    applyEffects(state, scaled(ev, outcome.effects, state, data), rng, data);
+    applyEffects(state, applySpread(scaled(ev, outcome.effects, state, data), k), rng, data);
     text += ` → ${outcome.text}`;
   }
   const step = data.balance.events.valueShiftStep;
