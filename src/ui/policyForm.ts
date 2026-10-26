@@ -137,7 +137,16 @@ function allocationEditor(current: Policy): HTMLElement {
 }
 
 /** 方針の入力欄。get() で今の選択を返す */
-export function policyForm(initial: PolicyInput | Policy): { el: HTMLElement; get: () => Policy } {
+/** 今の状況で意味のない項目は出さない(値は今のまま残す) */
+export interface PolicyFormOptions {
+  showPrepay?: boolean; // ローンか奨学金があるとき
+  showEducation?: boolean; // 結婚しているか子どもがいるとき
+}
+
+export function policyForm(
+  initial: PolicyInput | Policy,
+  opts: PolicyFormOptions = { showPrepay: true, showEducation: true },
+): { el: HTMLElement; get: () => Policy } {
   const id = `policy${formId++}`;
   const current: Policy = normalizePolicy(initial);
   current.invest = { ...current.invest };
@@ -153,14 +162,27 @@ export function policyForm(initial: PolicyInput | Policy): { el: HTMLElement; ge
     { class: 'policy-form' },
     ...GROUPS.slice(0, 2).map(({ key, label }) => radioGroup(id, key, label, current)),
     allocationEditor(current),
-    h('label', { class: 'check small' }, prepay, ' 繰上げ返済する(余ったお金で、先にローンと奨学金を返す)'),
+    opts.showPrepay ? h('label', { class: 'check small' }, prepay, ' 繰上げ返済する(余ったお金で、先にローンと奨学金を返す)') : null,
     radioGroup(id, 'health', '健康', current),
-    radioGroup(id, 'education', '子どもの教育', current),
+    opts.showEducation ? radioGroup(id, 'education', '子どもの教育', current) : null,
   );
   return { el, get: () => ({ ...current, invest: { ...current.invest } }) };
 }
 
-export function policySummary(p: Policy): string {
+export function policySummary(p: Policy, opts: PolicyFormOptions = { showPrepay: true, showEducation: true }): string {
   const l = POLICY_LABELS;
-  return `働き方:${l.work[p.work]} / 支出:${l.spending[p.spending]} / 投資:${allocationLabel(p)}${p.prepay ? '(繰上げ返済)' : ''} / 健康:${l.health[p.health]} / 教育:${l.education[p.education]}`;
+  const prepay = opts.showPrepay && p.prepay ? '(繰上げ返済)' : '';
+  const education = opts.showEducation ? ` / 教育:${l.education[p.education]}` : '';
+  return `働き方:${l.work[p.work]} / 支出:${l.spending[p.spending]} / 投資:${allocationLabel(p)}${prepay} / 健康:${l.health[p.health]}${education}`;
+}
+
+/** ゲームの状態から、方針の画面に出す項目を決める */
+export function policyOptionsFor(state: {
+  assets: { loan?: number; studentLoan: number };
+  character: { married: boolean; children?: unknown[] };
+}): PolicyFormOptions {
+  return {
+    showPrepay: (state.assets.loan ?? 0) > 0 || state.assets.studentLoan > 0,
+    showEducation: state.character.married || (state.character.children?.length ?? 0) > 0,
+  };
 }

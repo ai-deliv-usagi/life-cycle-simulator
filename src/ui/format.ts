@@ -108,3 +108,25 @@ export function valueStepLabel(axis: { left: string; right: string }, v: number)
 export function signedPercent(ratio: number): string {
   return `${ratio >= 0 ? '+' : '−'}${Math.abs(ratio * 100).toFixed(1)}%`;
 }
+
+export type StatLevel = 'good' | 'normal' | 'caution' | 'danger';
+
+/** ステータスの状態(ストレスは高いほど悪い)。閾値は UI の定数 */
+export function statLevel(key: keyof typeof STAT_LABELS, value: number): StatLevel {
+  const v = key === 'stress' ? 100 - value : value;
+  if (v >= 70) return 'good';
+  if (v >= 40) return 'normal';
+  if (v >= 20) return 'caution';
+  return 'danger';
+}
+
+export const STAT_LEVEL_LABELS: Record<StatLevel, string> = { good: '良好', normal: '普通', caution: '注意', danger: '危険' };
+
+export const HAPPINESS_PART_LABELS = {
+  living: '生活の満足',
+  security: 'お金の安心',
+  relations: '人間関係',
+  freeTime: '自由な時間',
+  health: '健康',
+  achievement: 'やりがい',
+} as const;

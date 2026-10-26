@@ -1,7 +1,7 @@
 // engine の公開API(DESIGN.md §2)。UI と scripts/balance.ts はここからだけ import する。
 export { defaultData as gameData } from '../data/index';
 export { availableChoices } from './events';
-export { computeHappiness, HAPPINESS_PARTS, happinessParts } from './happiness';
+export { computeHappiness, HAPPINESS_PARTS, happinessParts, happinessWeights } from './happiness';
 export { computeResult, DEATH_CAUSE_LABELS, LIFE_TYPE_LABELS } from './result';
 export { createRng, deriveSeed, type Rng } from './rng';
 export { createGame, rollCharacter } from './setup';
