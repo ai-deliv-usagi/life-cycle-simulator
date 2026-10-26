@@ -1249,13 +1249,18 @@
         "owner"
       ]
     },
-    "baseProb": 0.0003,
+    "baseProb": 0.0006,
     "cooldownMonths": 60,
     "probMods": [
       {
         "value": "risk",
-        "above": 0,
-        "mul": 2
+        "below": 0.01,
+        "mul": 0
+      },
+      {
+        "value": "risk",
+        "above": 1,
+        "mul": 1.5
       },
       {
         "stat": "skill",

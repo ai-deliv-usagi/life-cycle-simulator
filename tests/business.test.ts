@@ -121,3 +121,19 @@ describe('会社を手放す', () => {
     expect(s.character.previousJob).toBe('sales');
   });
 });
+
+describe('起業のチャンスは挑戦志向の人だけ', () => {
+  it('価値観の「挑戦志向」が中間以下なら起きない。強いほど起きやすい', () => {
+    const ev = byId('startup_chance');
+    const s = setAge(makeState({ job: 'sales' }), 35);
+    s.values.risk = 0;
+    expect(eventProb(ev, s)).toBe(0);
+    s.values.risk = -1;
+    expect(eventProb(ev, s)).toBe(0);
+    s.values.risk = 0.5;
+    const some = eventProb(ev, s);
+    expect(some).toBeGreaterThan(0);
+    s.values.risk = 2;
+    expect(eventProb(ev, s)).toBeGreaterThan(some);
+  });
+});
