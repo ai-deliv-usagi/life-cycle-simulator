@@ -477,6 +477,7 @@ export interface Balance {
     spouseLeave: Record<string, never>; // 配偶者の育休の残り月数
     fertilityCare: Record<string, never>; // 不妊治療の残り月数(妊娠しやすい)
     maternityLeave: Record<string, never>; // 女性本人の産休の残り月数
+    postpartum: Record<string, never>; // 出産からの残り月数(産後の2年は夫婦の危機が起きやすい)
     /** 大病の治療中・治療しないままの残り月数。その間は毎月 deathMonthly の死亡リスクと健康の増減がある */
     illnessTreated: { deathMonthly: number; health: number };
     illnessUntreated: { deathMonthly: number; health: number };

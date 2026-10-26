@@ -283,7 +283,8 @@
       "deathMonthly": 0,
       "health": 0
     },
-    "trained": {}
+    "trained": {},
+    "postpartum": {}
   },
   "studentLoan": {
     "interestFreeProb": 0.35,
