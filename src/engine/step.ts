@@ -198,7 +198,7 @@ export function buyAsset(state: GameState, key: InvestKey, amount: number, data:
   const s = cloneState(state);
   s.assets.cash -= buy;
   const toNisa = buyInvestment(s, key, buy, data);
-  const note = toNisa > 0 ? (toNisa === buy ? '(NISA)' : `(うちNISA ${yenLabel(toNisa)})`) : '';
+  const note = toNisa === buy ? '(NISA)' : toNisa > 0 ? `(うちNISA ${yenLabel(toNisa)})` : '(特定口座)';
   addLog(s, 'policy', `購入: 預金で${POLICY_LABELS.invest[key]}を${yenLabel(buy)}買った${note}`, 'buy');
   return s;
 }

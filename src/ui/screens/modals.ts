@@ -378,20 +378,19 @@ function assetsContent(
     formSlot.appendChild(form);
     formSlot.querySelector<HTMLInputElement>('input[type=number]')?.focus();
   };
-  const tradeCell = (r: (typeof rows)[number]) => {
-    if (!canTrade) return null;
-    if (!r.key) return h('td', {});
-    const key = r.key;
-    return h(
-      'td',
-      { class: 'trade-cell' },
-      r.value > 0
+  /** 売り買いのボタン(表の下に、投資ごとに1行) */
+  const tradeRow = (key: InvestKey, label: string) =>
+    h(
+      'div',
+      { class: 'trade-row' },
+      h('span', { class: 'trade-label' }, label),
+      a[key] > 0
         ? h(
             'button',
             {
               class: 'btn small-btn',
-              'aria-label': `${r.label}を売る`,
-              onclick: () => show(sellForm(state, key, r.label, (amount, from) => trade.sell(key, amount, from), () => clear(formSlot))),
+              'aria-label': `${label}を売る`,
+              onclick: () => show(sellForm(state, key, label, (amount, from) => trade!.sell(key, amount, from), () => clear(formSlot))),
             },
             '売る',
           )
@@ -401,17 +400,16 @@ function assetsContent(
             'button',
             {
               class: 'btn small-btn',
-              'aria-label': `${r.label}を買う`,
-              onclick: () => show(buyForm(state, key, r.label, (amount) => trade.buy(key, amount), () => clear(formSlot))),
+              'aria-label': `${label}を買う`,
+              onclick: () => show(buyForm(state, key, label, (amount) => trade!.buy(key, amount), () => clear(formSlot))),
             },
             '買う',
           )
         : null,
     );
-  };
   const valueCell = (r: (typeof rows)[number]) => {
     const nisa = r.key ? nisaValue(state, r.key) : 0;
-    return h('td', {}, manYen(r.value), nisa > 0 ? h('span', { class: 'pct small muted' }, `うちNISA ${manYen(nisa)}`) : '');
+    return h('td', {}, manYen(r.value), nisa > 0 ? h('span', { class: 'pct small muted nisa-note' }, `うちNISA ${manYen(nisa)}`) : '');
   };
   const room = nisaRoom(state);
 
@@ -424,7 +422,7 @@ function assetsContent(
       h(
         'thead',
         {},
-        h('tr', {}, h('th', {}, ''), h('th', {}, '残高'), h('th', {}, '元本'), h('th', {}, '損益'), canTrade ? h('th', {}, '') : null),
+        h('tr', {}, h('th', {}, ''), h('th', {}, '残高'), h('th', {}, '元本'), h('th', {}, '損益')),
       ),
       h(
         'tbody',
@@ -437,7 +435,6 @@ function assetsContent(
             valueCell(r),
             h('td', { class: 'muted' }, r.principal === undefined ? '—' : manYen(r.principal)),
             r.principal === undefined ? h('td', { class: 'muted' }, '—') : gainCell(r.value, r.principal),
-            tradeCell(r),
           ),
         ),
         h(
@@ -447,10 +444,10 @@ function assetsContent(
           h('td', {}, manYen(total)),
           h('td', { class: 'muted' }, investedTotal === undefined ? '—' : manYen(investedTotal + a.cash)),
           gainCell(investedValue, investedTotal),
-          canTrade ? h('td', {}) : null,
         ),
       ),
     ),
+    canTrade ? h('div', { class: 'trade-rows' }, ...INVEST_ROWS.map((r) => tradeRow(r.key, r.label))) : null,
     formSlot,
     h(
       'p',
