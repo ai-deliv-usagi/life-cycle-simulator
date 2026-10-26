@@ -45,6 +45,7 @@ export function setupScreen(root: HTMLElement, nav: Nav, seed: number): void {
     ? `${manYen(roll.studentLoan.amount)}(${roll.studentLoan.interestFree ? '無利子' : '有利子'})`
     : 'なし';
   const rows: [string, string][] = [
+    ['性別', roll.gender === 'female' ? '女性' : '男性'],
     ['学歴', educationLabel(roll.education)],
     ['職業', jobLabel(roll.job)],
     ['実家の太さ', familyLabel(roll.familyTier)],

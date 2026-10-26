@@ -206,8 +206,9 @@ export interface MonthlyView {
 export function getMonthlyView(state: GameState, data: GameData = defaultData): MonthlyView {
   const c = state.character;
   const jobName = c.job === 'none' ? '無職' : findById(data.jobs, c.job, 'job').label;
-  const onLeave = Number(state.flags.parentalLeave ?? 0) > 0 && c.job !== 'none';
-  const jobLabel = c.retired ? (isRehired(state) ? `再雇用(${jobName})` : '退職') : onLeave ? `${jobName}(育休中)` : jobName;
+  const leave = Number(state.flags.maternityLeave ?? 0) > 0 ? '産休中' : Number(state.flags.parentalLeave ?? 0) > 0 ? '育休中' : '';
+  const working = leave && c.job !== 'none' ? `${jobName}(${leave})` : jobName;
+  const jobLabel = c.retired ? (isRehired(state) ? `再雇用(${jobName})` : '退職') : working;
   const income = calcIncome(state, data);
   return {
     age: Math.floor(state.ageMonths / 12),

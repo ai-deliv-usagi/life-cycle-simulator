@@ -3,7 +3,8 @@
 import { defaultData } from '../data/index';
 import type { Rng } from './rng';
 import type { Child, GameData, GameState } from './types';
-import { addLog } from './util';
+import { isEmployed } from './money';
+import { addLog, clampStat } from './util';
 
 export function childrenOf(state: GameState): readonly Child[] {
   return state.character.children ?? [];
@@ -85,4 +86,18 @@ export function childEffects(state: GameState, data: GameData = defaultData): { 
     freeTime: h.freeTimePerYoung * ages.filter((a) => a < h.youngUntil).length,
     stress: h.stressPerBaby * ages.filter((a) => a < h.babyUntil).length,
   };
+}
+
+/**
+ * 女性本人が出産したあと: 体力が落ち、会社員なら産休(育休を取らない場合も、産後の数ヶ月は休む)。
+ * 育休の効果(setFlags)を適用したあとに呼ぶ
+ */
+export function afterGivingBirth(state: GameState, data: GameData = defaultData): void {
+  const p = data.balance.children.parentalLeave;
+  state.stats.health = clampStat(state.stats.health + p.birthHealth);
+  const onLeave = typeof state.flags.parentalLeave === 'number' && state.flags.parentalLeave > 0;
+  if (isEmployed(state) && !onLeave) {
+    state.flags.maternityLeave = p.maternityMonths;
+    addLog(state, 'event', `産休: 出産のあと${p.maternityMonths}ヶ月は産休を取る`, 'maternity_leave');
+  }
 }

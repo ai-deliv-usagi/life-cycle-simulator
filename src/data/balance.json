@@ -180,6 +180,10 @@
     "healthPivot": 50,
     "healthScale": 15,
     "highStressMul": 1.2,
+    "genderMul": {
+      "male": 1.4,
+      "female": 0.7
+    },
     "karoshi": {
       "grindMonthly": 0.00015,
       "overtimeMonthly": 0.00003,
@@ -256,6 +260,7 @@
     "parentalLeave": {},
     "spouseLeave": {},
     "fertilityCare": {},
+    "maternityLeave": {},
     "illnessTreated": {
       "deathMonthly": 0.001,
       "health": 0
@@ -279,6 +284,18 @@
     "payRate": 0.6
   },
   "spouse": {
+    "probByGender": {
+      "male": {
+        "fulltime": 0.3,
+        "parttime": 0.4,
+        "homemaker": 0.3
+      },
+      "female": {
+        "fulltime": 0.94,
+        "parttime": 0.04,
+        "homemaker": 0.02
+      }
+    },
     "types": {
       "fulltime": {
         "prob": 0.35,
@@ -327,6 +344,9 @@
       12
     ],
     "startCalendarMonth": 4
+  },
+  "gender": {
+    "femaleProb": 0.5
   },
   "children": {
     "max": 3,
@@ -391,7 +411,10 @@
       "firstRate": 0.67,
       "laterRate": 0.5,
       "spouseFirstRate": 0.84,
-      "spouseLaterRate": 0.63
+      "spouseLaterRate": 0.63,
+      "maternityMonths": 2,
+      "maternityRate": 0.67,
+      "birthHealth": -5
     },
     "happiness": {
       "relationsPerChild": 6,
