@@ -130,3 +130,41 @@ export const HAPPINESS_PART_LABELS = {
   health: '健康',
   achievement: 'やりがい',
 } as const;
+
+/** 幸福度を顔の絵文字で(閾値は UI の定数) */
+export function happinessFace(happiness: number): string {
+  if (happiness >= 75) return '😄';
+  if (happiness >= 60) return '🙂';
+  if (happiness >= 45) return '😐';
+  if (happiness >= 30) return '😟';
+  return '😢';
+}
+
+/** ステータスが下がる(ストレスは上がる)と何が起きるか */
+export const STAT_EFFECTS: Record<keyof typeof STAT_LABELS, { what: string; bad: string; good: string }> = {
+  health: {
+    what: '体の調子。年齢とともに下がりやすい',
+    bad: '低いと病気・入院・大病が起きやすく、亡くなる確率も上がる。幸福度の「健康」も下がる',
+    good: '高いと病気になりにくく、長生きしやすい',
+  },
+  stress: {
+    what: '心の負担。激務や借金、トラブルで上がる',
+    bad: '高いと健康が落ち、過労で倒れる・燃え尽き・離婚の危機・過労死が起きやすくなる',
+    good: '低いと健康を保ちやすい',
+  },
+  skill: {
+    what: '仕事の腕前。働くほど上がる',
+    bad: '低いと給料が上がりにくく、昇進・転職・再就職のチャンスも少ない',
+    good: '高いと給料が上がり、昇進や転職、起業でも有利。やりがいも上がる',
+  },
+  credit: {
+    what: '社会的な信用。借金があると下がる',
+    bad: '低いとローンや住宅ローンの審査に落ち、投資詐欺にもあいやすい',
+    good: '高いとローンが組みやすい',
+  },
+  relations: {
+    what: '人とのつながり。何もしないと少しずつ下がる',
+    bad: '低いと恋人ができにくく、離婚の危機が起きやすい。幸福度の「人間関係」も下がる',
+    good: '高いと恋人ができやすく、結婚式や同窓会のお誘いも増える',
+  },
+};
