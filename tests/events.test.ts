@@ -169,7 +169,7 @@ describe('発生と選択', () => {
     const s = setAge(makeState(), 30);
     s.flags.partner = true;
     s.values.relation = -1.95;
-    applyChoice(s, byId('proposal'), 0, createRng(1));
+    applyChoice(s, byId('proposal'), 0, flatRng); // 金額の揺れなし
     expect(s.character.married).toBe(true);
     expect(s.character.spouse).not.toBeNull();
     expect(s.flags.partner).toBe(false);

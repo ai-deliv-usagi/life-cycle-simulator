@@ -75,7 +75,7 @@ describe('ローン', () => {
   it('ブライダルローンで結婚すると、式代は現金ではなくローンになる', () => {
     const s = makeState();
     s.flags.partner = true;
-    applyChoice(s, byId('proposal'), 1, createRng(1));
+    applyChoice(s, byId('proposal'), 1, flatRng); // 金額の揺れなし
     expect(s.character.married).toBe(true);
     expect(s.assets.cash).toBe(0);
     expect(s.assets.loan).toBe(2_000_000);

@@ -83,7 +83,13 @@ function costHint(cost: ChoiceCost, label: string): string {
     return `${manYen(cost.homePrice)}の家・頭金と諸費用 約${manYen(cost.spend)}・住宅ローン ${manYen(cost.borrow)}(${annualRateLabel(cost.borrowRate ?? 0)})`;
   }
   if (label.includes('円')) return '';
-  const parts = [cost.spend > 0 ? `約${manYen(cost.spend)}` : '', cost.borrow > 0 ? `借りる額 ${manYen(cost.borrow)}(${annualRateLabel(cost.borrowRate ?? 0)})` : ''];
+  // 金額が揺れる出来事は「約20〜60万円」のように幅で出す
+  const amount = (yen: number) => {
+    if (!cost.range) return `約${manYen(yen)}`;
+    const [lo, hi] = cost.range.map((k) => Math.round((yen * k) / 10_000) * 10_000) as [number, number];
+    return lo === hi ? `約${manYen(lo)}` : `約${Math.round(lo / 10_000).toLocaleString('ja-JP')}〜${manYen(hi)}`;
+  };
+  const parts = [cost.spend > 0 ? amount(cost.spend) : '', cost.borrow > 0 ? `借りる額 ${amount(cost.borrow)}(${annualRateLabel(cost.borrowRate ?? 0)})` : ''];
   return parts.filter(Boolean).join('・');
 }
 

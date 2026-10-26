@@ -207,7 +207,9 @@ describe('年の切れ目の月に起きた選択イベント', () => {
     s.pendingEvent = { eventId: ev.id, month: s.month };
     const before = s.lastLedger!.eventOut;
     s = resolveChoice(s, 0, rng);
-    expect(s.lastLedger!.eventOut).toBe(before + 150_000);
+    // 家電の値段は揺れる(0.7〜1.5倍)
+    expect(s.lastLedger!.eventOut - before).toBeGreaterThanOrEqual(105_000);
+    expect(s.lastLedger!.eventOut - before).toBeLessThanOrEqual(225_000);
     expect(s.ledger!.eventOut).toBe(0);
   });
 });
