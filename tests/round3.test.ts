@@ -41,12 +41,12 @@ describe('大きな出費は自動でローン', () => {
     expect(s.assets.cash).toBe(-1_000_000);
   });
 
-  it('リボ払いは現金を動かさずカードローンの借金になる。金額は支出の方針で変わる(浪費は1.8倍)', () => {
+  it('リボ払いは現金を動かさずカードローンの借金になる。金額は支出の方針で変わる(浪費は1.6倍)', () => {
     const s = makeState({}, { spending: 'lavish' });
     applyChoice(s, byId('revolving'), 0, flatRng);
-    expect(s.assets.debt).toBe(720_000);
+    expect(s.assets.debt).toBe(640_000);
     expect(s.assets.cash).toBe(0);
-    expect(s.log.at(-1)).toMatchObject({ text: 'リボ払いの誘い: 「リボ払いで欲しいものを買う」', money: -720_000 });
+    expect(s.log.at(-1)).toMatchObject({ text: 'リボ払いの誘い: 「リボ払いで欲しいものを買う」', money: -640_000 });
     const t = makeState({}, { spending: 'comfort' });
     applyChoice(t, byId('revolving'), 0, flatRng);
     expect(t.assets.debt).toBe(520_000);

@@ -33,7 +33,7 @@ describe('年間の収支', () => {
     const s = makeState();
     fireEvent(s, byId('traffic_accident'), flatRng);
     fireEvent(s, byId('windfall_bonus'), flatRng);
-    expect(s.ledger!.eventOut).toBe(200_000);
+    expect(s.ledger!.eventOut).toBe(100_000); // 高額療養費で10万円まで
     expect(s.ledger!.eventIn).toBe(Math.round(3_220_000 / 16));
   });
 

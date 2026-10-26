@@ -52,7 +52,7 @@ describe('同窓会', () => {
 });
 
 describe('支出の方針で変わる出費', () => {
-  it('買い物・旅行などは、節約0.6倍・普通1倍・ゆとり1.3倍・浪費1.8倍。ログの money に使った額が出る', () => {
+  it('買い物・旅行などは、節約0.6倍・普通1倍・ゆとり1.3倍・浪費1.6倍。ログの money に使った額が出る', () => {
     const cost = (spending: 'frugal' | 'normal' | 'comfort' | 'lavish') => {
       const s = setAge(makeState({ initialCash: 1_000_000 }, { spending }), 30); // 貯金があるのでローンにならない
       applyChoice(s, byId('travel'), 0, flatRng);
@@ -60,8 +60,8 @@ describe('支出の方針で変わる出費', () => {
     };
     expect(cost('frugal').cash).toBe(-240_000);
     expect(cost('normal').cash).toBe(-400_000);
-    expect(cost('lavish').cash).toBe(-720_000);
-    expect(cost('lavish').log).toMatchObject({ text: '旅行のチャンス: 「海外旅行に行く」', money: -720_000 });
+    expect(cost('lavish').cash).toBe(-640_000);
+    expect(cost('lavish').log).toMatchObject({ text: '旅行のチャンス: 「海外旅行に行く」', money: -640_000 });
   });
 
   it('出費のない選択肢や、方針で変わらないイベントはそのまま', () => {

@@ -52,10 +52,10 @@ describe('生活水準(頭打ちと慣れ)', () => {
     expect(justAfter - before).toBeGreaterThan(3);
     for (let i = 0; i < 72; i++) updateAdaptation(s);
     const adapted = happinessParts(s).living;
-    expect(adapted).toBeLessThan(justAfter - 2); // 慣れて戻る
+    expect(adapted).toBeLessThan(justAfter - 1.5); // 慣れて戻る
     expect(adapted).toBeGreaterThan(before); // 絶対額の分は残る
     s.policy.spending = 'normal';
-    expect(happinessParts(s).living).toBeLessThan(before - 2); // 下げると元より下がる
+    expect(happinessParts(s).living).toBeLessThan(before - 1.5); // 下げると元より下がる
   });
 });
 

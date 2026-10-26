@@ -317,6 +317,8 @@ export interface EventDef {
   category: EventCategory;
   /** 金額の揺れ方。省略するとカテゴリで決まる(balance.events.spreadByCategory) */
   spread?: CostSpread;
+  /** 医療費。収入が少ない人・引退後は高額療養費で自己負担に上限がある(balance.medicalCap) */
+  medical?: boolean;
   title: string;
   text: string;
   good?: boolean; // true=運で確率UP、false=運で確率DOWN、省略=運の影響なし
@@ -471,6 +473,8 @@ export interface Balance {
     spread: Record<CostSpread, { sigma: number; min: number; max: number }>;
     spreadByCategory: Record<EventCategory, CostSpread>;
   };
+  /** 高額療養費: 額面年収が incomeBelow 未満か引退後なら、医療の出来事1回の自己負担は perEvent まで */
+  medicalCap: { incomeBelow: number; perEvent: number };
   /** 高級品の値段 = 金融資産 × share × spendingCostMul を min〜max に収め、priceStep 円単位に丸める */
   luxury: Record<LuxuryItem, { share: number; min: number; max: number; loanMonths: number }> & { priceStep: number };
   /** 毎月 −1 する数値フラグと、その間の効果 */
