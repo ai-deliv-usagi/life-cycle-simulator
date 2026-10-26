@@ -3,8 +3,8 @@
 import { defaultData } from '../data/index';
 import type { Rng } from './rng';
 import type { Child, GameData, GameState } from './types';
-import { isEmployed } from './money';
-import { addLog, clampStat } from './util';
+import { calcIncome, isEmployed } from './money';
+import { addLog, clamp, clampStat, roundYen } from './util';
 
 export function childrenOf(state: GameState): readonly Child[] {
   return state.character.children ?? [];
@@ -29,13 +29,33 @@ export function dependents(state: GameState, data: GameData = defaultData): Chil
 /** 子どもにかかる毎月の費用(生活費 + 教育方針ごとの学校・塾などの費用) */
 export function childCost(state: GameState, data: GameData = defaultData): number {
   const { stages } = data.balance.children;
+  const kids = dependents(state, data);
+  if (kids.length === 0) return 0;
+  const scale = childCostScale(state, data);
+  const privateSchool = state.policy.education === 'private';
   let total = 0;
-  for (const child of dependents(state, data)) {
+  for (const child of kids) {
     const age = childAgeMonths(state, child) / 12;
     const stage = stages.find((s) => age < s.until);
-    if (stage) total += stage.living + stage.education[state.policy.education];
+    if (!stage) continue;
+    // 生活費と公立の学校・塾の費用は世帯の収入に合わせて増減する。私立の学費は選んだ学校の額のまま
+    // (私立中心でも、公立と同じ額の段階(未就学・小学校)は公立に通う扱い)
+    const education = stage.education[state.policy.education];
+    const fixedFee = privateSchool && stage.education.private !== stage.education.public;
+    total += stage.living * scale + (fixedFee ? education : education * scale);
   }
-  return total;
+  return roundYen(total);
+}
+
+/**
+ * 子どもの費用の倍率 = (世帯の毎月の手取り(ボーナス・児童手当を除く)÷ 基準額) ^ elasticity。min〜max に収める。
+ * 表の金額は平均なので、収入が少ない家庭は少なめ、多い家庭は多めにかける(収入ほどには増やさない)
+ */
+export function childCostScale(state: GameState, data: GameData = defaultData): number {
+  const c = data.balance.children.costScale;
+  const inc = calcIncome(state, data);
+  const household = inc.total - inc.bonus - inc.childAllowance;
+  return clamp(Math.max(0, household / c.referenceIncome) ** c.elasticity, c.min, c.max);
 }
 
 /** 児童手当(月額)。3歳未満と、3人目からは多い */

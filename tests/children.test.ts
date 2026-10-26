@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultData } from '../src/data/index';
-import { childAllowance, childCost, childEffects, dependents, independentAge } from '../src/engine/children';
+import { childAllowance, childCost, childCostScale, childEffects, dependents, independentAge } from '../src/engine/children';
 import { applyChoice, availableChoices, isEligible } from '../src/engine/events';
 import { calcExpenses, calcIncome, monthlyGrossPay } from '../src/engine/money';
 import { normalizePolicy } from '../src/engine/policy';
@@ -25,11 +25,28 @@ function family(childAges: number[], policy: Parameters<typeof makeState>[1] = {
 describe('子どもの費用', () => {
   it('年齢の段階ごとに生活費と教育費がかかる。私立中心は中学から高くなる', () => {
     const { stages } = defaultData.balance.children;
-    expect(childCost(family([3]))).toBe(stages[0]!.living + stages[0]!.education.public);
-    expect(childCost(family([13]))).toBe(stages[2]!.living + stages[2]!.education.public);
-    expect(childCost(family([13], { education: 'private' }))).toBe(stages[2]!.living + stages[2]!.education.private);
+    const k = childCostScale(family([3]));
+    expect(childCost(family([3]))).toBe(Math.round((stages[0]!.living + stages[0]!.education.public) * k));
+    expect(childCost(family([13]))).toBe(Math.round((stages[2]!.living + stages[2]!.education.public) * k));
+    expect(childCost(family([13], { education: 'private' }))).toBe(Math.round(stages[2]!.living * k + stages[2]!.education.private));
     expect(childCost(family([8], { education: 'private' }))).toBe(childCost(family([8]))); // 小学校は公立
-    expect(childCost(family([3, 13]))).toBe(childCost(family([3])) + childCost(family([13])));
+    expect(Math.abs(childCost(family([3, 13])) - childCost(family([3])) - childCost(family([13])))).toBeLessThanOrEqual(1);
+  });
+
+  it('世帯の収入に合わせて増減する(基準は手取り月30万円、収入の比の平方根で0.6〜1.3倍)', () => {
+    const low = family([5]);
+    low.character.job = 'parttime';
+    low.character.spouse = 'homemaker';
+    const high = family([5]);
+    high.stats.skill = 100;
+    high.policy.work = 'grind';
+    expect(childCostScale(low)).toBeLessThan(1);
+    expect(childCostScale(low)).toBeGreaterThanOrEqual(0.6);
+    expect(childCost(low)).toBeLessThan(childCost(high));
+    const s = family([5]);
+    s.character.job = 'none';
+    s.character.married = false;
+    expect(childCostScale(s)).toBe(0.6);
   });
 
   it('大学に進めば22歳、進まなければ18歳で独立し、費用がかからなくなる', () => {
