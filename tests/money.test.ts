@@ -224,9 +224,10 @@ describe('支出', () => {
     const s = makeState({ hasCar: true, familyTier: 1 }, { health: 'active' });
     s.flags.parentSupport = 10;
     const e = calcExpenses(s);
-    expect(e).toMatchObject({ car: 25_000, health: 15_000, remittance: 20_000, parentSupport: 30_000 });
-    expect(e.living).toBe(living(net - 90_000));
-    expect(e.total).toBe(e.living + 90_000);
+    const health = Math.min(15_000, Math.round(calcIncome(s).total * 0.05)); // 健康の出費は手取りの5%まで
+    expect(e).toMatchObject({ car: 25_000, health, remittance: 20_000, parentSupport: 30_000 });
+    expect(e.living).toBe(living(net - 75_000 - health));
+    expect(e.total).toBe(e.living + 75_000 + health);
     s.flags.parentAlive = false;
     expect(calcExpenses(s).remittance).toBe(0);
     expect(calcExpenses(makeState({ hasCar: true, region: 'metro' })).car).toBe(40_000);
@@ -244,13 +245,13 @@ describe('支出', () => {
   it('自己破産後のブラックリスト期間は支出方針に関係なく節約', () => {
     const s = makeState({}, { spending: 'lavish' });
     s.flags.blacklist = 10;
-    expect(calcExpenses(s).living).toBe(living(net, 0.8));
+    expect(calcExpenses(s).living).toBe(living(net, 0.85));
   });
 
   it('生活保護中は支出方針に関係なく節約', () => {
     const s = makeState({}, { spending: 'lavish' });
     s.flags.welfare = true;
-    expect(calcExpenses(s).living).toBe(living(net, 0.8));
+    expect(calcExpenses(s).living).toBe(living(net, 0.85));
   });
 });
 

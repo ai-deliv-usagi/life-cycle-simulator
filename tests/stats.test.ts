@@ -36,7 +36,7 @@ describe('updateStats: 方針ごとの増減(体質50 → 減少は×1.0)', () =
   it.each([
     ['ignore', -0.1, 0],
     ['normal', 0, 0],
-    ['active', 0.3, -0.5],
+    ['active', 0.3, -0.3],
   ] as const)('健康方針 %s: 健康 %f / ストレス %f(定時と合算)', (health, dh, ds) => {
     const d = deltas({ work: 'regular', health });
     expect(d.health).toBeCloseTo(dh);

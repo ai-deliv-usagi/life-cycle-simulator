@@ -26,8 +26,8 @@ describe('重み', () => {
   });
 
   it('重みは最小0.2', () => {
-    const w = happinessWeights({ risk: 2, relation: 0, spending: 2, work: 0 });
-    expect(w.security).toBeCloseTo(0.2);
+    const w = happinessWeights({ risk: 0, relation: -2, spending: 0, work: 2 });
+    expect(w.freeTime).toBeCloseTo(0.2);
     const v = happinessWeights({ risk: -2, relation: 0, spending: 0, work: -2 });
     expect(v.achievement).toBeCloseTo(0.2);
   });
@@ -60,12 +60,12 @@ describe('生活水準(頭打ちと慣れ)', () => {
 });
 
 describe('各要素', () => {
-  it('安心: 金融資産が生活費24ヶ月分で100、借金で−30、生活保護中は0', () => {
+  it('安心: 金融資産が生活費36ヶ月分で100、借金で−30、生活保護中は0', () => {
     const s = makeState();
-    const months24 = calcExpenses(s).total * 24;
-    s.assets.cash = months24;
+    const months36 = calcExpenses(s).total * 36;
+    s.assets.cash = months36;
     expect(happinessParts(s).security).toBeCloseTo(100);
-    s.assets.cash = months24 / 2;
+    s.assets.cash = months36 / 2;
     expect(happinessParts(s).security).toBeCloseTo(50);
     s.assets.debt = 1;
     expect(happinessParts(s).security).toBeCloseTo(20);
@@ -88,8 +88,8 @@ describe('各要素', () => {
     const r = makeState({}, { work: 'grind' });
     r.character.retired = true;
     expect(happinessParts(r).freeTime).toBe(90);
-    expect(happinessParts(makeState({ region: 'rural', hasCar: false })).freeTime).toBe(65);
-    expect(happinessParts(makeState({ region: 'rural', hasCar: true })).freeTime).toBe(80);
+    expect(happinessParts(makeState({ region: 'rural', hasCar: false })).freeTime).toBe(55); // 定時は70
+    expect(happinessParts(makeState({ region: 'rural', hasCar: true })).freeTime).toBe(70);
   });
 
   it('達成感 = 0.5×スキル + achievement', () => {

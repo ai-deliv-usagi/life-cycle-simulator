@@ -46,7 +46,7 @@
   "work": {
     "regular": {
       "income": 1.0,
-      "freeTime": 80,
+      "freeTime": 70,
       "health": 0,
       "stress": -1,
       "skill": 0.1,
@@ -79,20 +79,24 @@
   },
   "spending": {
     "frugal": {
-      "living": 0.8,
-      "stress": 0.3
+      "living": 0.85,
+      "stress": 0,
+      "relations": -0.15
     },
     "normal": {
       "living": 1.0,
-      "stress": 0
+      "stress": 0,
+      "relations": 0
     },
     "comfort": {
       "living": 1.1,
-      "stress": 0
+      "stress": 0,
+      "relations": 0
     },
     "lavish": {
       "living": 1.12,
-      "stress": -0.5
+      "stress": -0.5,
+      "relations": 0
     }
   },
   "healthCare": {
@@ -109,7 +113,7 @@
     "active": {
       "cost": 15000,
       "health": 0.3,
-      "stress": -0.5
+      "stress": -0.3
     }
   },
   "living": {
@@ -206,7 +210,7 @@
   "happiness": {
     "minWeight": 0.2,
     "marriedRelationsBonus": 15,
-    "securityMonths": 24,
+    "securityMonths": 36,
     "debtSecurityPenalty": 30,
     "livingAbsScale": 200000,
     "livingAbsMax": 60,
@@ -221,8 +225,8 @@
       },
       "security": {
         "base": 1,
-        "risk": -0.2,
-        "spending": -0.2
+        "risk": -0.1,
+        "spending": -0.1
       },
       "relations": {
         "base": 1,
@@ -368,7 +372,7 @@
   },
   "result": {
     "netWorthLine": 25000000,
-    "happinessLine": 52
+    "happinessLine": 54
   },
   "loan": {
     "annualRate": 0.03,
@@ -580,5 +584,6 @@
   "medicalCap": {
     "incomeBelow": 3700000,
     "perEvent": 100000
-  }
+  },
+  "healthCostMaxShare": 0.05
 }

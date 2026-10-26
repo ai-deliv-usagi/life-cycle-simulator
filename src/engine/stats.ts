@@ -66,7 +66,7 @@ export function updateStats(state: GameState, data: GameData = defaultData): voi
   st.health = clampStat(st.health + dHealth);
   st.stress = clampStat(st.stress + dStress);
   st.skill = clampStat(st.skill + dSkill);
-  st.relations = clampStat(st.relations + s.relationsDecay);
+  st.relations = clampStat(st.relations + s.relationsDecay + balance.spending[state.policy.spending].relations);
   st.credit = clampStat(st.credit + (state.assets.debt > 0 ? s.creditWithDebt : s.creditNoDebt));
   state.achievement = clamp(state.achievement - s.achievementDecay, 0, 100);
 }

@@ -142,6 +142,24 @@
         }
       },
       {
+        "label": "入籍だけする(式は挙げない)",
+        "effects": {
+          "cash": -100000,
+          "stats": {
+            "relations": 10,
+            "stress": -3
+          },
+          "setFlags": {
+            "married": true,
+            "partner": false
+          },
+          "achievement": 5
+        },
+        "valueShift": {
+          "relation": -0.1
+        }
+      },
+      {
         "label": "まだ早い",
         "effects": {
           "stats": {

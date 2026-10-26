@@ -137,6 +137,7 @@ export function runBalance(opts: Options) {
   });
   const row = (id: string) => typeRows.find((r) => r.id === id)!;
   const steady = row('steady');
+  const maxWinner = typeRows.reduce((m, r) => (r.winner > m.winner ? r : m));
   const spender = row('spender');
   const family = row('family');
   const minMarried = Math.min(...typeRows.map((r) => r.married));
@@ -159,11 +160,12 @@ export function runBalance(opts: Options) {
     { name: '選択で止まる回数', value: `年${choicesPerYear.toFixed(2)}回`, target: '年0.7〜1.5回', ok: choicesPerYear >= 0.7 && choicesPerYear <= 1.5 },
     { name: '選択のない通知', value: `年${noticesPerYear.toFixed(2)}回`, target: '年0.3〜1.5回', ok: noticesPerYear >= 0.3 && noticesPerYear <= 1.5 },
     {
-      name: '堅実派は勝ちすぎない',
-      value: `破産 ${pct(steady.bankrupt)}・勝ち組 ${pct(steady.winner)}`,
-      target: '破産5%未満・勝ち組80%以下',
-      ok: steady.bankrupt < 0.05 && steady.winner <= 0.8,
+      name: '勝ちパターンがない(どのタイプも勝ち組になりすぎない)',
+      value: `いちばん高い ${maxWinner.label} で ${pct(maxWinner.winner)}`,
+      target: '70%以下',
+      ok: maxWinner.winner <= 0.7,
     },
+    { name: '堅実派の自己破産', value: pct(steady.bankrupt), target: '5%未満', ok: steady.bankrupt < 0.05 },
     { name: '浪費家の自己破産', value: pct(spender.bankrupt), target: '20〜50%', ok: spender.bankrupt >= 0.2 && spender.bankrupt <= 0.5 },
     { name: '家族思いの結婚', value: pct(family.married), target: '70%以上', ok: family.married >= 0.7 },
     { name: 'どのタイプも結婚する', value: `いちばん低いタイプで ${pct(minMarried)}`, target: '20%以上', ok: minMarried >= 0.2 },
