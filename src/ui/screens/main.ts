@@ -78,7 +78,13 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
           {
             class: 'tile tile-button',
             'aria-label': '金融資産の内訳を見る',
-            onclick: () => void controller.whilePaused(() => assetsModal(controller.state, (key, amount) => controller.sell(key, amount))),
+            onclick: () =>
+              void controller.whilePaused(() =>
+                assetsModal(controller.state, {
+                  sell: (key, amount, from) => controller.sell(key, amount, from),
+                  buy: (key, amount) => controller.buy(key, amount),
+                }),
+              ),
           },
           h('span', { class: 'tile-label' }, '金融資産 ›'),
           fields.assets,

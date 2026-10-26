@@ -325,11 +325,13 @@ describe('月次の適用', () => {
     expect(deficit).toBeGreaterThan(0);
     s.assets.index = 1_000;
     s.assets.stocks = 1_000_000;
+    s.invested = { index: 1_000, stocks: 1_000_000, speculative: 0 }; // 損益なし(税金がかからない)
     applyMonthlyMoney(s, flatRng);
     expect(s.assets).toMatchObject({ cash: 0, index: 0, stocks: 1_000_000 - (deficit - 1_000), debt: 0 });
 
     const t = overspender();
     t.assets.speculative = 1_000;
+    t.invested = { index: 0, stocks: 0, speculative: 1_000 };
     applyMonthlyMoney(t, flatRng);
     expect(t.assets).toMatchObject({ cash: 0, speculative: 0, debt: deficit - 1_000 });
     expect(t.flags.welfare).toBe(false);
@@ -439,12 +441,17 @@ describe('元本(運用成績の表示用)', () => {
     expect(s.invested!.index).toBe(principal);
   });
 
-  it('資金ショートで売ると、売った割合だけ元本も減る', () => {
+  it('資金ショートで売ると、売った割合だけ元本も減る。特定口座の利益には税金がかかるので、そのぶん多めに売る', () => {
     const s = makeState({}, { spending: 'lavish' });
     s.assets.stocks = 1_000_000;
     s.invested!.stocks = 800_000;
     const deficit = calcExpenses(s).total - calcIncome(s).total;
     applyMonthlyMoney(s, flatRng);
-    expect(s.invested!.stocks).toBe(Math.round(800_000 * (1 - deficit / 1_000_000)));
+    const gross = Math.ceil(deficit / (1 - 0.20315 * 0.2)); // 利益は時価の2割
+    expect(s.assets.stocks).toBe(1_000_000 - gross);
+    expect(s.invested!.stocks).toBe(800_000 - Math.round((800_000 * gross) / 1_000_000));
+    expect(s.assets.cash).toBeGreaterThanOrEqual(0);
+    expect(s.assets.cash).toBeLessThan(5);
+    expect(s.ledger!.investTax ?? 0).toBe(0); // ledger への記録は stepMonth の recordMonth で行う
   });
 });

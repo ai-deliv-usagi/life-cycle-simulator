@@ -73,6 +73,16 @@ export interface Assets {
 /** 投資資産ごとの元本(つぎ込んだ額)。運用成績の表示用 */
 export type InvestedPrincipal = Pick<Assets, 'index' | 'stocks' | 'speculative'>;
 
+/** NISAに入れられる資産(信用・仮想通貨は入れられない) */
+export type NisaKey = 'index' | 'stocks';
+
+/** NISA(第2弾)。assets.index / stocks は特定口座との合計で、NISAの分は時価の割合 frac で持つ */
+export interface NisaState {
+  frac: Record<NisaKey, number>; // 時価のうちNISAの割合(0〜1)
+  principal: Record<NisaKey, number>; // NISAの元本(簿価)。生涯の枠に数える
+  year: { tsumitate: number; growth: number }; // 今年使った枠(暦の1月に戻る)
+}
+
 export interface StudentLoan {
   interestFree: boolean;
   annualRate: number; // 無利子なら 0
@@ -140,6 +150,7 @@ export interface GameState {
   stats: Stats;
   assets: Assets;
   invested?: InvestedPrincipal; // 古いセーブにはないので省略可
+  nisa?: NisaState; // 第2弾。古いセーブにはない(NISAの分は0)
   ledger?: YearLedger; // 今年の収支(古いセーブにはない)
   lastLedger?: YearLedger; // 前の年の収支(年間サマリー用)
   adaptedSpending: number; // 慣れた生活水準(月額・実質)
@@ -422,6 +433,8 @@ export interface Balance {
   result: { netWorthLine: number; happinessLine: number };
   children: ChildrenBalance;
   gender: { femaleProb: number };
+  /** NISAの枠(円)と、特定口座の利益にかかる税率 */
+  nisa: { tsumitateAnnual: number; growthAnnual: number; lifetimeTotal: number; lifetimeGrowth: number; taxRate: number };
 }
 
 /** 子ども(第2弾)。金額は1人あたりの月額 */

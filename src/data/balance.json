@@ -424,5 +424,12 @@
       "babyUntil": 6,
       "stressPerBaby": 0.2
     }
+  },
+  "nisa": {
+    "tsumitateAnnual": 1200000,
+    "growthAnnual": 2400000,
+    "lifetimeTotal": 18000000,
+    "lifetimeGrowth": 12000000,
+    "taxRate": 0.20315
   }
 }

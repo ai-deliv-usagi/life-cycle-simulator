@@ -3,6 +3,7 @@
 import { defaultData } from '../data/index';
 import { addChild, afterGivingBirth, childAgeMonths, childrenOf } from './children';
 import { baseAnnualMortality, genderFactor } from './death';
+import { scaleNisaPrincipal } from './nisa';
 import { recordEventCash } from './ledger';
 import { changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
@@ -212,6 +213,7 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
       a[key] = roundYen(a[key] * (1 + effects.assetShock.pct));
       if (effects.assetShock.split && state.invested && key !== 'cash') {
         state.invested[key] = roundYen(state.invested[key] * (1 + effects.assetShock.pct));
+        scaleNisaPrincipal(state, key, 1 + effects.assetShock.pct);
       }
     }
   }

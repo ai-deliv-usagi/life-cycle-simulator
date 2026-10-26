@@ -1,5 +1,5 @@
 // イベント・選択結果・年間サマリー・方針変更のモーダル
-import { availableChoices, gameData, getMonthlyView, ledgerTotals, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
+import { availableChoices, gameData, getMonthlyView, ledgerTotals, nisaRoom, nisaValue, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
 import { assetMixChart, assetMixPoints } from '../charts';
 import { append, clear, h, openModal } from '../dom';
 import { ageMonthLabel, calendarMonth, healthWord, manYen, signedManYen, signedPercent } from '../format';
@@ -191,8 +191,15 @@ export function policyModal(current: Policy): Promise<Policy | null> {
   });
 }
 
-/** 金融資産の内訳と運用成績。onSell があれば投資を売れる(売ったあとの state を返す) */
-export function assetsModal(initial: GameState, onSell?: (key: InvestKey, amount: number) => GameState): Promise<void> {
+/** 資産の画面で売り買いする。どちらも操作したあとの state を返す */
+export interface Trade {
+  sell(key: InvestKey, amount: number, from: SellFrom): GameState;
+  buy(key: InvestKey, amount: number): GameState;
+}
+type SellFrom = 'auto' | 'taxable' | 'nisa';
+
+/** 金融資産の内訳と運用成績。trade があれば投資を売り買いできる */
+export function assetsModal(initial: GameState, trade?: Trade): Promise<void> {
   return new Promise((resolve) => {
     let close = () => {};
     let destroyChart = () => {};
@@ -201,7 +208,13 @@ export function assetsModal(initial: GameState, onSell?: (key: InvestKey, amount
     const render = (state: GameState) => {
       destroyChart();
       clear(body);
-      const mix = assetsContent(state, body, onSell ? (key, amount) => render(onSell(key, amount)) : undefined, () => close());
+      const actions = trade
+        ? {
+            sell: (key: InvestKey, amount: number, from: SellFrom) => render(trade.sell(key, amount, from)),
+            buy: (key: InvestKey, amount: number) => render(trade.buy(key, amount)),
+          }
+        : undefined;
+      const mix = assetsContent(state, body, actions, () => close());
       destroyChart = mix.draw();
     };
 
@@ -222,44 +235,117 @@ const INVEST_ROWS: { key: InvestKey; label: string }[] = [
   { key: 'speculative', label: '信用・仮想通貨' },
 ];
 
-/** 売る額を選ぶ欄(全部・半分・金額を入れる) */
-function sellForm(label: string, held: number, sell: (amount: number) => void, cancel: () => void): HTMLElement {
-  const input = h('input', { type: 'number', min: '1', step: '1', inputmode: 'numeric', 'aria-label': `${label}を売る額(万円)` });
+/** 金額(万円)の入力欄と、「全部」「半分」のボタン */
+function amountForm(opts: {
+  title: string;
+  max: number;
+  verb: string;
+  extra?: HTMLElement | null;
+  note?: string;
+  submit: (amount: number) => void;
+  cancel: () => void;
+}): HTMLElement {
+  const input = h('input', { type: 'number', min: '1', step: '1', inputmode: 'numeric', 'aria-label': `${opts.title}(万円)` });
   const error = h('p', { class: 'down small' });
   const byInput = () => {
     const man = Number(input.value);
     if (!Number.isFinite(man) || man <= 0) {
-      error.textContent = '売る額を万円で入れてください';
+      error.textContent = `${opts.verb}額を万円で入れてください`;
       return;
     }
-    sell(Math.min(held, man * 10_000));
+    opts.submit(Math.min(opts.max, man * 10_000));
   };
   return h(
     'div',
     { class: 'sell-form' },
-    h('p', { class: 'small' }, `${label}を売って預金にする(持っている額 ${manYen(held)})`),
+    h('p', { class: 'small' }, opts.title),
+    opts.extra ?? null,
     h(
       'div',
       { class: 'sell-buttons' },
-      h('button', { class: 'btn', onclick: () => sell(held) }, '全部'),
-      h('button', { class: 'btn', onclick: () => sell(Math.round(held / 2)) }, '半分'),
+      h('button', { class: 'btn', onclick: () => opts.submit(opts.max) }, '全部'),
+      h('button', { class: 'btn', onclick: () => opts.submit(Math.round(opts.max / 2)) }, '半分'),
     ),
     h(
       'div',
       { class: 'sell-input' },
       input,
       h('span', {}, '万円'),
-      h('button', { class: 'btn primary', onclick: byInput }, '売る'),
-      h('button', { class: 'btn', onclick: cancel }, 'やめる'),
+      h('button', { class: 'btn primary', onclick: byInput }, opts.verb),
+      h('button', { class: 'btn', onclick: opts.cancel }, 'やめる'),
     ),
+    opts.note ? h('p', { class: 'muted small' }, opts.note) : null,
     error,
   );
+}
+
+/** 売る欄。NISAと特定口座の両方にあるときは、どちらから売るかを選べる */
+function sellForm(state: GameState, key: InvestKey, label: string, sell: (amount: number, from: SellFrom) => void, cancel: () => void): HTMLElement {
+  const held = state.assets[key];
+  const nisa = nisaValue(state, key);
+  const taxable = held - nisa;
+  let from: SellFrom = 'auto';
+  let max = held;
+  const name = `sell-from-${key}`;
+  const option = (value: SellFrom, text: string, amount: number) =>
+    h(
+      'label',
+      { class: 'segment' },
+      h('input', {
+        type: 'radio',
+        name,
+        value,
+        checked: value === 'auto',
+        onchange: () => {
+          from = value;
+          max = amount;
+        },
+      }),
+      h('span', {}, text),
+    );
+  const choose =
+    nisa > 0 && taxable > 0
+      ? h(
+          'div',
+          { class: 'segmented' },
+          option('auto', '特定口座から先に', held),
+          option('taxable', `特定口座だけ(${manYen(taxable)})`, taxable),
+          option('nisa', `NISAだけ(${manYen(nisa)})`, nisa),
+        )
+      : null;
+  return amountForm({
+    title: `${label}を売って預金にする(持っている額 ${manYen(held)}${nisa > 0 ? `、うちNISA ${manYen(nisa)}` : ''})`,
+    max: held,
+    verb: '売る',
+    extra: choose,
+    note: taxable > 0 ? '特定口座の利益には約20%の税金がかかる。NISAは非課税。' : nisa > 0 ? 'NISAなので税金はかからない。' : undefined,
+    submit: (amount) => sell(Math.min(amount, max), from),
+    cancel,
+  });
+}
+
+function buyForm(state: GameState, key: InvestKey, label: string, buy: (amount: number) => void, cancel: () => void): HTMLElement {
+  const room = key === 'speculative' ? 0 : nisaRoom(state)[key];
+  const note =
+    key === 'speculative'
+      ? '信用・仮想通貨はNISAでは買えない(特定口座)。'
+      : room > 0
+        ? `今年のNISAの枠はあと${manYen(room)}。超えた分は特定口座になる。`
+        : '今年のNISAの枠は使い切った。特定口座で買う。';
+  return amountForm({
+    title: `預金で${label}を買う(預金 ${manYen(state.assets.cash)})`,
+    max: Math.max(0, state.assets.cash),
+    verb: '買う',
+    note,
+    submit: buy,
+    cancel,
+  });
 }
 
 function assetsContent(
   state: GameState,
   body: HTMLElement,
-  onSell: ((key: InvestKey, amount: number) => void) | undefined,
+  trade: { sell(key: InvestKey, amount: number, from: SellFrom): void; buy(key: InvestKey, amount: number): void } | undefined,
   close: () => void,
 ): { draw: () => () => void } {
   const a = state.assets;
@@ -286,29 +372,48 @@ function assetsContent(
     );
   };
 
-  const canSell = onSell && !state.dead;
-  const sellCell = (r: (typeof rows)[number]) => {
-    if (!canSell) return null;
-    if (!r.key || r.value <= 0) return h('td', {});
+  const canTrade = trade && !state.dead;
+  const show = (form: HTMLElement) => {
+    clear(formSlot);
+    formSlot.appendChild(form);
+    formSlot.querySelector<HTMLInputElement>('input[type=number]')?.focus();
+  };
+  const tradeCell = (r: (typeof rows)[number]) => {
+    if (!canTrade) return null;
+    if (!r.key) return h('td', {});
     const key = r.key;
     return h(
       'td',
-      {},
-      h(
-        'button',
-        {
-          class: 'btn small-btn',
-          'aria-label': `${r.label}を売る`,
-          onclick: () => {
-            clear(formSlot);
-            formSlot.appendChild(sellForm(r.label, r.value, (amount) => onSell(key, amount), () => clear(formSlot)));
-            formSlot.querySelector('input')?.focus();
-          },
-        },
-        '売る',
-      ),
+      { class: 'trade-cell' },
+      r.value > 0
+        ? h(
+            'button',
+            {
+              class: 'btn small-btn',
+              'aria-label': `${r.label}を売る`,
+              onclick: () => show(sellForm(state, key, r.label, (amount, from) => trade.sell(key, amount, from), () => clear(formSlot))),
+            },
+            '売る',
+          )
+        : null,
+      a.cash > 0
+        ? h(
+            'button',
+            {
+              class: 'btn small-btn',
+              'aria-label': `${r.label}を買う`,
+              onclick: () => show(buyForm(state, key, r.label, (amount) => trade.buy(key, amount), () => clear(formSlot))),
+            },
+            '買う',
+          )
+        : null,
     );
   };
+  const valueCell = (r: (typeof rows)[number]) => {
+    const nisa = r.key ? nisaValue(state, r.key) : 0;
+    return h('td', {}, manYen(r.value), nisa > 0 ? h('span', { class: 'pct small muted' }, `うちNISA ${manYen(nisa)}`) : '');
+  };
+  const room = nisaRoom(state);
 
   append(body, [
     h('h2', {}, '資産と負債'),
@@ -319,7 +424,7 @@ function assetsContent(
       h(
         'thead',
         {},
-        h('tr', {}, h('th', {}, ''), h('th', {}, '残高'), h('th', {}, '元本'), h('th', {}, '損益'), canSell ? h('th', {}, '') : null),
+        h('tr', {}, h('th', {}, ''), h('th', {}, '残高'), h('th', {}, '元本'), h('th', {}, '損益'), canTrade ? h('th', {}, '') : null),
       ),
       h(
         'tbody',
@@ -329,10 +434,10 @@ function assetsContent(
             'tr',
             {},
             h('th', {}, r.label),
-            h('td', {}, manYen(r.value)),
+            valueCell(r),
             h('td', { class: 'muted' }, r.principal === undefined ? '—' : manYen(r.principal)),
             r.principal === undefined ? h('td', { class: 'muted' }, '—') : gainCell(r.value, r.principal),
-            sellCell(r),
+            tradeCell(r),
           ),
         ),
         h(
@@ -342,12 +447,19 @@ function assetsContent(
           h('td', {}, manYen(total)),
           h('td', { class: 'muted' }, investedTotal === undefined ? '—' : manYen(investedTotal + a.cash)),
           gainCell(investedValue, investedTotal),
-          canSell ? h('td', {}) : null,
+          canTrade ? h('td', {}) : null,
         ),
       ),
     ),
     formSlot,
-    canSell ? h('p', { class: 'muted small' }, '売った分はすぐ預金になる(税金はかからない)。毎月の積立は方針の配分どおり続く。') : null,
+    h(
+      'p',
+      { class: 'muted small' },
+      `NISAの枠: 今年は積立あと${manYen(room.index)}・個別株あと${manYen(room.stocks)}、生涯あと${manYen(room.lifetime)}。`,
+    ),
+    canTrade
+      ? h('p', { class: 'muted small' }, '売った分はすぐ預金になる。毎月の積立も、方針の配分どおりNISAの枠から先に使う。')
+      : null,
     liabilitiesAndNet(state),
     mix.el,
     state.ledger ? h('details', { class: 'summary-details' }, h('summary', {}, '今年のここまでの収支'), ledgerTable(state.ledger)) : null,

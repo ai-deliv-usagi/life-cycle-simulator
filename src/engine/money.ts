@@ -5,6 +5,7 @@
 import { defaultData } from '../data/index';
 import { childAllowance, childCost, parentalLeaveRate } from './children';
 import { recordSeverance } from './ledger';
+import { buyInvestment, resetNisaYear, sellForCash } from './nisa';
 import type { Rng } from './rng';
 import type { GameData, GameState, JobDef, JobId, RegionDef } from './types';
 import { addLog, ageYears, annuityPayment, clamp, clampStat, findById, roundYen } from './util';
@@ -346,6 +347,7 @@ export interface MoneyResult {
   prepaid: number;
   returns: number; // 運用損益(預金の利息を含む)
   welfare: number; // 生活保護で補った額
+  investTax: number; // 特定口座で売ったときの税金
 }
 
 /**
@@ -380,7 +382,8 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   }
   a.cash += income.total - expenses.total;
 
-  // 4. 借金の利息と返済、積立、運用リターン
+  // 4. 借金の利息と返済、積立、運用リターン。NISAの年の枠は暦の1月に戻る
+  if (calendarMonthOf(state, data) === 1) resetNisaYear(state);
   const debtInterest = roundYen((a.debt * balance.debtAnnualRate) / 12);
   a.debt += debtInterest;
   let invested = 0;
@@ -413,21 +416,20 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
       const amount = roundYen((budget * alloc[key]) / 100);
       if (amount <= 0) continue;
       a.cash -= amount;
-      a[key] += amount;
+      buyInvestment(state, key, amount, data); // NISAの枠から先に使う
       invested += amount;
-      if (state.invested) state.invested[key] += amount;
     }
   }
   const returns = applyReturns(state, rng, data);
 
-  // 5. 資金ショート
+  // 5. 資金ショート。特定口座から先に売り、利益には税金がかかる(そのぶん多めに売る)
+  let investTax = 0;
   if (a.cash < 0) {
     for (const key of ['index', 'stocks', 'speculative'] as const) {
-      const sell = Math.min(a[key], -a.cash);
-      // 売った割合だけ元本も減らす
-      if (state.invested && a[key] > 0) state.invested[key] = roundYen(state.invested[key] * (1 - sell / a[key]));
-      a[key] -= sell;
-      a.cash += sell;
+      if (a[key] <= 0) continue;
+      const sale = sellForCash(state, key, -a.cash, data);
+      a.cash += sale.gross - sale.tax;
+      investTax += sale.tax;
       if (a.cash >= 0) break;
     }
   }
@@ -447,7 +449,7 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   checkDebtLimit(state, data);
   if (bool(state, 'welfare') && income.total >= minimalLiving) state.flags.welfare = false;
 
-  return { income, expenses, debtInterest, invested, prepaid, returns, welfare };
+  return { income, expenses, debtInterest, invested, prepaid, returns, welfare, investTax };
 }
 
 /**

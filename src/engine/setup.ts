@@ -1,6 +1,7 @@
 // 初期ガチャとキャラ生成(SPEC.md「初期値データ」、DESIGN.md §3・§5.2.1・§5.7・§8)
 import { defaultData } from '../data/index';
 import { emptyLedger } from './ledger';
+import { emptyNisa } from './nisa';
 import { realLivingSpending } from './money';
 import { createRng, deriveSeed, type Rng } from './rng';
 import { normalizePolicy } from './policy';
@@ -139,6 +140,7 @@ export function createGame(
       loan: 0,
     },
     invested: { index: 0, stocks: 0, speculative: 0 },
+    nisa: emptyNisa(),
     ledger: emptyLedger(),
     adaptedSpending: 0,
     achievement: 0,

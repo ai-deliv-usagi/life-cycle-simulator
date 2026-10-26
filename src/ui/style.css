@@ -658,3 +658,8 @@ input[type='number'] {
   font: inherit;
   padding: 6px 8px;
 }
+.trade-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

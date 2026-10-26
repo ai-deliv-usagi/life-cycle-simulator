@@ -2,6 +2,7 @@
 import {
   changePolicy,
   createRng,
+  buyAsset,
   sellAsset,
   type InvestKey,
   isYearEnd,
@@ -97,8 +98,15 @@ export class GameController {
   }
 
   /** 投資を売って預金にする。売ったあとの state を返す */
-  sell(key: InvestKey, amount: number): GameState {
-    this.state = sellAsset(this.state, key, amount);
+  sell(key: InvestKey, amount: number, from: 'auto' | 'taxable' | 'nisa' = 'auto'): GameState {
+    this.state = sellAsset(this.state, key, amount, from);
+    this.ui.render(this.state, false);
+    return this.state;
+  }
+
+  /** 預金で投資を買う。買ったあとの state を返す */
+  buy(key: InvestKey, amount: number): GameState {
+    this.state = buyAsset(this.state, key, amount);
     this.ui.render(this.state, false);
     return this.state;
   }
