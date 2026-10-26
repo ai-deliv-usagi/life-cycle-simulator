@@ -35,11 +35,24 @@ function valueSlider(axis: (typeof VALUE_AXES)[number], values: Values): HTMLEle
   );
 }
 
+/** 入力するカード(色の付いた枠と「入力」の印)。見るだけのカードと見分けられるようにする */
+function inputCard(title: string, ...children: (HTMLElement | string | null)[]): HTMLElement {
+  return h(
+    'section',
+    { class: 'card input-card' },
+    h('div', { class: 'card-head' }, h('h2', {}, title), h('span', { class: 'input-badge' }, '入力')),
+    ...children,
+  );
+}
+
+/** キャラ作成は2ステップ: ①生まれ(ガチャの結果を見るだけ)→ ②あなたが決めること(名前・価値観・方針) */
 export function setupScreen(root: HTMLElement, nav: Nav, seed: number): void {
   const roll = rollCharacter(seed);
   const values: Values = { risk: 0, relation: 0, spending: 0, work: 0 };
-  const policy = policyForm(DEFAULT_POLICY);
+  // 最初は独身で子どももいないので、子どもの教育は出さない。繰上げ返済は奨学金があるときだけ
+  const policy = policyForm(DEFAULT_POLICY, { showPrepay: roll.studentLoan !== null, showEducation: false });
   const nameInput = h('input', { type: 'text', value: '名無しさん', maxlength: 20, 'aria-label': '名前' });
+  const sliders = VALUE_AXES.map((axis) => valueSlider(axis, values));
 
   const loan = roll.studentLoan
     ? `${manYen(roll.studentLoan.amount)}(${roll.studentLoan.interestFree ? '無利子' : '有利子'})`
@@ -56,44 +69,60 @@ export function setupScreen(root: HTMLElement, nav: Nav, seed: number): void {
     ['奨学金', loan],
   ];
 
-  mount(
-    root,
-    h(
-      'main',
-      { class: 'screen setup-screen' },
-      h('h1', {}, 'キャラ作成'),
+  const birth = () =>
+    mount(
+      root,
       h(
-        'section',
-        { class: 'card gacha' },
-        h('div', { class: 'card-head' }, h('h2', {}, '生まれ'), h('span', { class: 'muted small' }, `シード ${seed}`)),
-        h('dl', { class: 'gacha-list' }, ...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
-        h('button', { class: 'btn', onclick: () => nav.setup(seed + 1) }, '引き直す'),
-      ),
-      h('section', { class: 'card' }, h('h2', {}, '名前'), nameInput),
-      h(
-        'section',
-        { class: 'card' },
-        h('h2', {}, '価値観'),
-        h('p', { class: 'muted small' }, '幸福度の感じ方が変わる。人生の中の選択で少しずつ変わっていく。'),
-        ...VALUE_AXES.map((axis) => valueSlider(axis, values)),
-      ),
-      h('section', { class: 'card' }, h('h2', {}, '最初の方針'), h('p', { class: 'muted small' }, 'あとからいつでも変えられる。'), policy.el),
-      h(
-        'div',
-        { class: 'actions' },
-        h('button', { class: 'btn', onclick: () => nav.title() }, '戻る'),
+        'main',
+        { class: 'screen setup-screen' },
+        h('p', { class: 'step muted small' }, 'キャラ作成 1/2'),
+        h('h1', {}, '生まれ'),
+        h('p', { class: 'muted small' }, 'ここは選べない。気に入らなければ引き直せる。'),
         h(
-          'button',
-          {
-            class: 'btn primary',
-            onclick: () => {
-              const name = nameInput.value.trim() || '名無しさん';
-              nav.main(createGame(roll, { ...values }, policy.get(), name));
-            },
-          },
-          'この人生を始める',
+          'section',
+          { class: 'card info-card gacha' },
+          h('div', { class: 'card-head' }, h('h2', {}, 'あなたの生まれ'), h('span', { class: 'muted small' }, `シード ${seed}`)),
+          h('dl', { class: 'gacha-list' }, ...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
+          h('button', { class: 'btn', onclick: () => nav.setup(seed + 1) }, '引き直す'),
+        ),
+        h(
+          'div',
+          { class: 'sticky-actions' },
+          h('button', { class: 'btn', onclick: () => nav.title() }, '戻る'),
+          h('button', { class: 'btn primary', onclick: () => decide() }, 'この生まれで決める'),
         ),
       ),
-    ),
-  );
+    );
+
+  const decide = () =>
+    mount(
+      root,
+      h(
+        'main',
+        { class: 'screen setup-screen' },
+        h('p', { class: 'step muted small' }, 'キャラ作成 2/2'),
+        h('h1', {}, 'あなたが決めること'),
+        inputCard('名前', nameInput),
+        inputCard('価値観', h('p', { class: 'muted small' }, '幸福度の感じ方が変わる。人生の中の選択で少しずつ変わっていく。'), ...sliders),
+        inputCard('最初の方針', h('p', { class: 'muted small' }, 'あとからいつでも変えられる。'), policy.el),
+        h(
+          'div',
+          { class: 'sticky-actions' },
+          h('button', { class: 'btn', onclick: () => birth() }, '生まれに戻る'),
+          h(
+            'button',
+            {
+              class: 'btn primary',
+              onclick: () => {
+                const name = nameInput.value.trim() || '名無しさん';
+                nav.main(createGame(roll, { ...values }, policy.get(), name));
+              },
+            },
+            'この人生を始める',
+          ),
+        ),
+      ),
+    );
+
+  birth();
 }

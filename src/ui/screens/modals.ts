@@ -1,10 +1,10 @@
 // イベント・選択結果・年間サマリー・方針変更のモーダル
-import { availableChoices, gameData, businessValue, getMonthlyView, ledgerTotals, nisaRoom, nisaValue, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
+import { availableChoices, gameData, businessValue, getMonthlyView, HAPPINESS_PARTS, happinessParts, happinessWeights, ledgerTotals, nisaRoom, nisaValue, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
 import { assetMixChart, assetMixPoints } from '../charts';
 import { append, clear, h, openModal } from '../dom';
-import { ageMonthLabel, calendarMonth, healthWord, manYen, signedManYen, signedPercent } from '../format';
+import { ageMonthLabel, calendarMonth, HAPPINESS_PART_LABELS, healthWord, manYen, signedManYen, signedPercent } from '../format';
 import { balanceSheet, ledgerTable, liabilitiesAndNet, monthIncomeTable, yearIncomeTable } from '../finance';
-import { policyForm } from '../policyForm';
+import { policyForm, type PolicyFormOptions } from '../policyForm';
 
 const CHOICE_RESULT_MS = 1200;
 const SUMMARY_AUTO_CLOSE_MS = 1500;
@@ -150,9 +150,9 @@ export function yearSummaryModal(state: GameState, info: YearSummaryInfo, autoCl
 }
 
 /** 方針変更。確定なら新しい方針、キャンセルなら null */
-export function policyModal(current: Policy): Promise<Policy | null> {
+export function policyModal(current: Policy, opts?: PolicyFormOptions): Promise<Policy | null> {
   return new Promise((resolve) => {
-    const form = policyForm(current);
+    const form = policyForm(current, opts);
     let close = () => {};
     const content = h(
       'div',
@@ -352,7 +352,13 @@ function assetsContent(
   const inv = state.invested;
   const rows: { label: string; value: number; principal?: number; key?: InvestKey }[] = [
     { label: '預金', value: a.cash },
-    ...INVEST_ROWS.map((r) => ({ label: r.label, value: a[r.key], principal: inv?.[r.key], key: r.key })),
+    // 持っていない投資(残高も元本も0)の行は出さない。買うボタンは表の下にある
+    ...INVEST_ROWS.filter((r) => a[r.key] !== 0 || (inv?.[r.key] ?? 0) !== 0).map((r) => ({
+      label: r.label,
+      value: a[r.key],
+      principal: inv?.[r.key],
+      key: r.key,
+    })),
   ];
   const total = rows.reduce((s, r) => s + r.value, 0);
   const investedTotal = inv ? inv.index + inv.stocks + inv.speculative : undefined;
@@ -504,6 +510,77 @@ export function incomeModal(state: GameState): Promise<void> {
       monthIncomeTable(v.income, state.character.job === 'owner'),
       ...yearIncome(state),
       h('p', { class: 'muted small' }, 'ボーナスは6月と12月に入る。配偶者の収入には、扶養に入れたことによる税金の軽減も含む。'),
+      h(
+        'button',
+        {
+          class: 'btn primary',
+          onclick: () => {
+            close();
+            resolve();
+          },
+        },
+        '閉じる',
+      ),
+    );
+    close = openModal(content, { dismissible: true, onClose: () => resolve() });
+  });
+}
+
+/** 幸福度の内訳: 6つの要素の満たされ具合と、価値観による重み */
+export function happinessModal(state: GameState): Promise<void> {
+  const parts = happinessParts(state);
+  const weights = happinessWeights(state.values);
+  return new Promise((resolve) => {
+    let close = () => {};
+    const rows = HAPPINESS_PARTS.map((p) => {
+      const w = weights[p];
+      const mark = w >= 1.2 ? '重視' : w <= 0.8 ? '軽め' : '';
+      return h(
+        'div',
+        { class: 'bar bar-wide-label' },
+        h('span', { class: 'bar-label' }, HAPPINESS_PART_LABELS[p], mark ? h('span', { class: 'weight-tag small' }, mark) : ''),
+        h('div', { class: 'bar-track' }, h('div', { class: 'bar-fill', style: `width:${Math.round(parts[p])}%` })),
+        h('span', { class: 'bar-word muted small' }, String(Math.round(parts[p]))),
+      );
+    });
+    const content = h(
+      'div',
+      { class: 'happiness-modal' },
+      h('h2', {}, `今月の幸福度 ${Math.round(state.happinessHistory.at(-1) ?? 0)}`),
+      h('p', { class: 'muted small' }, '6つの要素の重み付き平均。どれを重視するかは価値観で変わる(「重視」は重みが大きく、「軽め」は小さい要素)。'),
+      h('div', { class: 'card bars' }, ...rows),
+      h(
+        'button',
+        {
+          class: 'btn primary',
+          onclick: () => {
+            close();
+            resolve();
+          },
+        },
+        '閉じる',
+      ),
+    );
+    close = openModal(content, { dismissible: true, onClose: () => resolve() });
+  });
+}
+
+/** 設定(年間サマリーを自動で閉じる など) */
+export function settingsModal(settings: { autoCloseSummary: boolean }): Promise<void> {
+  return new Promise((resolve) => {
+    let close = () => {};
+    const autoClose = h('input', {
+      type: 'checkbox',
+      checked: settings.autoCloseSummary,
+      onchange: (e: Event) => {
+        settings.autoCloseSummary = (e.target as HTMLInputElement).checked;
+      },
+    });
+    const content = h(
+      'div',
+      { class: 'settings-modal' },
+      h('h2', {}, '設定'),
+      h('label', { class: 'check' }, autoClose, ' 年間サマリーを自動で閉じる'),
       h(
         'button',
         {
