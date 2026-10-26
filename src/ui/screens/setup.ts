@@ -1,6 +1,7 @@
 // キャラ作成画面: 初期ガチャ・価値観・初期方針
-import { createGame, rollCharacter, type PolicyInput, type Values } from '../../engine/index';
-import { h, mount } from '../dom';
+import { createGame, createRng, deriveSeed, rollCharacter, type PolicyInput, type Values } from '../../engine/index';
+import { append, clear, h, mount } from '../dom';
+import { POLICY_PRESETS, VALUE_PRESETS } from '../presets';
 import { educationLabel, familyLabel, jobLabel, manYen, regionLabel, stars, VALUE_AXES, valueStepLabel } from '../format';
 import type { Nav } from '../nav';
 import { policyForm } from '../policyForm';
@@ -52,7 +53,37 @@ export function setupScreen(root: HTMLElement, nav: Nav, seed: number): void {
   // 最初は独身で子どももいないので、子どもの教育は出さない。繰上げ返済は奨学金があるときだけ
   const policy = policyForm(DEFAULT_POLICY, { showPrepay: roll.studentLoan !== null, showEducation: false });
   const nameInput = h('input', { type: 'text', value: '名無しさん', maxlength: 20, 'aria-label': '名前' });
-  const sliders = VALUE_AXES.map((axis) => valueSlider(axis, values));
+  const sliderBox = h('div', { class: 'value-sliders' });
+  const rebuildSliders = () => {
+    clear(sliderBox);
+    append(sliderBox, VALUE_AXES.map((axis) => valueSlider(axis, values)));
+  };
+  rebuildSliders();
+
+  // タイプのボタン: 押すと価値観4つと、それに合う方針がまとめて決まる
+  const typeHelp = h('p', { class: 'policy-help muted small' }, '近いタイプを選ぶと、価値観と方針がまとめて決まる。');
+  let randomCount = 0;
+  const typeButtons: HTMLButtonElement[] = [];
+  const pickType = (index: number | null) => {
+    typeButtons.forEach((b, i) => b.setAttribute('aria-pressed', i === index ? 'true' : 'false'));
+    if (index === null) {
+      // おまかせ: シードから決まる乱数で価値観を引く(同じシードなら同じ並び)
+      const rng = createRng(deriveSeed(seed, 'player') + randomCount++);
+      for (const axis of VALUE_AXES) values[axis.key] = rng.int(5) - 2;
+      typeHelp.textContent = 'おまかせで決めた。方針はバランスにした。';
+      policy.set(POLICY_PRESETS.find((p) => p.id === 'balance')!.policy);
+    } else {
+      const t = VALUE_PRESETS[index]!;
+      Object.assign(values, t.values);
+      const p = POLICY_PRESETS.find((x) => x.id === t.policy)!;
+      typeHelp.textContent = `${t.description}。方針は「${p.label}」にした。`;
+      policy.set(p.policy);
+    }
+    rebuildSliders();
+  };
+  VALUE_PRESETS.forEach((t, i) => typeButtons.push(h('button', { type: 'button', class: 'btn preset', onclick: () => pickType(i) }, t.label)));
+  typeButtons.push(h('button', { type: 'button', class: 'btn preset', onclick: () => pickType(null) }, 'おまかせ'));
+  pickType(VALUE_PRESETS.findIndex((t) => t.id === 'neutral')); // 最初は「ふつう」
 
   const loan = roll.studentLoan
     ? `${manYen(roll.studentLoan.amount)}(${roll.studentLoan.interestFree ? '無利子' : '有利子'})`
@@ -103,7 +134,18 @@ export function setupScreen(root: HTMLElement, nav: Nav, seed: number): void {
         h('p', { class: 'step muted small' }, 'キャラ作成 2/2'),
         h('h1', {}, 'あなたが決めること'),
         inputCard('名前', nameInput),
-        inputCard('価値観', h('p', { class: 'muted small' }, '幸福度の感じ方が変わる。人生の中の選択で少しずつ変わっていく。'), ...sliders),
+        inputCard(
+          'あなたのタイプ',
+          h('div', { class: 'segmented presets' }, ...typeButtons),
+          typeHelp,
+          h(
+            'details',
+            { class: 'fine-tune' },
+            h('summary', {}, '価値観を細かく決める'),
+            h('p', { class: 'muted small' }, '幸福度の感じ方が変わる。人生の中の選択で少しずつ変わっていく。'),
+            sliderBox,
+          ),
+        ),
         inputCard('最初の方針', h('p', { class: 'muted small' }, 'あとからいつでも変えられる。'), policy.el),
         h(
           'div',

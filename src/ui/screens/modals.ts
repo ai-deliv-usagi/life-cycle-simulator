@@ -2,7 +2,20 @@
 import { availableChoices, choiceCost, gameData, businessValue, getMonthlyView, HAPPINESS_PARTS, happinessParts, happinessWeights, ledgerTotals, nisaRoom, nisaValue, type ChoiceCost, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
 import { assetMixChart, assetMixPoints } from '../charts';
 import { append, clear, h, openModal } from '../dom';
-import { ageMonthLabel, calendarMonth, HAPPINESS_PART_LABELS, healthWord, manYen, signedManYen, signedPercent } from '../format';
+import {
+  ageMonthLabel,
+  calendarMonth,
+  HAPPINESS_PART_LABELS,
+  happinessFace,
+  healthWord,
+  manYen,
+  signedManYen,
+  signedPercent,
+  STAT_EFFECTS,
+  STAT_LABELS,
+  STAT_LEVEL_LABELS,
+  statLevel,
+} from '../format';
 import { balanceSheet, ledgerTable, liabilitiesAndNet, monthIncomeTable, yearIncomeTable } from '../finance';
 import { policyForm, type PolicyFormOptions } from '../policyForm';
 
@@ -568,7 +581,7 @@ export function happinessModal(state: GameState): Promise<void> {
     const content = h(
       'div',
       { class: 'happiness-modal' },
-      h('h2', {}, `今月の幸福度 ${Math.round(state.happinessHistory.at(-1) ?? 0)}`),
+      h('h2', {}, `今月の幸福度 ${happinessFace(state.happinessHistory.at(-1) ?? 0)} ${Math.round(state.happinessHistory.at(-1) ?? 0)}`),
       h('p', { class: 'muted small' }, '6つの要素の重み付き平均。どれを重視するかは価値観で変わる(「重視」は重みが大きく、「軽め」は小さい要素)。'),
       h('div', { class: 'card bars' }, ...rows),
       h(
@@ -603,6 +616,35 @@ export function settingsModal(settings: { autoCloseSummary: boolean }): Promise<
       { class: 'settings-modal' },
       h('h2', {}, '設定'),
       h('label', { class: 'check' }, autoClose, ' 年間サマリーを自動で閉じる'),
+      h(
+        'button',
+        {
+          class: 'btn primary',
+          onclick: () => {
+            close();
+            resolve();
+          },
+        },
+        '閉じる',
+      ),
+    );
+    close = openModal(content, { dismissible: true, onClose: () => resolve() });
+  });
+}
+
+/** ステータスの説明: 何を表すか、下がる(ストレスは上がる)と何が起きるか */
+export function statModal(key: keyof typeof STAT_EFFECTS, value: number): Promise<void> {
+  const e = STAT_EFFECTS[key];
+  const level = statLevel(key, value);
+  return new Promise((resolve) => {
+    let close = () => {};
+    const content = h(
+      'div',
+      { class: 'stat-modal' },
+      h('h2', {}, `${STAT_LABELS[key]}: ${STAT_LEVEL_LABELS[level]}(${Math.round(value)})`),
+      h('p', {}, e.what),
+      h('p', { class: level === 'caution' || level === 'danger' ? 'down' : '' }, e.bad),
+      h('p', { class: 'muted' }, e.good),
       h(
         'button',
         {

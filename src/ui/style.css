@@ -809,3 +809,39 @@ input[type='number'] {
 .event-wallet {
   margin: 0;
 }
+
+/* プリセットのボタン */
+.presets {
+  gap: 6px;
+}
+.fine-tune summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.9rem;
+  padding: 4px 0;
+}
+.policy-detail,
+.value-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+/* ステータスのバーは押すと説明 */
+.bar-button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.bar-button:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.stat-warning {
+  margin: 4px 0 0;
+  color: var(--down);
+}

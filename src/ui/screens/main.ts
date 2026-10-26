@@ -12,6 +12,8 @@ import {
   RANK_LABELS,
   regionLabel,
   signedManYen,
+  happinessFace,
+  STAT_EFFECTS,
   STAT_LABELS,
   STAT_LEVEL_LABELS,
   statLevel,
@@ -28,6 +30,7 @@ import {
   incomeModal,
   policyModal,
   settingsModal,
+  statModal,
   yearSummaryModal,
 } from './modals';
 
@@ -41,6 +44,7 @@ export interface MainScreenHooks {
 }
 
 const TOAST_MS = 2500;
+const LEVEL_ORDER = ['good', 'normal', 'caution', 'danger'] as const;
 const UPCOMING_MAX = 5;
 
 /** 選択肢のないイベントは、再生中だと気づきにくいので画面の上に少しだけ出す */
@@ -101,6 +105,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     barWords[k] = h('span', { class: 'bar-word small' });
   }
   const logList = h('ol', { class: 'log-list' });
+  const statWarning = h('p', { class: 'stat-warning small' });
   const upcomingList = h('ul', { class: 'upcoming-list' });
   const upcomingCard = h('section', { class: 'card' }, h('h2', {}, 'これから'), upcomingList);
   const toast = h('div', { class: 'toast', role: 'status', 'aria-live': 'polite', hidden: true });
@@ -194,13 +199,18 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
         { class: 'card bars' },
         ...statKeys.map((k) =>
           h(
-            'div',
-            { class: 'bar' },
+            'button',
+            {
+              class: 'bar bar-button',
+              'aria-label': `${STAT_LABELS[k]}の説明を見る`,
+              onclick: () => void controller.whilePaused(() => statModal(k, controller.state.stats[k])),
+            },
             h('span', { class: 'bar-label' }, STAT_LABELS[k]),
             h('div', { class: 'bar-track' }, bars[k]),
             barWords[k],
           ),
         ),
+        statWarning,
       ),
       upcomingCard,
       h('section', { class: 'card chart-card' }, h('h2', {}, '資産の推移'), h('div', { class: 'chart-box' }, canvas)),
@@ -284,7 +294,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       blacklist > 0 ? `ブラックリスト 残り${Math.ceil(blacklist / 12)}年` : '',
     ].filter(Boolean);
     fields.debtSub.textContent = debtNotes.join(' / ');
-    fields.happiness.textContent = String(Math.round(v.happiness));
+    fields.happiness.textContent = `${happinessFace(v.happiness)} ${Math.round(v.happiness)}`;
     const history = state.happinessHistory;
     const yearAgo = history.length > 12 ? history.slice(-24, -12) : [];
     const thisYear = history.slice(-12);
@@ -294,6 +304,13 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       hDiff === null ? '' : `この1年 ${hDiff >= 0.5 ? '↑' : hDiff <= -0.5 ? '↓' : '→'} (前の年 ${Math.round(avg(yearAgo))})`;
     fields.happinessDiff.className = `tile-sub small ${hDiff !== null && hDiff >= 0.5 ? 'up' : hDiff !== null && hDiff <= -0.5 ? 'down' : 'muted'}`;
     fields.policy.textContent = policySummary(state.policy, policyOptionsFor(state));
+    // いちばん悪いステータスが注意・危険なら、何が起きやすいかを1行で
+    const worst = statKeys
+      .map((k) => ({ k, level: statLevel(k, state.stats[k]) }))
+      .sort((x, y) => LEVEL_ORDER.indexOf(y.level) - LEVEL_ORDER.indexOf(x.level))[0]!;
+    const warn = worst.level === 'caution' || worst.level === 'danger';
+    statWarning.hidden = !warn;
+    if (warn) statWarning.textContent = `${STAT_LABELS[worst.k]}が${STAT_LEVEL_LABELS[worst.level]}: ${STAT_EFFECTS[worst.k].bad}`;
     for (const k of statKeys) {
       const level = statLevel(k, state.stats[k]);
       bars[k].style.width = `${state.stats[k]}%`;

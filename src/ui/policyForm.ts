@@ -13,7 +13,8 @@ import {
   type Spending,
   type WorkStyle,
 } from '../engine/index';
-import { h } from './dom';
+import { append, clear, h } from './dom';
+import { POLICY_PRESETS, presetIdOfPolicy } from './presets';
 import { educationHelp, healthHelp, investHelp, spendingHelp, workHelp } from './policyHelp';
 
 type ChoiceKey = 'work' | 'spending' | 'health' | 'education';
@@ -43,7 +44,7 @@ const HELP: Record<ChoiceKey, (v: string) => string> = {
   education: (v) => educationHelp(v as EducationPolicy),
 };
 
-function radioGroup<K extends ChoiceKey>(id: string, key: K, label: string, current: Policy): HTMLElement {
+function radioGroup<K extends ChoiceKey>(id: string, key: K, label: string, current: Policy, onChange: () => void): HTMLElement {
   const options = POLICY_LABELS[key] as Record<string, string>;
   const help = h('p', { class: 'policy-help muted small' }, HELP[key](current[key]));
   return h(
@@ -65,6 +66,7 @@ function radioGroup<K extends ChoiceKey>(id: string, key: K, label: string, curr
             onchange: () => {
               (current as Record<ChoiceKey, string>)[key] = value;
               help.textContent = HELP[key](value);
+              onChange();
             },
           }),
           h('span', {}, text),
@@ -76,7 +78,7 @@ function radioGroup<K extends ChoiceKey>(id: string, key: K, label: string, curr
 }
 
 /** 投資の配分。積立・個別株・信用/仮想通貨を10%刻みで決め、残りが預金になる */
-function allocationEditor(current: Policy): HTMLElement {
+function allocationEditor(current: Policy, onChange: () => void): HTMLElement {
   const values: Record<Invest, HTMLElement> = {
     deposit: h('span', { class: 'alloc-value' }),
     index: h('span', { class: 'alloc-value' }),
@@ -87,6 +89,7 @@ function allocationEditor(current: Policy): HTMLElement {
 
   const refresh = () => {
     for (const k of INVEST_KEYS) values[k].textContent = `${current.invest[k]}%`;
+    onChange();
   };
   const change = (key: Exclude<Invest, 'deposit'>, delta: number) => {
     const a = current.invest;
@@ -136,37 +139,71 @@ function allocationEditor(current: Policy): HTMLElement {
   return el;
 }
 
-/** 方針の入力欄。get() で今の選択を返す */
 /** 今の状況で意味のない項目は出さない(値は今のまま残す) */
 export interface PolicyFormOptions {
   showPrepay?: boolean; // ローンか奨学金があるとき
   showEducation?: boolean; // 結婚しているか子どもがいるとき
 }
 
+/**
+ * 方針の入力欄。上にボタン1つで選べるプリセット、下の「細かく決める」で1項目ずつ。
+ * get() で今の選択を返し、set() で外から(タイプを選んだときなど)まとめて変える
+ */
 export function policyForm(
   initial: PolicyInput | Policy,
   opts: PolicyFormOptions = { showPrepay: true, showEducation: true },
-): { el: HTMLElement; get: () => Policy } {
+): { el: HTMLElement; get: () => Policy; set: (p: Omit<Policy, 'prepay' | 'education'>) => void } {
   const id = `policy${formId++}`;
   const current: Policy = normalizePolicy(initial);
   current.invest = { ...current.invest };
-  const prepay = h('input', {
-    type: 'checkbox',
-    checked: current.prepay,
-    onchange: (e: Event) => {
-      current.prepay = (e.target as HTMLInputElement).checked;
-    },
-  });
+  const presetButtons = POLICY_PRESETS.map((p) =>
+    h('button', { type: 'button', class: 'btn preset', onclick: () => set(p.policy) }, p.label),
+  );
+  const presetHelp = h('p', { class: 'policy-help muted small' });
+  const detailBody = h('div', { class: 'policy-detail' });
+
+  const refreshPresets = () => {
+    const selected = presetIdOfPolicy(current);
+    presetButtons.forEach((b, i) => b.setAttribute('aria-pressed', POLICY_PRESETS[i]!.id === selected ? 'true' : 'false'));
+    presetHelp.textContent = POLICY_PRESETS.find((p) => p.id === selected)?.description ?? '自分で決めた方針';
+  };
+
+  const rebuild = () => {
+    clear(detailBody);
+    const prepay = h('input', {
+      type: 'checkbox',
+      checked: current.prepay,
+      onchange: (e: Event) => {
+        current.prepay = (e.target as HTMLInputElement).checked;
+      },
+    });
+    append(detailBody, [
+      ...GROUPS.slice(0, 2).map(({ key, label }) => radioGroup(id, key, label, current, refreshPresets)),
+      allocationEditor(current, refreshPresets),
+      opts.showPrepay ? h('label', { class: 'check small' }, prepay, ' 繰上げ返済する(余ったお金で、先にローンと奨学金を返す)') : null,
+      radioGroup(id, 'health', '健康', current, refreshPresets),
+      opts.showEducation ? radioGroup(id, 'education', '子どもの教育', current, refreshPresets) : null,
+    ]);
+    refreshPresets();
+  };
+
+  function set(p: Omit<Policy, 'prepay' | 'education'>): void {
+    current.work = p.work;
+    current.spending = p.spending;
+    current.health = p.health;
+    current.invest = { ...p.invest };
+    rebuild();
+  }
+
   const el = h(
     'div',
     { class: 'policy-form' },
-    ...GROUPS.slice(0, 2).map(({ key, label }) => radioGroup(id, key, label, current)),
-    allocationEditor(current),
-    opts.showPrepay ? h('label', { class: 'check small' }, prepay, ' 繰上げ返済する(余ったお金で、先にローンと奨学金を返す)') : null,
-    radioGroup(id, 'health', '健康', current),
-    opts.showEducation ? radioGroup(id, 'education', '子どもの教育', current) : null,
+    h('div', { class: 'segmented presets' }, ...presetButtons),
+    presetHelp,
+    h('details', { class: 'fine-tune' }, h('summary', {}, '細かく決める'), detailBody),
   );
-  return { el, get: () => ({ ...current, invest: { ...current.invest } }) };
+  rebuild();
+  return { el, get: () => ({ ...current, invest: { ...current.invest } }), set };
 }
 
 export function policySummary(p: Policy, opts: PolicyFormOptions = { showPrepay: true, showEducation: true }): string {
