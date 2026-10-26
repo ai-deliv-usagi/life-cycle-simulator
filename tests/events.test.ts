@@ -175,7 +175,7 @@ describe('発生と選択', () => {
     const results = new Set<string>();
     const rng = createRng(5);
     for (let i = 0; i < 200; i++) {
-      const s = makeState();
+      const s = makeState({ initialCash: 1_000_000 });
       applyChoice(s, byId('friend_loan'), 0, rng);
       results.add(s.log.at(-1)!.text);
     }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultData } from '../src/data/index';
 import { applyChoice, applyEffects, availableChoices, eventProb, isEligible } from '../src/engine/events';
-import { illnessDeathProb, monthlyDeathProb, rollDeath } from '../src/engine/death';
+import { illnessDeathProb, karoshiProb, monthlyDeathProb, rollDeath } from '../src/engine/death';
 import { createRng } from '../src/engine/rng';
 import { getMonthlyView, isYearEnd, resolveChoice, stepMonth } from '../src/engine/step';
 import { updateStats } from '../src/engine/stats';
@@ -204,5 +204,34 @@ describe('年の切れ目の月に起きた選択イベント', () => {
     s = resolveChoice(s, 0, rng);
     expect(s.lastLedger!.eventOut).toBe(before + 150_000);
     expect(s.ledger!.eventOut).toBe(0);
+  });
+});
+
+describe('若くても過労死', () => {
+  it('激務でストレスが高いと、年齢に関係なく過労死のリスクがある', () => {
+    const s = setAge(makeState({}, { work: 'grind' }), 28);
+    s.stats.stress = 60;
+    expect(karoshiProb(s)).toBe(0);
+    s.stats.stress = 80;
+    expect(karoshiProb(s)).toBeCloseTo(0.00015);
+    expect(karoshiProb(s)).toBeGreaterThan(monthlyDeathProb(s));
+    const always: Rng = { ...flatRng, chance: () => true, next: () => 0 };
+    expect(rollDeath(s, always)).toBe('overwork');
+    s.policy.work = 'regular';
+    expect(karoshiProb(s)).toBe(0);
+  });
+});
+
+describe('お金がないと起きない詐欺', () => {
+  it('オレオレ詐欺は200万円、投資詐欺は100万円の金融資産がないと起きない。貸すのは50万円あるときだけ', () => {
+    const poor = setAge(makeState(), 75);
+    const rich = setAge(makeState(), 75);
+    rich.assets.index = 3_000_000;
+    expect(isEligible(byId('ore_ore'), poor)).toBe(false);
+    expect(isEligible(byId('ore_ore'), rich)).toBe(true);
+    expect(isEligible(byId('scam'), poor)).toBe(false);
+    expect(isEligible(byId('scam'), rich)).toBe(true);
+    expect(labels(byId('friend_loan'), poor)).toEqual(['断る']);
+    expect(labels(byId('friend_loan'), rich)).toEqual(['貸す', '断る']);
   });
 });

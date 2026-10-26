@@ -1250,7 +1250,8 @@
     "title": "投資詐欺の勧誘",
     "text": "「絶対に儲かる」という投資話を持ちかけられた。",
     "conditions": {
-      "ageMin": 25
+      "ageMin": 25,
+      "minFinancial": 1000000
     },
     "baseProb": 0.0025,
     "good": false,
@@ -1601,7 +1602,10 @@
               }
             }
           }
-        ]
+        ],
+        "conditions": {
+          "minFinancial": 500000
+        }
       },
       {
         "label": "断る",
@@ -2791,9 +2795,10 @@
     "id": "ore_ore",
     "category": "money",
     "title": "オレオレ詐欺",
-    "text": "「オレだよ、事故を起こして示談金が必要なんだ」と電話がかかってきた。",
+    "text": "「オレだよ、事故を起こして示談金が200万円必要なんだ」と電話がかかってきた。",
     "conditions": {
-      "ageMin": 70
+      "ageMin": 70,
+      "minFinancial": 2000000
     },
     "baseProb": 0.003,
     "good": false,

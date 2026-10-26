@@ -172,6 +172,7 @@ export interface EventConditions {
   employed?: boolean; // job != 'none' かつ未退職
   retired?: boolean;
   minInvested?: number; // index+stocks+speculative の下限(円)
+  minFinancial?: number; // 金融資産(預金+投資)の下限(円)。お金がないと起きない詐欺など
   region?: RegionId[];
   jobNotIn?: JobId[]; // この職業のときは起きない
   jobIn?: JobId[]; // この職業のときだけ起きる
@@ -332,6 +333,8 @@ export interface Balance {
     healthPivot: number;
     healthScale: number;
     highStressMul: number;
+    /** 過労死: ストレスが minStress 以上で激務・残業多めのとき、年齢に関係なく毎月この確率 */
+    karoshi: { grindMonthly: number; overtimeMonthly: number; minStress: number };
     maxAge: number;
     cause: {
       overworkGrind: number;

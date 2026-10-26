@@ -18,7 +18,7 @@ import type {
   Stats,
   Values,
 } from './types';
-import { addLog, ageYears, clamp, clampStat, clampValue, findById, roundYen } from './util';
+import { addLog, ageYears, clamp, clampStat, clampValue, financialAssets, findById, roundYen } from './util';
 
 // ---- フラグ(married は character.married に読み替える) ----
 
@@ -62,6 +62,7 @@ export function conditionsMet(cond: EventConditions | undefined, state: GameStat
     const a = state.assets;
     if (a.index + a.stocks + a.speculative < cond.minInvested) return false;
   }
+  if (cond.minFinancial !== undefined && financialAssets(state.assets) < cond.minFinancial) return false;
   if (cond.region && !cond.region.includes(state.character.region)) return false;
   if (cond.jobNotIn?.includes(state.character.job)) return false;
   if (cond.jobIn && !cond.jobIn.includes(state.character.job)) return false;

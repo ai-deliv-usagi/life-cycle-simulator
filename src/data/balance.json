@@ -173,6 +173,11 @@
     "healthPivot": 50,
     "healthScale": 15,
     "highStressMul": 1.2,
+    "karoshi": {
+      "grindMonthly": 0.00015,
+      "overtimeMonthly": 0.00003,
+      "minStress": 70
+    },
     "maxAge": 120,
     "cause": {
       "overworkGrind": 40,
