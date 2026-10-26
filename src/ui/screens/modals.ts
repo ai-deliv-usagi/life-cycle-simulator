@@ -4,6 +4,7 @@ import { assetMixChart, assetMixPoints } from '../charts';
 import { append, clear, h, openModal } from '../dom';
 import {
   ageMonthLabel,
+  CATEGORY_ICONS,
   annualRateLabel,
   calendarMonth,
   HAPPINESS_PART_LABELS,
@@ -37,7 +38,7 @@ export function eventModal(state: GameState): Promise<number> {
       'div',
       { class: 'event' },
       h('p', { class: 'event-age muted' }, ageMonthLabel(state.ageMonths, state.month)),
-      h('h2', {}, ev.title),
+      h('h2', {}, `${CATEGORY_ICONS[ev.category] ?? ''} ${ev.title}`.trim()),
       h('p', { class: 'event-text' }, ev.text),
       h(
         'p',

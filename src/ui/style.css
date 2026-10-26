@@ -931,3 +931,111 @@ input[type='number'] {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* 生まれのカード */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.birth-line {
+  margin: 10px 0 4px;
+  font-size: 0.95rem;
+}
+/* この人生の見通し */
+.outlook-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.outlook-body progress {
+  width: 100%;
+}
+.outlook-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.95rem;
+}
+.outlook-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  display: inline-flex;
+  gap: 4px;
+}
+.outlook-types {
+  display: flex;
+  flex-direction: column;
+}
+.outlook-note {
+  margin: -8px 0 0;
+}
+
+/* メイン画面: タブにまとめたカード */
+.tab-card {
+  gap: 10px;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin: -4px -4px 0;
+}
+.tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 4px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tab[aria-selected='true'] {
+  color: var(--text);
+  font-weight: 700;
+  border-bottom-color: var(--accent);
+}
+/* ステータスは細いバーで縦を詰める */
+.bars {
+  gap: 2px;
+}
+.bar-track {
+  height: 6px;
+}
+.bar {
+  grid-template-columns: 7em 1fr 3.5em;
+}
+/* 操作ボタンは1段に */
+.controls {
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+}
+.controls .btn {
+  white-space: nowrap;
+  padding: 10px 10px;
+}
+.controls .btn.speed {
+  padding: 10px 8px;
+}
+.btn.play-btn {
+  min-width: 48px;
+  font-size: 1.1rem;
+}
+.status-sub {
+  font-weight: 400;
+  line-height: 1.6;
+}

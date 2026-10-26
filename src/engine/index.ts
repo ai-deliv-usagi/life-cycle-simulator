@@ -15,3 +15,4 @@ export { allocationLabel, buyAsset, changePolicy, sellAsset, type InvestKey, get
 export type * from './types';
 export { netWorth } from './util';
 export { monthsToRepay, upcoming, type Upcoming } from './upcoming';
+export { previewLife, summarizePreview, type PreviewLife, type PreviewSummary } from './preview';

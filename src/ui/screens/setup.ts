@@ -1,10 +1,56 @@
 // キャラ作成画面: 初期ガチャ・価値観・初期方針
-import { createGame, createRng, deriveSeed, rollCharacter, type PolicyInput, type Values } from '../../engine/index';
+import {
+  createGame,
+  createRng,
+  deriveSeed,
+  gameData,
+  LIFE_TYPE_LABELS,
+  previewLife,
+  rollCharacter,
+  summarizePreview,
+  type CharacterRoll,
+  type PolicyInput,
+  type PreviewLife,
+  type PreviewSummary,
+  type Values,
+} from '../../engine/index';
 import { append, clear, h, mount } from '../dom';
 import { POLICY_PRESETS, VALUE_PRESETS } from '../presets';
-import { educationLabel, familyLabel, jobLabel, manYen, regionLabel, stars, VALUE_AXES, valueStepLabel } from '../format';
+import {
+  EDUCATION_ICONS,
+  educationLabel,
+  familyLabel,
+  genderIcon,
+  JOB_ICONS,
+  jobLabel,
+  LIFE_TYPE_ICONS,
+  manYen,
+  REGION_ICONS,
+  regionLabel,
+  stars,
+  VALUE_AXES,
+  valueStepLabel,
+} from '../format';
 import type { Nav } from '../nav';
 import { policyForm } from '../policyForm';
+
+/** 見通しで自動プレイする人生の数 */
+const PREVIEW_LIVES = 30;
+
+/** 見通しに出す「大きな出来事」(風邪・同窓会のような、だれにでも起きるものは出さない) */
+const PREVIEW_EVENTS = [
+  'layoff',
+  'promotion',
+  'job_offer',
+  'regular_job_offer',
+  'startup_chance',
+  'home_bought',
+  'divorce_crisis',
+  'serious_illness',
+  'overwork_collapse',
+  'luxury_car',
+  'bankruptcy',
+];
 
 const DEFAULT_POLICY: PolicyInput = {
   work: 'normal',
@@ -85,37 +131,16 @@ export function setupScreen(root: HTMLElement, nav: Nav, seed: number): void {
   typeButtons.push(h('button', { type: 'button', class: 'btn preset', onclick: () => pickType(null) }, 'おまかせ'));
   pickType(VALUE_PRESETS.findIndex((t) => t.id === 'neutral')); // 最初は「ふつう」
 
-  const loan = roll.studentLoan
-    ? `${manYen(roll.studentLoan.amount)}(${roll.studentLoan.interestFree ? '無利子' : '有利子'})`
-    : 'なし';
-  const rows: [string, string][] = [
-    ['性別', roll.gender === 'female' ? '女性' : '男性'],
-    ['学歴', educationLabel(roll.education)],
-    ['職業', jobLabel(roll.job)],
-    ['実家の太さ', familyLabel(roll.familyTier)],
-    ['出身地', regionLabel(roll.region)],
-    ['車', roll.hasCar ? 'あり' : 'なし'],
-    ['体質', stars(roll.constitution)],
-    ['初期の貯金', manYen(roll.initialCash)],
-    ['奨学金', loan],
-  ];
-
   const birth = () =>
     mount(
       root,
       h(
         'main',
         { class: 'screen setup-screen' },
-        h('p', { class: 'step muted small' }, 'キャラ作成 1/2'),
+        h('p', { class: 'step muted small' }, 'キャラ作成 1/3'),
         h('h1', {}, '生まれ'),
         h('p', { class: 'muted small' }, 'ここは選べない。気に入らなければ引き直せる。'),
-        h(
-          'section',
-          { class: 'card info-card gacha' },
-          h('div', { class: 'card-head' }, h('h2', {}, 'あなたの生まれ'), h('span', { class: 'muted small' }, `シード ${seed}`)),
-          h('dl', { class: 'gacha-list' }, ...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
-          h('button', { class: 'btn', onclick: () => nav.setup(seed + 1) }, '引き直す'),
-        ),
+        birthCard(roll, seed, () => nav.setup(seed + 1)),
         h(
           'div',
           { class: 'sticky-actions' },
@@ -125,13 +150,18 @@ export function setupScreen(root: HTMLElement, nav: Nav, seed: number): void {
       ),
     );
 
+  const start = () => {
+    const name = nameInput.value.trim() || '名無しさん';
+    nav.main(createGame(roll, { ...values }, policy.get(), name));
+  };
+
   const decide = () =>
     mount(
       root,
       h(
         'main',
         { class: 'screen setup-screen' },
-        h('p', { class: 'step muted small' }, 'キャラ作成 2/2'),
+        h('p', { class: 'step muted small' }, 'キャラ作成 2/3'),
         h('h1', {}, 'あなたが決めること'),
         inputCard('名前', nameInput),
         inputCard(
@@ -151,20 +181,125 @@ export function setupScreen(root: HTMLElement, nav: Nav, seed: number): void {
           'div',
           { class: 'sticky-actions' },
           h('button', { class: 'btn', onclick: () => birth() }, '生まれに戻る'),
-          h(
-            'button',
-            {
-              class: 'btn primary',
-              onclick: () => {
-                const name = nameInput.value.trim() || '名無しさん';
-                nav.main(createGame(roll, { ...values }, policy.get(), name));
-              },
-            },
-            'この人生を始める',
-          ),
+          h('button', { class: 'btn primary', onclick: () => outlook() }, '見通しを見る'),
         ),
       ),
     );
 
+  // この人生の見通し: 同じ生まれと方針で PREVIEW_LIVES 回だけ自動プレイ(少しずつ計算して画面を固めない)
+  let token = 0;
+  const outlook = () => {
+    const my = ++token;
+    const body = h('div', { class: 'outlook-body' }, h('p', { class: 'muted' }, '見通しを計算しています…'));
+    const progress = h('progress', { max: PREVIEW_LIVES, value: 0 });
+    body.appendChild(progress);
+    mount(
+      root,
+      h(
+        'main',
+        { class: 'screen setup-screen' },
+        h('p', { class: 'step muted small' }, 'キャラ作成 3/3'),
+        h('h1', {}, 'この人生の見通し'),
+        h(
+          'p',
+          { class: 'muted small' },
+          `この生まれと方針で${PREVIEW_LIVES}回、人生を試しに送ってみた結果。選択はでたらめに選んでいる。本番の人生とは運の流れが違う。`,
+        ),
+        h('section', { class: 'card info-card' }, body),
+        h(
+          'div',
+          { class: 'sticky-actions' },
+          h('button', { class: 'btn', onclick: () => decide() }, '方針を変える'),
+          h('button', { class: 'btn primary', onclick: start }, 'この人生を始める'),
+        ),
+      ),
+    );
+    const lives: PreviewLife[] = [];
+    const input = { values: { ...values }, policy: policy.get() };
+    const next = () => {
+      if (my !== token || !body.isConnected) return; // 画面を離れたら止める
+      lives.push(previewLife(roll, input.values, input.policy, lives.length));
+      progress.value = lives.length;
+      if (lives.length < PREVIEW_LIVES) {
+        setTimeout(next, 0);
+        return;
+      }
+      clear(body);
+      append(body, outlookContent(summarizePreview(lives)));
+    };
+    setTimeout(next, 0);
+  };
+
   birth();
 }
+
+/** 生まれのカード: アイコンつきの2行と、ひとことの説明。細かい数字は「くわしく」の中 */
+function birthCard(roll: CharacterRoll, seed: number, reroll: () => void): HTMLElement {
+  const gender = roll.gender === 'female' ? '女性' : '男性';
+  const loan = roll.studentLoan
+    ? `${manYen(roll.studentLoan.amount)}(${roll.studentLoan.interestFree ? '無利子' : '有利子'})`
+    : 'なし';
+  const chip = (icon: string, text: string) => h('span', { class: 'chip' }, h('span', { 'aria-hidden': 'true' }, icon), text);
+  return h(
+    'section',
+    { class: 'card info-card gacha' },
+    h('div', { class: 'card-head' }, h('h2', {}, 'あなたの生まれ'), h('span', { class: 'muted small' }, `シード ${seed}`)),
+    h(
+      'div',
+      { class: 'chips' },
+      chip(genderIcon(roll.gender), gender),
+      chip(EDUCATION_ICONS[roll.education], educationLabel(roll.education)),
+      chip(JOB_ICONS[roll.job], jobLabel(roll.job)),
+      chip(REGION_ICONS[roll.region], regionLabel(roll.region)),
+      chip('🏠', `実家は${familyLabel(roll.familyTier)}`),
+      chip(roll.hasCar ? '🚗' : '🚶', roll.hasCar ? '車あり' : '車なし'),
+    ),
+    h('p', { class: 'birth-line' }, `${regionLabel(roll.region)}で${jobLabel(roll.job)}の仕事を始める、${educationLabel(roll.education)}の${gender}。`),
+    h(
+      'details',
+      { class: 'fine-tune' },
+      h('summary', {}, 'くわしく'),
+      h(
+        'dl',
+        { class: 'gacha-list' },
+        ...(
+          [
+            ['体質', stars(roll.constitution)],
+            ['初期の貯金', manYen(roll.initialCash)],
+            ['奨学金', loan],
+          ] as const
+        ).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]),
+      ),
+    ),
+    h('button', { class: 'btn', onclick: reroll }, '🎲 引き直す'),
+  );
+}
+
+/** 見通しの中身 */
+function outlookContent(s: PreviewSummary): HTMLElement[] {
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  const row = (icon: string, label: string, ...value: (HTMLElement | string)[]) =>
+    h('div', { class: 'outlook-row' }, h('span', { class: 'outlook-label' }, h('span', { 'aria-hidden': 'true' }, icon), label), h('span', {}, ...value));
+  const events = s.events.filter((e) => PREVIEW_EVENTS.includes(e.id)).slice(0, 5);
+  const special: Record<string, string> = { bankruptcy: '自己破産', home_bought: 'マイホームを買う' };
+  const title = (id: string) => special[id] ?? gameData.events.find((e) => e.id === id)?.title ?? id;
+  return [
+    row('⏳', '寿命', `だいたい ${s.deathAge.low}〜${s.deathAge.high}歳(平均 ${Math.round(s.deathAge.mean)}歳)`),
+    s.netWorthAt65
+      ? row('🏦', '65歳の純資産', `${manYen(s.netWorthAt65.low)} 〜 ${manYen(s.netWorthAt65.median)} 〜 ${manYen(s.netWorthAt65.high)}`)
+      : row('🏦', '65歳の純資産', '65歳まで生きる人生がほとんどない'),
+    h('p', { class: 'muted small outlook-note' }, '純資産は少なめ(下位25%)〜ふつう(真ん中)〜多め(上位25%)'),
+    row('💍', '結婚', `${pct(s.married)}の人生で結婚・子どもは平均${s.children.toFixed(1)}人`),
+    row(
+      '🧭',
+      'なりやすい人生',
+      h(
+        'span',
+        { class: 'outlook-types' },
+        ...s.lifeTypes.map((t) => h('span', {}, `${LIFE_TYPE_ICONS[t.type] ?? ''} ${LIFE_TYPE_LABELS[t.type]} ${pct(t.share)}`)),
+      ),
+    ),
+    row('📌', '起きやすい出来事', events.length > 0 ? events.map((e) => `${title(e.id)} ${pct(e.share)}`).join(' / ') : '大きな出来事は少なめ'),
+  ];
+}
+
