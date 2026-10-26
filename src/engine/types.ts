@@ -511,6 +511,8 @@ export interface ChildrenBalance {
   universityProb: number;
   /** 子どもの費用のうち、親の生活費を削ってまかなう割合(残りは貯金が減る) */
   livingOffset: number;
+  /** 子どもの費用の倍率 = (世帯の毎月の手取り(ボーナス・児童手当を除く)÷ referenceIncome) ^ elasticity(min〜max) */
+  costScale: { referenceIncome: number; elasticity: number; min: number; max: number };
   /** 年齢の段階。until 歳になるまで。education は教育方針ごとの学校・塾などの費用 */
   stages: { until: number; label: string; living: number; education: Record<EducationPolicy, number> }[];
   /** 児童手当: under3 は3歳未満、それ以外は高校生(18歳)まで。3人目からは third */
