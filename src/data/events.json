@@ -2046,7 +2046,7 @@
     "conditions": {
       "ageMin": 20
     },
-    "baseProb": 0.004,
+    "baseProb": 0.003,
     "cooldownMonths": 12,
     "choices": [
       {
@@ -2457,7 +2457,8 @@
     "title": "友人に借金を頼まれる",
     "text": "古い友人から「50万円貸してほしい」と頼まれた。",
     "conditions": {
-      "ageMin": 22
+      "ageMin": 22,
+      "ageMax": 75
     },
     "baseProb": 0.004,
     "cooldownMonths": 36,
@@ -2505,7 +2506,8 @@
     "title": "衝動買い",
     "text": "店先で一目ぼれした高級品がある。",
     "conditions": {
-      "ageMin": 20
+      "ageMin": 20,
+      "ageMax": 75
     },
     "baseProb": 0.001,
     "cooldownMonths": 12,
@@ -2666,7 +2668,8 @@
     "title": "ブランド品・高級時計",
     "text": "前から気になっていたブランドの新作が出た。身につけると自信が持てそうだ。",
     "conditions": {
-      "ageMin": 22
+      "ageMin": 22,
+      "ageMax": 70
     },
     "baseProb": 0.0005,
     "cooldownMonths": 24,
@@ -2766,7 +2769,8 @@
     "title": "高級家具・家電",
     "text": "ショールームで、上質なソファと最新の家電一式に心をひかれた。",
     "conditions": {
-      "ageMin": 25
+      "ageMin": 25,
+      "ageMax": 70
     },
     "baseProb": 0.0003,
     "cooldownMonths": 48,
@@ -2962,10 +2966,10 @@
   {
     "id": "cold",
     "category": "health",
-    "title": "風邪で休む",
+    "title": "風邪で寝込む",
     "text": "ひどい風邪をひいて数日寝込んだ。",
     "conditions": {},
-    "baseProb": 0.006,
+    "baseProb": 0.0045,
     "good": false,
     "cooldownMonths": 6,
     "probMods": [
@@ -3102,6 +3106,11 @@
           "grind"
         ],
         "mul": 1.5
+      },
+      {
+        "age": true,
+        "above": 65,
+        "mul": 1.5
       }
     ],
     "choices": [
@@ -3109,6 +3118,21 @@
         "label": "整体に通う",
         "effects": {
           "cash": -50000,
+          "stats": {
+            "health": 3
+          }
+        },
+        "conditions": {
+          "ageMax": 64
+        }
+      },
+      {
+        "label": "整形外科でリハビリ(保険がきく)",
+        "conditions": {
+          "ageMin": 65
+        },
+        "effects": {
+          "cash": -15000,
           "stats": {
             "health": 3
           }
@@ -4262,7 +4286,10 @@
         "relations": 6,
         "stress": -5
       },
-      "achievement": 5
+      "achievement": 5,
+      "setFlags": {
+        "grandchild": true
+      }
     }
   },
   {
@@ -4343,6 +4370,11 @@
         "stat": "health",
         "below": 40,
         "mul": 3
+      },
+      {
+        "flag": "fracture",
+        "equals": true,
+        "mul": 2
       }
     ],
     "choices": [
@@ -4376,6 +4408,186 @@
         "conditions": {
           "flags": {
             "married": true
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "fall_fracture",
+    "category": "health",
+    "title": "転倒して骨折",
+    "text": "家の中でつまずいて転び、足の骨を折ってしまった。",
+    "good": false,
+    "conditions": {
+      "ageMin": 75
+    },
+    "baseProb": 0.0025,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "stat": "health",
+        "below": 40,
+        "mul": 2
+      }
+    ],
+    "effects": {
+      "cash": -200000,
+      "stats": {
+        "health": -12,
+        "stress": 8
+      },
+      "setFlags": {
+        "fracture": true
+      }
+    }
+  },
+  {
+    "id": "chronic_clinic",
+    "category": "health",
+    "title": "持病で通院",
+    "text": "血圧や膝の持病で、医者から定期的な通院を勧められた。",
+    "conditions": {
+      "ageMin": 70
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 36,
+    "choices": [
+      {
+        "label": "きちんと通院する",
+        "effects": {
+          "cash": -60000,
+          "stats": {
+            "health": 4
+          }
+        }
+      },
+      {
+        "label": "薬だけもらう",
+        "effects": {
+          "cash": -20000,
+          "stats": {
+            "health": 1
+          }
+        }
+      },
+      {
+        "label": "行かない",
+        "effects": {
+          "stats": {
+            "health": -4
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "grandchild_gift",
+    "category": "life",
+    "title": "孫にお小遣い・入学祝い",
+    "text": "孫が遊びに来た。もうすぐ入学だそうだ。",
+    "conditions": {
+      "ageMin": 55,
+      "flags": {
+        "grandchild": true
+      }
+    },
+    "baseProb": 0.004,
+    "cooldownMonths": 24,
+    "scaleBySpending": true,
+    "choices": [
+      {
+        "label": "奮発して渡す",
+        "effects": {
+          "cash": -300000,
+          "stats": {
+            "relations": 8,
+            "stress": -3
+          },
+          "achievement": 2
+        },
+        "valueShift": {
+          "relation": -0.1
+        }
+      },
+      {
+        "label": "ほどほどに渡す",
+        "effects": {
+          "cash": -50000,
+          "stats": {
+            "relations": 4
+          }
+        }
+      },
+      {
+        "label": "気持ちだけ",
+        "effects": {
+          "stats": {
+            "relations": -3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "senior_club",
+    "category": "life",
+    "title": "老人会・趣味の集まり",
+    "text": "近所の老人会や、囲碁・カラオケの集まりに誘われた。",
+    "conditions": {
+      "ageMin": 70,
+      "ageMax": 90
+    },
+    "baseProb": 0.003,
+    "cooldownMonths": 60,
+    "choices": [
+      {
+        "label": "参加する",
+        "effects": {
+          "cash": -10000,
+          "stats": {
+            "relations": 8,
+            "stress": -5
+          }
+        }
+      },
+      {
+        "label": "行かない",
+        "effects": {
+          "stats": {
+            "relations": -2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "senior_housing",
+    "category": "life",
+    "title": "住み替えを考える",
+    "text": "一人での家事や階段がつらくなってきた。見守りのある高齢者住宅のパンフレットが届いた。",
+    "conditions": {
+      "ageMin": 80,
+      "minFinancial": 3000000
+    },
+    "baseProb": 0.003,
+    "once": true,
+    "choices": [
+      {
+        "label": "高齢者住宅に移る(入居金300万円)",
+        "effects": {
+          "cash": -3000000,
+          "stats": {
+            "stress": -8,
+            "relations": -2
+          }
+        }
+      },
+      {
+        "label": "住み慣れた家で暮らし続ける",
+        "effects": {
+          "stats": {
+            "stress": 2
           }
         }
       }
