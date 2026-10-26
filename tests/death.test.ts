@@ -100,10 +100,11 @@ function expectedLifespan(policy: Partial<Policy>): number {
 
 describe('寿命のバランス(イベントなし)', () => {
   // イベントで健康が削られる分、イベントなしの寿命は目安(78〜85歳)より少し長めにしてある
-  it('普通の働き方・普通の健康管理で80〜86歳', () => {
+  // イベント(大病・過労死・事故など)が入ると、ここから2歳ほど短くなる(自動プレイの「普通」で約86歳)
+  it('普通の働き方・普通の健康管理で82〜89歳', () => {
     const life = expectedLifespan({ work: 'normal', health: 'normal' });
-    expect(life).toBeGreaterThan(80);
-    expect(life).toBeLessThan(86);
+    expect(life).toBeGreaterThan(82);
+    expect(life).toBeLessThan(89);
   });
 
   it('激務は普通より5歳以上短く、健康意識高めは長い', () => {

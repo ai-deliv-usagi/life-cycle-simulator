@@ -20,11 +20,12 @@ import { flatRng, makeState, setAge } from './helpers';
 
 describe('額面年収(昇給カーブ)', () => {
   // 大卒エンジニア・地方都市・定時・スキル10: スキル係数 0.92
-  it('開始時は初年度年収、50歳でピーク、それ以降は横ばい', () => {
+  it('開始時は初年度年収、50歳でピーク、55歳までは横ばい、そこから役職定年で年2%ずつ下がる', () => {
     expect(annualGross(setAge(makeState(), 22))).toBe(3_220_000);
-    expect(annualGross(setAge(makeState(), 36))).toBe(5_060_000);
-    expect(annualGross(setAge(makeState(), 50))).toBe(6_900_000);
-    expect(annualGross(setAge(makeState(), 60))).toBe(6_900_000);
+    expect(annualGross(setAge(makeState(), 36))).toBe(4_600_000);
+    expect(annualGross(setAge(makeState(), 50))).toBe(5_980_000);
+    expect(annualGross(setAge(makeState(), 55))).toBe(5_980_000);
+    expect(annualGross(setAge(makeState(), 60))).toBe(Math.round(5_980_000 * 0.9));
   });
 
   it('学歴の初任給係数・昇給係数を使い、カーブは開始年齢から50歳まで', () => {
@@ -373,7 +374,7 @@ describe('月次の適用', () => {
 
   it('借入上限は額面年収の半分(最低200万円)', () => {
     const s = setAge(makeState(), 50);
-    expect(debtLimit(s)).toBe(Math.round(6_900_000 * 0.5));
+    expect(debtLimit(s)).toBe(Math.round(5_980_000 * 0.5));
   });
 
   it('節約しても暮らせない(収入が最低限の生活費に届かない)ときは生活保護。借金にしない', () => {

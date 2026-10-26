@@ -289,7 +289,8 @@ export interface Balance {
   startStats: Omit<Stats, 'health'>; // 健康は体質で決まる
   gacha: { constitution: { mean: number; sd: number }; luck: { mean: number; sd: number } };
   /** 額面年収 = 基準年収(peakAge まで線形) × … × (skillBase + skillRange × スキル/100) */
-  salary: { peakAge: number; skillBase: number; skillRange: number };
+  /** declineFrom 歳からは役職定年で毎年 declinePerYear ずつ下がる */
+  salary: { peakAge: number; skillBase: number; skillRange: number; declineFrom: number; declinePerYear: number };
   takeHome: { bands: { below: number | null; rate: number }[]; pension: number };
   work: Record<WorkStyle, { income: number; freeTime: number; health: number; stress: number; skill: number; death: number }>;
   spending: Record<Spending, { living: number; stress: number }>;
@@ -299,6 +300,8 @@ export interface Balance {
   retiredFreeTime: number;
   unemployedStress: number;
   debtAnnualRate: number;
+  /** カードローン(リボ)の毎月の返済 = max(min, 残高 × share)。預金から自動で返す */
+  debtMinPayment: { share: number; min: number };
   investShare: number;
   assets: {
     cash: { mu: number; sigma: number };

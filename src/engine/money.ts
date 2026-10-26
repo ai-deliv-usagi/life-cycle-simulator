@@ -45,11 +45,12 @@ export function annualGross(state: GameState, data: GameData = defaultData): num
   const { balance } = data;
   const edu = findById(data.education, state.character.education, 'education');
   const age = ageYears(state);
-  const { peakAge, skillBase, skillRange } = balance.salary;
+  const { peakAge, skillBase, skillRange, declineFrom, declinePerYear } = balance.salary;
   const progress = clamp((age - state.startAge) / (peakAge - state.startAge), 0, 1);
   const start = job.startPay * edu.startPayMul;
   const peak = job.peakPay * edu.raiseMul;
-  const base = start + (peak - start) * progress;
+  const decline = 1 - declinePerYear * Math.max(0, age - declineFrom); // 役職定年
+  const base = (start + (peak - start) * progress) * decline;
   const skillMul = skillBase + (skillRange * state.stats.skill) / 100;
   return roundYen(
     base *
@@ -356,6 +357,15 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   let invested = 0;
   let prepaid = 0;
   let surplus = income.total - expenses.total;
+  // カードローン(リボ)は毎月決まった額を預金から返す。繰上げ返済の方針なら預金で一括で返す
+  if (a.debt > 0 && a.cash > 0) {
+    const m = balance.debtMinPayment;
+    const due = state.policy.prepay ? a.debt : Math.max(m.min, roundYen(a.debt * m.share));
+    const pay = Math.min(due, a.debt, a.cash);
+    a.debt -= pay;
+    a.cash -= pay;
+    surplus -= pay;
+  }
   if (surplus > 0 && a.debt > 0) {
     const repay = Math.max(0, Math.min(surplus, a.debt, a.cash));
     a.debt -= repay;
