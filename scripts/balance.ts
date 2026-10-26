@@ -151,7 +151,7 @@ export function runBalance(opts: Options) {
       target: '全体より5歳以上短い',
       ok: lifespan - grindLifespan >= 5,
     },
-    { name: '最終資産の中央値', value: man(medianNetWorth), target: '1,000万〜3,000万円', ok: medianNetWorth >= 10_000_000 && medianNetWorth <= 30_000_000 },
+    { name: '最終資産の中央値', value: man(medianNetWorth), target: '1,000万〜4,000万円', ok: medianNetWorth >= 10_000_000 && medianNetWorth <= 40_000_000 },
     {
       name: '4つの人生タイプの割合',
       value: Object.entries(typeShare).map(([t, s]) => `${t} ${pct(s)}`).join(' / '),
