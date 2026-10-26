@@ -759,3 +759,53 @@ input[type='number'] {
   margin-left: 4px;
   color: var(--accent);
 }
+
+/* 画面の上に少しだけ出す通知 */
+.toast {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 480px);
+  background: var(--text);
+  color: var(--surface);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 20;
+}
+.toast.toast-save {
+  width: auto;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+/* これから */
+.upcoming-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+.upcoming-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* 選択肢の金額の目安 */
+.btn.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.choice-hint {
+  color: var(--muted);
+}
+.event-wallet {
+  margin: 0;
+}

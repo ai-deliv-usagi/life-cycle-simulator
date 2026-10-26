@@ -5,7 +5,7 @@ import { addChild, afterGivingBirth, childAgeMonths, childrenOf } from './childr
 import { baseAnnualMortality, genderFactor } from './death';
 import { scaleNisaPrincipal } from './nisa';
 import { businessValue, hasBusiness, startBusiness } from './business';
-import { buyHome, ownsHome } from './housing';
+import { buyHome, homePrice, ownsHome } from './housing';
 import { recordEventCash } from './ledger';
 import { annualGross, changeEmployer, changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
@@ -166,6 +166,26 @@ function scaled(ev: EventDef, effects: Effects, state: GameState, data: GameData
     ...(effects.cash !== undefined && effects.cash < 0 ? { cash: roundYen(effects.cash * mul) } : {}),
     ...(effects.debt !== undefined && effects.debt > 0 ? { debt: roundYen(effects.debt * mul) } : {}),
   };
+}
+
+export interface ChoiceCost {
+  spend: number; // 今払うお金の目安(円)。確率で決まる結果(outcomes)は含めない
+  borrow: number; // ローン・リボなどで借りる額
+  homePrice?: number; // 家を買う選択肢なら、買う家の値段
+}
+
+/** 選択肢を選ぶといくら出ていくかの目安(UIの表示用。支出の方針による増減も含める) */
+export function choiceCost(ev: EventDef, choice: Choice, state: GameState, data: GameData = defaultData): ChoiceCost {
+  const e = scaled(ev, choice.effects ?? {}, state, data);
+  let spend = Math.max(0, -(e.cash ?? 0));
+  if (e.cashMonthsOfPay && e.cashMonthsOfPay < 0) spend += roundYen(-monthlyGrossPay(state, data) * e.cashMonthsOfPay);
+  if (e.startBusiness) spend += data.balance.business.capital[e.startBusiness];
+  let borrow = (e.loan?.amount ?? 0) + (e.debt ?? 0);
+  if (e.buyHome === undefined) return { spend, borrow };
+  const price = homePrice(state, annualGross(state, data), data);
+  spend += roundYen(price * (e.buyHome + data.balance.housing.closingCost));
+  borrow += roundYen(price * (1 - e.buyHome));
+  return { spend, borrow, homePrice: price };
 }
 
 /** イベントを起こす。選択肢があれば pendingEvent をセットして止まる */
