@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { applyMonthlyMoney, monthlyGrossPay } from '../src/engine/money';
 import { defaultData } from '../src/data/index';
 import { applyChoice, applyEffects, availableChoices, eventProb, isEligible } from '../src/engine/events';
 import { illnessDeathProb, karoshiProb, monthlyDeathProb, rollDeath } from '../src/engine/death';
@@ -233,5 +234,43 @@ describe('お金がないと起きない詐欺', () => {
     expect(isEligible(byId('scam'), rich)).toBe(true);
     expect(labels(byId('friend_loan'), poor)).toEqual(['断る']);
     expect(labels(byId('friend_loan'), rich)).toEqual(['貸す', '断る']);
+  });
+});
+
+describe('カードローン(リボ)の毎月の返済', () => {
+  it('毎月、残高の3%(最低1万円)を預金から返す。赤字でも預金があれば減っていく', () => {
+    const s = setAge(makeState({ job: 'office' }, { spending: 'lavish' }), 30);
+    s.assets.cash = 1_000_000;
+    s.assets.debt = 400_000;
+    applyMonthlyMoney(s, flatRng);
+    // 利息 5,000円 → 405,000円の3% = 12,150円を返す
+    expect(s.assets.debt).toBeLessThanOrEqual(405_000 - 12_150);
+    for (let i = 0; i < 23; i++) applyMonthlyMoney(s, flatRng);
+    expect(s.assets.debt).toBeLessThan(300_000);
+  });
+
+  it('残高が少なければ最低1万円、残りがそれ以下なら残りを全部返す', () => {
+    const s = makeState();
+    s.assets.cash = 1_000_000;
+    s.assets.debt = 8_000;
+    applyMonthlyMoney(s, flatRng);
+    expect(s.assets.debt).toBe(0);
+  });
+
+  it('繰上げ返済の方針なら、預金で一括で返す', () => {
+    const s = makeState({}, { prepay: true });
+    s.assets.cash = 1_000_000;
+    s.assets.debt = 400_000;
+    applyMonthlyMoney(s, flatRng);
+    expect(s.assets.debt).toBe(0);
+  });
+});
+
+describe('給料', () => {
+  it('バイトは年収180万〜200万円でほとんど上がらず、月の額面は15万円前後', () => {
+    const s = setAge(makeState({ job: 'parttime' }), 22);
+    s.stats.skill = 50;
+    expect(monthlyGrossPay(s)).toBe(150_000);
+    expect(monthlyGrossPay(setAge(s, 50))).toBeLessThan(170_000);
   });
 });

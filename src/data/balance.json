@@ -18,7 +18,9 @@
   "salary": {
     "peakAge": 50,
     "skillBase": 0.9,
-    "skillRange": 0.2
+    "skillRange": 0.2,
+    "declineFrom": 55,
+    "declinePerYear": 0.02
   },
   "takeHome": {
     "bands": [
@@ -119,6 +121,10 @@
   "retiredFreeTime": 90,
   "unemployedStress": 1,
   "debtAnnualRate": 0.15,
+  "debtMinPayment": {
+    "share": 0.03,
+    "min": 10000
+  },
   "investShare": 0.5,
   "assets": {
     "cash": {
@@ -168,7 +174,7 @@
     "achievementDecay": 0.2
   },
   "death": {
-    "a": 0.00017,
+    "a": 0.00014,
     "b": 0.085,
     "ageOffset": 20,
     "healthPivot": 50,
