@@ -1,12 +1,13 @@
 // 1ヶ月を進める(SPEC.md「月次処理の順序」、DESIGN.md §4)。計算は各モジュールに任せ、ここは順番だけを持つ。
 import { defaultData } from '../data/index';
+import { reviewBusiness } from './business';
 import { logIndependence } from './children';
 import { rollDeath } from './death';
 import { applyChoice, drawEvent, fireEvent } from './events';
 import { cloneLedger, closeYear, recordInvestTax, recordMonth } from './ledger';
 import { buyInvestment, sellInvestment } from './nisa';
 import { computeHappiness, updateAdaptation } from './happiness';
-import { annualGross, applyMonthlyMoney, calcIncome, isRehired, retire, type MonthlyIncome } from './money';
+import { annualGross, applyMonthlyMoney, calcIncome, changeJob, isRehired, retire, type MonthlyIncome } from './money';
 import { DEATH_CAUSE_LABELS } from './result';
 import type { Rng } from './rng';
 import { updateStats } from './stats';
@@ -40,6 +41,7 @@ function cloneState(s: GameState): GameState {
       ? { nisa: { frac: { ...s.nisa.frac }, principal: { ...s.nisa.principal }, year: { ...s.nisa.year } } }
       : {}),
     ...(s.ledger ? { ledger: cloneLedger(s.ledger) } : {}),
+    ...(s.business ? { business: { ...s.business } } : {}),
     flags: { ...s.flags },
     happinessHistory: s.happinessHistory.slice(),
     log: s.log.slice(),
@@ -77,6 +79,7 @@ export function stepMonth(state: GameState, rng: Rng, data: GameData = defaultDa
   // 2〜5. お金。そのあとタイマーを1ヶ月進める(DESIGN.md §3)
   recordMonth(s, applyMonthlyMoney(s, rng, data));
   logIndependence(s, data);
+  if (reviewBusiness(s, rng, data)) changeJob(s, 'none', data); // 廃業したら無職(失業給付なし)
   for (const key of Object.keys(balance.timers)) {
     const v = s.flags[key];
     if (typeof v === 'number' && v > 0) s.flags[key] = v - 1;
@@ -230,7 +233,12 @@ export interface MonthlyView {
 /** UI 表示用の値(state から導出するだけ) */
 export function getMonthlyView(state: GameState, data: GameData = defaultData): MonthlyView {
   const c = state.character;
-  const jobName = c.job === 'none' ? '無職' : findById(data.jobs, c.job, 'job').label;
+  const jobName =
+    c.job === 'none'
+      ? '無職'
+      : c.job === 'owner'
+        ? `${data.balance.business.label}(${Math.floor((state.month - (state.business?.since ?? state.month)) / 12) + 1}年目)`
+        : findById(data.jobs, c.job, 'job').label;
   const leave = Number(state.flags.maternityLeave ?? 0) > 0 ? '産休中' : Number(state.flags.parentalLeave ?? 0) > 0 ? '育休中' : '';
   const working = leave && c.job !== 'none' ? `${jobName}(${leave})` : jobName;
   const jobLabel = c.retired ? (isRehired(state) ? `再雇用(${jobName})` : '退職') : working;

@@ -9,5 +9,6 @@ export type { MonthlyIncome } from './money';
 export { emptyLedger, ledgerTotals, type ExpenseKey, type IncomeKey, type YearLedger } from './ledger';
 export { allocationOf, INVEST_KEYS, normalizePolicy } from './policy';
 export { nisaRoom, nisaValue } from './nisa';
+export { businessValue, ownerSalary } from './business';
 export { allocationLabel, buyAsset, changePolicy, sellAsset, type InvestKey, getMonthlyView, isYearEnd, POLICY_LABELS, resolveChoice, stepMonth, type MonthlyView } from './step';
 export type * from './types';

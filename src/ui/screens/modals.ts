@@ -1,5 +1,5 @@
 // イベント・選択結果・年間サマリー・方針変更のモーダル
-import { availableChoices, gameData, getMonthlyView, ledgerTotals, nisaRoom, nisaValue, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
+import { availableChoices, gameData, businessValue, getMonthlyView, ledgerTotals, nisaRoom, nisaValue, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
 import { assetMixChart, assetMixPoints } from '../charts';
 import { append, clear, h, openModal } from '../dom';
 import { ageMonthLabel, calendarMonth, healthWord, manYen, signedManYen, signedPercent } from '../format';
@@ -457,6 +457,13 @@ function assetsContent(
     canTrade
       ? h('p', { class: 'muted small' }, '売った分はすぐ預金になる。毎月の積立も、方針の配分どおりNISAの枠から先に使う。')
       : null,
+    state.business
+      ? h(
+          'p',
+          { class: 'small' },
+          `会社: 起業から${Math.floor((state.month - state.business.since) / 12) + 1}年目。いま売れば約${manYen(businessValue(state))}(純資産には入れていない)`,
+        )
+      : null,
     liabilitiesAndNet(state),
     mix.el,
     state.ledger ? h('details', { class: 'summary-details' }, h('summary', {}, '今年のここまでの収支'), ledgerTable(state.ledger)) : null,
@@ -484,9 +491,17 @@ export function incomeModal(state: GameState): Promise<void> {
       'div',
       { class: 'income-modal' },
       h('h2', {}, '収入の内訳'),
-      v.annualGross > 0 ? h('p', { class: 'muted small' }, `本人の額面年収(ボーナス込み) ${manYen(v.annualGross)}`) : null,
+      v.annualGross > 0
+        ? h(
+            'p',
+            { class: 'muted small' },
+            state.character.job === 'owner'
+              ? `役員報酬(年・額面) ${manYen(v.annualGross)}。会社の業績で決算ごとに変わる`
+              : `本人の額面年収(ボーナス込み) ${manYen(v.annualGross)}`,
+          )
+        : null,
       h('h3', {}, `今月(${calendarMonth(state.month)}月)の手取り`),
-      monthIncomeTable(v.income),
+      monthIncomeTable(v.income, state.character.job === 'owner'),
       ...yearIncome(state),
       h('p', { class: 'muted small' }, 'ボーナスは6月と12月に入る。配偶者の収入には、扶養に入れたことによる税金の軽減も含む。'),
       h(

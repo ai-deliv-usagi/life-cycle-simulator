@@ -540,6 +540,7 @@
     "conditions": {
       "employed": true,
       "jobNotIn": [
+        "owner",
         "parttime"
       ]
     },
@@ -626,7 +627,10 @@
     "title": "昇給見送り",
     "text": "会社の業績が振るわず、今年の昇給は見送りになった。",
     "conditions": {
-      "employed": true
+      "employed": true,
+      "jobNotIn": [
+        "owner"
+      ]
     },
     "baseProb": 0.005,
     "good": false,
@@ -648,7 +652,10 @@
     "text": "知り合いから、別の業界で働かないかと誘われた。",
     "conditions": {
       "employed": true,
-      "ageMax": 55
+      "ageMax": 55,
+      "jobNotIn": [
+        "owner"
+      ]
     },
     "baseProb": 0.004,
     "cooldownMonths": 36,
@@ -701,7 +708,10 @@
     "title": "リストラ",
     "text": "会社の人員整理の対象になり、職を失った。",
     "conditions": {
-      "employed": true
+      "employed": true,
+      "jobNotIn": [
+        "owner"
+      ]
     },
     "baseProb": 0,
     "probFrom": "layoffRate",
@@ -729,6 +739,7 @@
     "conditions": {
       "employed": true,
       "jobNotIn": [
+        "owner",
         "parttime"
       ]
     },
@@ -798,6 +809,7 @@
     "conditions": {
       "employed": true,
       "jobNotIn": [
+        "owner",
         "parttime"
       ]
     },
@@ -1225,6 +1237,234 @@
     ]
   },
   {
+    "id": "startup_chance",
+    "category": "career",
+    "title": "起業のチャンス",
+    "text": "温めてきた事業のアイデアに、「一緒にやろう」と声をかけてくれる仲間が現れた。",
+    "conditions": {
+      "employed": true,
+      "ageMin": 25,
+      "ageMax": 55,
+      "jobNotIn": [
+        "owner"
+      ]
+    },
+    "baseProb": 0.0006,
+    "cooldownMonths": 60,
+    "probMods": [
+      {
+        "value": "risk",
+        "below": 0.01,
+        "mul": 0
+      },
+      {
+        "value": "risk",
+        "above": 1,
+        "mul": 1.5
+      },
+      {
+        "stat": "skill",
+        "above": 60,
+        "mul": 1.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "小さく起業する(元手300万円)",
+        "effects": {
+          "startBusiness": "small",
+          "stats": {
+            "stress": 10
+          },
+          "achievement": 10
+        },
+        "valueShift": {
+          "risk": 0.1
+        }
+      },
+      {
+        "label": "大きく起業する(元手1,000万円)",
+        "effects": {
+          "startBusiness": "large",
+          "stats": {
+            "stress": 15
+          },
+          "achievement": 12
+        },
+        "valueShift": {
+          "risk": 0.1
+        }
+      },
+      {
+        "label": "今の仕事を続ける",
+        "valueShift": {
+          "risk": -0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "big_client",
+    "category": "career",
+    "title": "大口の取引先",
+    "text": "大きな会社との取引が決まった。",
+    "good": true,
+    "conditions": {
+      "hasBusiness": true
+    },
+    "baseProb": 0.01,
+    "cooldownMonths": 24,
+    "effects": {
+      "businessLevel": 1.25,
+      "stats": {
+        "stress": -5
+      },
+      "achievement": 5
+    }
+  },
+  {
+    "id": "employee_quit",
+    "category": "career",
+    "title": "社員が辞める",
+    "text": "頼りにしていた社員が、競合に引き抜かれて辞めた。",
+    "good": false,
+    "conditions": {
+      "hasBusiness": true
+    },
+    "baseProb": 0.01,
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "自分で穴を埋める",
+        "effects": {
+          "businessLevel": 0.95,
+          "stats": {
+            "stress": 12,
+            "health": -3
+          }
+        },
+        "valueShift": {
+          "work": 0.1
+        }
+      },
+      {
+        "label": "高い給料で人を雇う",
+        "effects": {
+          "cash": -1000000,
+          "stats": {
+            "stress": 5
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "cash_crunch",
+    "category": "career",
+    "title": "資金繰りの危機",
+    "text": "売掛金の入金が遅れ、来月の支払いが足りない。",
+    "good": false,
+    "conditions": {
+      "hasBusiness": true
+    },
+    "baseProb": 0.008,
+    "cooldownMonths": 24,
+    "probMods": [
+      {
+        "flag": "recession",
+        "above": 0,
+        "mul": 3
+      }
+    ],
+    "choices": [
+      {
+        "label": "自分の貯金を会社に入れる(300万円)",
+        "effects": {
+          "cash": -3000000,
+          "stats": {
+            "stress": 10
+          }
+        }
+      },
+      {
+        "label": "銀行から借りる(300万円・5年)",
+        "effects": {
+          "loan": {
+            "amount": 3000000,
+            "months": 60
+          },
+          "stats": {
+            "stress": 8
+          }
+        }
+      },
+      {
+        "label": "支払いを待ってもらう",
+        "outcomes": [
+          {
+            "prob": 0.6,
+            "text": "なんとか待ってもらえた",
+            "effects": {
+              "stats": {
+                "stress": 10
+              }
+            }
+          },
+          {
+            "prob": 0.4,
+            "text": "信用を失い、取引が減った",
+            "effects": {
+              "businessLevel": 0.6,
+              "stats": {
+                "stress": 20,
+                "credit": -10
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "acquisition_offer",
+    "category": "career",
+    "title": "会社の買収の打診",
+    "text": "大手企業から、会社を買い取りたいという話が来た。",
+    "good": true,
+    "conditions": {
+      "hasBusiness": true,
+      "minBusinessLevel": 2.5
+    },
+    "baseProb": 0.006,
+    "cooldownMonths": 36,
+    "choices": [
+      {
+        "label": "会社を売る",
+        "effects": {
+          "sellBusiness": true,
+          "stats": {
+            "stress": -15
+          },
+          "achievement": 15
+        },
+        "valueShift": {
+          "work": -0.1
+        }
+      },
+      {
+        "label": "自分で続ける",
+        "effects": {
+          "stats": {
+            "stress": 3
+          }
+        },
+        "valueShift": {
+          "work": 0.1
+        }
+      }
+    ]
+  },
+  {
     "id": "invest_jackpot",
     "category": "money",
     "title": "投資の大当たり",
@@ -1558,7 +1798,10 @@
     "title": "臨時ボーナス",
     "text": "会社の業績が好調で、決算賞与が出た。",
     "conditions": {
-      "employed": true
+      "employed": true,
+      "jobNotIn": [
+        "owner"
+      ]
     },
     "baseProb": 0.004,
     "good": true,
@@ -3342,7 +3585,8 @@
       "ageMin": 65,
       "ageMax": 65,
       "jobNotIn": [
-        "none"
+        "none",
+        "owner"
       ]
     },
     "baseProb": 1,

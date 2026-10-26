@@ -12,7 +12,7 @@ const INCOME_LABELS: Record<IncomeKey, string> = {
   family: '実家からの仕送り',
   childAllowance: '児童手当',
   parentalLeave: '育休・産休の手当',
-  severance: '退職金',
+  severance: '退職金・事業承継',
 };
 
 const EXPENSE_LABELS: Record<ExpenseKey, string> = {
@@ -74,9 +74,10 @@ export function ledgerTable(l: YearLedger): HTMLElement {
 }
 
 /** 今月の収入の内訳(0円の行は出さない) */
-export function monthIncomeTable(income: MonthlyIncome): HTMLElement {
+export function monthIncomeTable(income: MonthlyIncome, owner = false): HTMLElement {
+  const label = (k: IncomeKey) => (owner && k === 'salary' ? '役員報酬(手取り)' : INCOME_LABELS[k]);
   const rows = (Object.keys(INCOME_LABELS) as IncomeKey[])
-    .flatMap((k) => (k !== 'severance' && income[k] > 0 ? [row(INCOME_LABELS[k], yen(income[k]))] : []));
+    .flatMap((k) => (k !== 'severance' && income[k] > 0 ? [row(label(k), yen(income[k]))] : []));
   return h(
     'table',
     { class: 'fin-table' },

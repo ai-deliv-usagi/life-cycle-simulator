@@ -431,5 +431,41 @@
     "lifetimeTotal": 18000000,
     "lifetimeGrowth": 12000000,
     "taxRate": 0.20315
+  },
+  "business": {
+    "label": "社長",
+    "capital": {
+      "small": 3000000,
+      "large": 10000000
+    },
+    "salaryBase": {
+      "small": 300000,
+      "large": 500000
+    },
+    "salaryMin": 100000,
+    "salaryMax": 3000000,
+    "startLevel": 0.6,
+    "failLevel": 0.35,
+    "breakEvenLevel": 0.8,
+    "maxLevel": 8,
+    "closeCost": {
+      "small": 1000000,
+      "large": 3000000
+    },
+    "valuationMonths": 48,
+    "successionShare": 0.5,
+    "review": {
+      "mu": -0.05,
+      "sigma": 0.45,
+      "skillMul": 0.004,
+      "luckMul": 0.003,
+      "work": {
+        "regular": -0.1,
+        "normal": 0,
+        "overtime": 0.05,
+        "grind": 0.1
+      },
+      "recession": -0.25
+    }
   }
 }
