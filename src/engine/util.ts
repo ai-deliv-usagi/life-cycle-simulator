@@ -25,9 +25,16 @@ export function financialAssets(assets: Assets): number {
   return assets.cash + assets.index + assets.stocks + assets.speculative;
 }
 
-/** 純資産 = 金融資産 − 借金 − 奨学金の残高 − ローンの残高 */
+/** 純資産 = 金融資産 + 家の時価 − 借金 − 奨学金の残高 − ローンの残高 − 住宅ローンの残高 */
 export function netWorth(assets: Assets): number {
-  return financialAssets(assets) - assets.debt - assets.studentLoan - (assets.loan ?? 0);
+  return (
+    financialAssets(assets) +
+    (assets.home ?? 0) -
+    assets.debt -
+    assets.studentLoan -
+    (assets.loan ?? 0) -
+    (assets.mortgage ?? 0)
+  );
 }
 
 export function ageYears(state: GameState): number {

@@ -1,5 +1,5 @@
 // 収支表とバランスシート(年間サマリーと資産の画面で共通)
-import { ledgerTotals, type ExpenseKey, type GameState, type IncomeKey, type MonthlyIncome, type YearLedger } from '../engine/index';
+import { ledgerTotals, netWorth, type ExpenseKey, type GameState, type IncomeKey, type MonthlyIncome, type YearLedger } from '../engine/index';
 import { h } from './dom';
 import { manYen, signedManYen, yen } from './format';
 
@@ -12,6 +12,7 @@ const INCOME_LABELS: Record<IncomeKey, string> = {
   family: '実家からの仕送り',
   childAllowance: '児童手当',
   parentalLeave: '育休・産休の手当',
+  housingDeduction: '住宅ローン控除',
   severance: '退職金・事業承継',
 };
 
@@ -24,6 +25,8 @@ const EXPENSE_LABELS: Record<ExpenseKey, string> = {
   studentLoan: '奨学金の返済',
   loan: 'ローンの返済',
   children: '子どもの生活費・教育費',
+  mortgage: '住宅ローンの返済',
+  homeCost: '固定資産税・修繕',
 };
 
 function row(label: string, value: string, cls = ''): HTMLElement {
@@ -108,10 +111,12 @@ export function balanceSheet(state: GameState): HTMLElement {
     ['積立', a.index],
     ['個別株', a.stocks],
     ['信用・仮想通貨', a.speculative],
+    ['家(時価)', a.home ?? 0],
   ];
   const debtRows: [string, number][] = [
     ['カードローン', a.debt],
     ['ローン', loan],
+    ['住宅ローン', a.mortgage ?? 0],
     ['奨学金', a.studentLoan],
   ];
   const totalAssets = assetRows.reduce((s, [, v]) => s + v, 0);
@@ -146,16 +151,25 @@ export function balanceSheet(state: GameState): HTMLElement {
 export function liabilitiesAndNet(state: GameState): HTMLElement {
   const a = state.assets;
   const loan = a.loan ?? 0;
+  const mortgage = a.mortgage ?? 0;
   const rows: [string, number, string][] = [
     ['カードローン', a.debt, ''],
     ['ローン', loan, loan > 0 ? `毎月${manYen(state.character.loanPayment ?? 0)}` : ''],
     ['奨学金', a.studentLoan, ''],
   ];
-  const totalDebts = a.debt + loan + a.studentLoan;
-  const net = a.cash + a.index + a.stocks + a.speculative - totalDebts;
+  if (state.home) rows.push(['住宅ローン', mortgage, mortgage > 0 ? `毎月${manYen(state.home.payment)}` : '']);
+  const totalDebts = a.debt + loan + a.studentLoan + mortgage;
+  const net = netWorth(state.assets);
   return h(
     'div',
     { class: 'finance' },
+    state.home
+      ? h(
+          'p',
+          { class: 'small' },
+          `家: 時価 ${manYen(a.home ?? 0)}(買ったときは${manYen(state.home.price)})。純資産に入る`,
+        )
+      : null,
     h('h3', {}, '負債'),
     h(
       'table',

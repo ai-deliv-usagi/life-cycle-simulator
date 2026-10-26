@@ -42,6 +42,7 @@ function cloneState(s: GameState): GameState {
       : {}),
     ...(s.ledger ? { ledger: cloneLedger(s.ledger) } : {}),
     ...(s.business ? { business: { ...s.business } } : {}),
+    ...(s.home ? { home: { ...s.home } } : {}),
     flags: { ...s.flags },
     happinessHistory: s.happinessHistory.slice(),
     log: s.log.slice(),

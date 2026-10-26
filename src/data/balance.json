@@ -467,5 +467,40 @@
       },
       "recession": -0.25
     }
+  },
+  "housing": {
+    "rentShare": 0.6,
+    "price": {
+      "metro": 55000000,
+      "city": 35000000,
+      "rural": 25000000
+    },
+    "priceIncomeMultiple": 6,
+    "minPrice": 10000000,
+    "closingCost": 0.07,
+    "mortgage": {
+      "annualRate": 0.01,
+      "years": 35,
+      "maxAge": 80,
+      "minYears": 10,
+      "maxIncomeMultiple": 7,
+      "minCredit": 30
+    },
+    "ownershipCostRate": 0.012,
+    "valueChange": {
+      "metro": 0,
+      "city": -0.01,
+      "rural": -0.02
+    },
+    "sellCost": 0.05,
+    "deduction": {
+      "rate": 0.007,
+      "years": 13,
+      "maxBalance": 30000000
+    },
+    "soloTransfer": {
+      "stress": 10,
+      "relations": -8
+    }
   }
 }

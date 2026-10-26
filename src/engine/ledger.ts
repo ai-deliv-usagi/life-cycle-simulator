@@ -20,8 +20,8 @@ export interface YearLedger {
 
 export function emptyLedger(): YearLedger {
   return {
-    income: { salary: 0, bonus: 0, pension: 0, unemployment: 0, spouse: 0, family: 0, childAllowance: 0, parentalLeave: 0, severance: 0 },
-    expenses: { living: 0, car: 0, health: 0, remittance: 0, parentSupport: 0, studentLoan: 0, loan: 0, children: 0 },
+    income: { salary: 0, bonus: 0, pension: 0, unemployment: 0, spouse: 0, family: 0, childAllowance: 0, parentalLeave: 0, housingDeduction: 0, severance: 0 },
+    expenses: { living: 0, car: 0, health: 0, remittance: 0, parentSupport: 0, studentLoan: 0, loan: 0, children: 0, mortgage: 0, homeCost: 0 },
     debtInterest: 0,
     eventIn: 0,
     eventOut: 0,

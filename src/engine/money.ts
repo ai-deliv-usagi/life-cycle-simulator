@@ -4,6 +4,7 @@
 // (stepMonth の外から呼ぶときは呼び出し側で複製すること)。
 import { defaultData } from '../data/index';
 import { businessValue, endBusiness, ownerJob, ownerSalary } from './business';
+import { homeOwnershipCost, housingDeduction, loseHome, mortgagePayment, ownsHome, rentPart, sellHome, updateHomeValue } from './housing';
 import { childAllowance, childCost, parentalLeaveRate } from './children';
 import { recordSeverance } from './ledger';
 import { buyInvestment, resetNisaYear, sellForCash } from './nisa';
@@ -138,6 +139,7 @@ export interface MonthlyIncome {
   family: number; // 実家からの仕送り
   childAllowance: number; // 児童手当
   parentalLeave: number; // 本人の育休手当(非課税)
+  housingDeduction: number; // 住宅ローン控除で戻る税金
   total: number;
 }
 
@@ -177,6 +179,8 @@ export function calcIncome(state: GameState, data: GameData = defaultData): Mont
   const family = transfer > 0 && bool(state, 'parentAlive') ? transfer : 0;
 
   const allowance = childAllowance(state, data);
+  // 住宅ローン控除は払った税金から戻るので、給与か年金があるときだけ
+  const deduction = salary + bonus + pension > 0 ? housingDeduction(state, data) : 0;
   return {
     salary,
     bonus,
@@ -186,7 +190,8 @@ export function calcIncome(state: GameState, data: GameData = defaultData): Mont
     family,
     childAllowance: allowance,
     parentalLeave,
-    total: salary + bonus + pension + unemployment + spouse + family + allowance + parentalLeave,
+    housingDeduction: deduction,
+    total: salary + bonus + pension + unemployment + spouse + family + allowance + parentalLeave + deduction,
   };
 }
 
@@ -218,6 +223,8 @@ function obligations(state: GameState, data: GameData, welfare: boolean) {
     studentLoan: studentLoanPayment(state).payment,
     loan: loanPayment(state, data).payment,
     children: childCost(state, data),
+    mortgage: mortgagePayment(state, data).payment,
+    homeCost: homeOwnershipCost(state, data),
   };
 }
 
@@ -230,11 +237,20 @@ function obligations(state: GameState, data: GameData, welfare: boolean) {
 /** 生活費(物価を掛ける前)。最低限の生活費は地域係数込み(家賃の差)で先に取る */
 function livingNominal(state: GameState, data: GameData, welfare: boolean): number {
   const l = data.balance.living;
-  const fixed = (state.character.married ? l.married : l.single) * regionDef(state, data).livingMul;
+  const floor = (state.character.married ? l.married : l.single) * regionDef(state, data).livingMul;
+  const fixed = ownsHome(state) ? floor - rentPart(floor, data) : floor; // 持ち家は家賃がいらない
   const o = obligations(state, data, welfare);
   // 子どもの費用は一部だけ親の生活費を削ってまかない、残りは貯金が減る
   const committed =
-    o.car + o.health + o.remittance + o.parentSupport + o.studentLoan + o.loan + o.children * data.balance.children.livingOffset;
+    o.car +
+    o.health +
+    o.remittance +
+    o.parentSupport +
+    o.studentLoan +
+    o.loan +
+    o.mortgage +
+    o.homeCost +
+    o.children * data.balance.children.livingOffset;
   // 毎月の生活費は月々の収入で決める。ボーナス月はボーナスの一部を使う(残りは貯まる)
   const inc = calcIncome(state, data);
   const disposable = Math.max(0, inc.total - inc.bonus - committed);
@@ -249,7 +265,9 @@ export function realLivingSpending(state: GameState, data: GameData = defaultDat
   const l = data.balance.living;
   const floor = state.character.married ? l.married : l.single;
   const rentGap = floor * (regionDef(state, data).livingMul - 1);
-  return roundYen(livingNominal(state, data, bool(state, 'welfare')) - rentGap);
+  // 持ち家は家賃を払っていないが、住まいの中身は同じなので家賃の分を足して比べる
+  const ownRent = ownsHome(state) ? rentPart(floor * regionDef(state, data).livingMul, data) : 0;
+  return roundYen(livingNominal(state, data, bool(state, 'welfare')) - rentGap + ownRent);
 }
 
 /** 今月の奨学金の返済額(利息込み)と、そのうち元本に充てる額 */
@@ -310,6 +328,8 @@ export interface MonthlyExpenses {
   studentLoan: number;
   loan: number;
   children: number; // 子どもの生活費と教育費
+  mortgage: number; // 住宅ローンの返済
+  homeCost: number; // 固定資産税・修繕
   total: number;
 }
 
@@ -320,7 +340,7 @@ export function calcExpenses(
 ): MonthlyExpenses {
   // 地域の生活費係数は最低限の生活費(主に家賃)にだけ掛ける。収入に応じた分は、地域の給料の差にすでに含まれている
   const living = roundYen(livingNominal(state, data, welfare) * num(state, 'priceLevel', 1));
-  const { car, health, remittance, parentSupport, studentLoan, loan, children } = obligations(state, data, welfare);
+  const { car, health, remittance, parentSupport, studentLoan, loan, children, mortgage, homeCost } = obligations(state, data, welfare);
   return {
     living,
     car,
@@ -330,7 +350,9 @@ export function calcExpenses(
     studentLoan,
     loan,
     children,
-    total: living + car + health + remittance + parentSupport + studentLoan + loan + children,
+    mortgage,
+    homeCost,
+    total: living + car + health + remittance + parentSupport + studentLoan + loan + children + mortgage + homeCost,
   };
 }
 
@@ -378,6 +400,9 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   // 3. 支出
   const expenses = calcExpenses(state, data);
   a.studentLoan -= studentLoanPayment(state).principal;
+  const mortgagePrincipal = mortgagePayment(state, data).principal;
+  if (mortgagePrincipal > 0) a.mortgage = (a.mortgage ?? 0) - mortgagePrincipal;
+  updateHomeValue(state, data);
   const loanPrincipal = loanPayment(state, data).principal;
   if (loanPrincipal > 0) {
     a.loan = (a.loan ?? 0) - loanPrincipal;
@@ -436,8 +461,15 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
       if (a.cash >= 0) break;
     }
   }
-  // 生活保護は「節約しても収入で暮らせない」ときの下限。それ以外の不足は借金になる
-  const minimalLiving = calcExpenses(state, data, true).total;
+  // 生活保護は「節約しても収入で暮らせない」ときの下限。それ以外の不足は借金になる。
+  // 住宅ローンと固定資産税はボーナスで払う月もあるので、ここでは数えない(返せなければ借金が膨らみ、家を売る)
+  const minimal = calcExpenses(state, data, true);
+  let minimalLiving = minimal.total - minimal.mortgage - minimal.homeCost;
+  if (a.cash < 0 && income.total < minimalLiving && ownsHome(state)) {
+    // 生活保護を受ける前に、持ち家を手放す
+    sellHome(state, '収入だけでは暮らせなくなり、家を手放した', data);
+    minimalLiving = calcExpenses(state, data, true).total;
+  }
   let welfare = 0;
   if (a.cash < 0) {
     if (income.total < minimalLiving) {
@@ -465,6 +497,17 @@ function checkDebtLimit(state: GameState, data: GameData): void {
   if (state.assets.debt <= limit || num(state, 'blacklist', 0) > 0) {
     if (over > 0) state.flags.overLimit = 0;
     return;
+  }
+  if (ownsHome(state)) {
+    // 破産する前に家を売って借金を返す(任意売却)
+    sellHome(state, '借金が返せなくなり、家を売って返済にあてた', data);
+    const repay = Math.min(state.assets.debt, Math.max(0, state.assets.cash));
+    state.assets.debt -= repay;
+    state.assets.cash -= repay;
+    if (state.assets.debt <= limit) {
+      state.flags.overLimit = 0;
+      return;
+    }
   }
   const grace = data.balance.bankruptcy.graceMonths;
   state.flags.overLimit = over + 1;
@@ -539,6 +582,7 @@ function startWelfare(state: GameState): void {
 export function declareBankruptcy(state: GameState, data: GameData = defaultData): void {
   state.assets.debt = 0;
   state.assets.loan = 0; // ローンも免責される(奨学金は保証機関が残す扱いで残る)
+  loseHome(state); // 持ち家は競売になる
   state.character.loanPayment = 0;
   state.stats.credit = 0;
   state.stats.stress = clampStat(state.stats.stress + data.balance.bankruptcy.stress);

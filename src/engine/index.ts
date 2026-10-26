@@ -12,3 +12,4 @@ export { nisaRoom, nisaValue } from './nisa';
 export { businessValue, ownerSalary } from './business';
 export { allocationLabel, buyAsset, changePolicy, sellAsset, type InvestKey, getMonthlyView, isYearEnd, POLICY_LABELS, resolveChoice, stepMonth, type MonthlyView } from './step';
 export type * from './types';
+export { netWorth } from './util';

@@ -69,10 +69,19 @@ export interface Assets {
   debt: number; // 資金ショートの借金(年15%)
   studentLoan: number; // 奨学金の残高(debt とは別枠)
   loan?: number; // ローンの残高(結婚式・車など。年3%・毎月返済)。古いセーブにはない
+  home?: number; // 持ち家の時価(第2弾)。純資産に入る
+  mortgage?: number; // 住宅ローンの残高(第2弾)
 }
 
 /** 投資資産ごとの元本(つぎ込んだ額)。運用成績の表示用 */
 export type InvestedPrincipal = Pick<Assets, 'index' | 'stocks' | 'speculative'>;
+
+/** 持ち家(第2弾) */
+export interface Home {
+  boughtMonth: number;
+  price: number; // 買った値段(固定資産税・修繕の基準)
+  payment: number; // 住宅ローンの毎月の返済額
+}
 
 /** 経営している会社(第2弾)。役員報酬 = salaryBase × level */
 export interface Business {
@@ -160,6 +169,7 @@ export interface GameState {
   invested?: InvestedPrincipal; // 古いセーブにはないので省略可
   nisa?: NisaState; // 第2弾。古いセーブにはない(NISAの分は0)
   business?: Business; // 第2弾。起業して会社を経営している間だけある
+  home?: Home; // 第2弾。持ち家があるときだけ(時価は assets.home)
   ledger?: YearLedger; // 今年の収支(古いセーブにはない)
   lastLedger?: YearLedger; // 前の年の収支(年間サマリー用)
   adaptedSpending: number; // 慣れた生活水準(月額・実質)
@@ -217,6 +227,8 @@ export interface EventConditions {
   childrenBelow?: number; // 子どもの人数がこれ未満
   childAge?: [number, number]; // 子どもの誰かがこの年齢(歳、両端を含む)
   hasBusiness?: boolean; // 会社を経営しているか
+  hasHome?: boolean; // 持ち家があるか
+  homeYears?: number; // 家を買ってからこの年数以上
   minBusinessLevel?: number; // 会社の業績がこれ以上
 }
 
@@ -240,7 +252,7 @@ export interface Effects {
   job?: JobId | 'random_other' | 'previous';
   achievement?: number;
   /** 資産を一律に増減。split=true は財産分与(元本も同じ割合で減らすので運用の損益にならない) */
-  assetShock?: { pct: number; targets?: (keyof Assets)[]; split?: boolean };
+  assetShock?: { pct: number; targets?: ('cash' | 'index' | 'stocks' | 'speculative')[]; split?: boolean };
   inheritance?: boolean;
   region?: RegionId;
   /** 住む場所を一段下げる(大都市→地方都市→田舎)。左遷の転勤など */
@@ -257,6 +269,10 @@ export interface Effects {
   businessLevel?: number;
   /** 会社を売る(会社の価値を受け取り、無職になる) */
   sellBusiness?: boolean;
+  /** 家を買う。値は頭金の割合(0ならフルローン) */
+  buyHome?: number;
+  /** 家の時価に掛ける(災害など) */
+  homeValue?: number;
 }
 
 export interface Outcome {
@@ -451,8 +467,24 @@ export interface Balance {
   children: ChildrenBalance;
   gender: { femaleProb: number };
   business: BusinessBalance;
+  housing: HousingBalance;
   /** NISAの枠(円)と、特定口座の利益にかかる税率 */
   nisa: { tsumitateAnnual: number; growthAnnual: number; lifetimeTotal: number; lifetimeGrowth: number; taxRate: number };
+}
+
+/** マイホーム(第2弾)。金額は円 */
+export interface HousingBalance {
+  rentShare: number; // 最低限の生活費のうち家賃の割合(持ち家なら払わない)
+  price: Record<RegionId, number>; // 地域の相場(買う家の上限)
+  priceIncomeMultiple: number; // 年収の何倍までの家を買うか
+  minPrice: number;
+  closingCost: number; // 諸費用(価格に対する割合。現金で払う)
+  mortgage: { annualRate: number; years: number; maxAge: number; minYears: number; maxIncomeMultiple: number; minCredit: number };
+  ownershipCostRate: number; // 固定資産税・修繕(価格に対する年率)
+  valueChange: Record<RegionId, number>; // 家の時価の年率の変化
+  sellCost: number; // 売るときの手数料など(時価に対する割合)
+  deduction: { rate: number; years: number; maxBalance: number }; // 住宅ローン控除
+  soloTransfer: { stress: number; relations: number }; // 持ち家で転勤になったとき(単身赴任)
 }
 
 /** 起業(第2弾)。金額は円(役員報酬は月額・額面) */
