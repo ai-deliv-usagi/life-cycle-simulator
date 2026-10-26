@@ -1,5 +1,5 @@
 // イベント・選択結果・年間サマリー・方針変更のモーダル
-import { availableChoices, gameData, businessValue, getMonthlyView, HAPPINESS_PARTS, happinessParts, happinessWeights, ledgerTotals, nisaRoom, nisaValue, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
+import { availableChoices, choiceCost, gameData, businessValue, getMonthlyView, HAPPINESS_PARTS, happinessParts, happinessWeights, ledgerTotals, nisaRoom, nisaValue, type ChoiceCost, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
 import { assetMixChart, assetMixPoints } from '../charts';
 import { append, clear, h, openModal } from '../dom';
 import { ageMonthLabel, calendarMonth, HAPPINESS_PART_LABELS, healthWord, manYen, signedManYen, signedPercent } from '../format';
@@ -22,10 +22,16 @@ export function eventModal(state: GameState): Promise<number> {
       h('h2', {}, ev.title),
       h('p', { class: 'event-text' }, ev.text),
       h(
+        'p',
+        { class: 'event-wallet muted small' },
+        `いまの預金 ${manYen(state.assets.cash)}(金融資産 ${manYen(financialTotal(state))})`,
+      ),
+      h(
         'div',
         { class: 'choices' },
-        ...availableChoices(ev, state).map(({ choice, index }) =>
-          h(
+        ...availableChoices(ev, state).map(({ choice, index }) => {
+          const hint = costHint(choiceCost(ev, choice, state), choice.label);
+          return h(
             'button',
             {
               class: 'btn choice',
@@ -34,13 +40,29 @@ export function eventModal(state: GameState): Promise<number> {
                 resolve(index);
               },
             },
-            choice.label,
-          ),
-        ),
+            h('span', {}, choice.label),
+            hint ? h('span', { class: 'choice-hint small' }, hint) : null,
+          );
+        }),
       ),
     );
     close = openModal(content);
   });
+}
+
+function financialTotal(state: GameState): number {
+  const a = state.assets;
+  return a.cash + a.index + a.stocks + a.speculative;
+}
+
+/** 選択肢の下に出す金額の目安。ラベルにもう金額が書いてあれば出さない */
+function costHint(cost: ChoiceCost, label: string): string {
+  if (cost.homePrice !== undefined) {
+    return `${manYen(cost.homePrice)}の家・頭金と諸費用 約${manYen(cost.spend)}・住宅ローン ${manYen(cost.borrow)}`;
+  }
+  if (label.includes('円')) return '';
+  const parts = [cost.spend > 0 ? `約${manYen(cost.spend)}` : '', cost.borrow > 0 ? `借りる額 ${manYen(cost.borrow)}` : ''];
+  return parts.filter(Boolean).join('・');
 }
 
 /** 選んだ結果(ログの最後の choice)を少しだけ見せる */

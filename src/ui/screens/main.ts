@@ -1,5 +1,5 @@
 // メイン画面: 状態の表示・資産推移・直近のログ・操作
-import { getMonthlyView, type GameState, type LogEntry, type Stats } from '../../engine/index';
+import { gameData, getMonthlyView, upcoming, type GameState, type LogEntry, type Stats } from '../../engine/index';
 import { NetWorthChart } from '../charts';
 import { GameController, type Speed } from '../controller';
 import { clear, h, mount } from '../dom';
@@ -36,9 +36,37 @@ const LOG_MORE = 20;
 const SPEEDS: Speed[] = [1, 4, 16];
 
 export interface MainScreenHooks {
-  /** 年の切れ目ごとに呼ぶ(セーブ用。ステップ9) */
-  onYearEnd?(state: GameState): void;
+  /** 年の切れ目ごとに呼ぶ(セーブ用。ステップ9)。セーブできたら true */
+  onYearEnd?(state: GameState): boolean | void;
 }
+
+const TOAST_MS = 2500;
+const UPCOMING_MAX = 5;
+
+/** 選択肢のないイベントは、再生中だと気づきにくいので画面の上に少しだけ出す */
+function eventsWithoutChoice(entries: LogEntry[]): LogEntry[] {
+  return entries.filter((e) => {
+    if (e.type !== 'event') return false;
+    const def = gameData.events.find((d) => d.id === e.id);
+    return !def?.choices?.length; // 選択肢つきはモーダルが出るので通知しない
+  });
+}
+
+/** 「あと3年(45歳)」「あと5ヶ月」 */
+function untilLabel(months: number, ageMonths: number): string {
+  if (months < 12) return `あと${months}ヶ月`;
+  return `あと${Math.round(months / 12)}年(${Math.floor((ageMonths + months) / 12)}歳)`;
+}
+
+// スペースキーで再生・一時停止(入力欄とモーダルが出ているときは何もしない)
+document.addEventListener('keydown', (e) => {
+  if (e.code !== 'Space' || !active) return;
+  const target = e.target as HTMLElement | null;
+  if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+  if (document.querySelector('.modal-overlay')) return;
+  e.preventDefault();
+  active.toggle();
+});
 
 let active: GameController | undefined;
 
@@ -73,6 +101,18 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     barWords[k] = h('span', { class: 'bar-word small' });
   }
   const logList = h('ol', { class: 'log-list' });
+  const upcomingList = h('ul', { class: 'upcoming-list' });
+  const upcomingCard = h('section', { class: 'card' }, h('h2', {}, 'これから'), upcomingList);
+  const toast = h('div', { class: 'toast', role: 'status', 'aria-live': 'polite', hidden: true });
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  const showToast = (text: string, cls = '') => {
+    toast.textContent = text;
+    toast.className = `toast ${cls}`;
+    toast.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toast.hidden = true), TOAST_MS);
+  };
+  let seenLog = initial.log.length;
   let showAllLogs = false;
   const moreLogs = h('button', { class: 'btn link-btn small' }, 'もっと見る');
   const settings = { autoCloseSummary: false };
@@ -104,6 +144,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
         ),
         h('div', { class: 'muted small' }, fields.job, ' / ', fields.region, ' / ', fields.family),
       ),
+      toast,
       h(
         'section',
         { class: 'tiles' },
@@ -161,6 +202,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
           ),
         ),
       ),
+      upcomingCard,
       h('section', { class: 'card chart-card' }, h('h2', {}, '資産の推移'), h('div', { class: 'chart-box' }, canvas)),
       h('section', { class: 'card' }, h('h2', {}, '最近の出来事'), logList, moreLogs),
       fields.policy,
@@ -260,6 +302,19 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       barWords[k].className = `bar-word small level-text-${level}`;
     }
 
+    clear(upcomingList);
+    const next = upcoming(state).slice(0, UPCOMING_MAX);
+    upcomingCard.hidden = next.length === 0;
+    for (const u of next) {
+      upcomingList.appendChild(h('li', {}, h('span', {}, u.label), h('span', { class: 'muted' }, untilLabel(u.months, state.ageMonths))));
+    }
+
+    // 前回の描画のあとに起きた、選択肢のないイベントを通知する(何件あっても最新の1件)
+    const fresh = eventsWithoutChoice(state.log.slice(seenLog));
+    seenLog = state.log.length;
+    const latest = fresh.at(-1);
+    if (latest) showToast(latest.text);
+
     clear(logList);
     const shown = showAllLogs ? LOG_MORE : RECENT_LOGS;
     const all = collapseLog(state.log.filter((e) => e.type !== 'year_summary').slice(-LOG_MORE * 2));
@@ -287,7 +342,8 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       // 年間サマリーを出したあと(スキップ中も)に、前年比の基準を進める
       previousFinancial = getMonthlyView(state).financialAssets;
       lastSummaryMonth = state.month;
-      hooks.onYearEnd?.(state);
+      // セーブできたら小さく知らせる(イベントの通知が出ているときは邪魔しない)
+      if (hooks.onYearEnd?.(state) === true && toast.hidden) showToast('セーブしました', 'toast-save');
     },
     onPlayingChange: (playing) => {
       playBtn.textContent = playing ? '⏸ 一時停止' : '▶ 再生';
