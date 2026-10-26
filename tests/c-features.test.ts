@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultData } from '../src/data/index';
-import { applyChoice, isEligible } from '../src/engine/events';
+import { applyChoice, availableChoices, isEligible } from '../src/engine/events';
 import { calcExpenses, calcIncome, applyMonthlyMoney, declareBankruptcy, takeLoan } from '../src/engine/money';
 import { allocationOf, normalizePolicy } from '../src/engine/policy';
 import { createRng } from '../src/engine/rng';
@@ -59,14 +59,13 @@ describe('ローン', () => {
     expect(calcExpenses(s).loan).toBe(0);
   });
 
-  it('信用が低い・ブラックリスト中は審査に落ち、現金で払う(ログに残る)', () => {
+  it('信用が低い・ブラックリスト中は審査に通らない。ローンの選択肢は理由つきで選べない', () => {
     const s = makeState();
     s.stats.credit = 10;
     s.flags.partner = true;
-    applyChoice(s, byId('proposal'), 1, createRng(1)); // ブライダルローン
-    expect(s.assets.loan ?? 0).toBe(0);
-    expect(s.assets.cash).toBe(-2_000_000);
-    expect(s.log.some((e) => e.id === 'loan_rejected')).toBe(true);
+    const bridal = availableChoices(byId('proposal'), s).find((c) => c.index === 1)!; // ブライダルローン
+    expect(bridal.blocked).toBe('審査に通らない(信用が足りない)');
+    expect(() => applyChoice(s, byId('proposal'), 1, createRng(1))).toThrow();
 
     const t = makeState();
     t.flags.blacklist = 10;

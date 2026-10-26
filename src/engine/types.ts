@@ -476,6 +476,7 @@ export interface Balance {
     illnessTreated: { deathMonthly: number; health: number };
     illnessUntreated: { deathMonthly: number; health: number };
     checkupNeglect: { deathMonthly: number; health: number }; // 再検査を放置した残り月数(大病が起きやすい)
+    trained: Record<string, never>; // 職業訓練を受けてからの残り月数(正社員の求人・登用・再就職が起きやすい)
   };
   studentLoan: { interestFreeProb: number; annualRate: number; months: number };
   unemployment: { months: number; payRate: number };
@@ -487,7 +488,8 @@ export interface Balance {
   /** graceMonths: 借金が上限を超えた状態がこの月数続いたら自己破産 */
   bankruptcy: { minLimit: number; incomeShare: number; stress: number; blacklistMonths: number; graceMonths: number };
   /** autoMinAmount 以上の出費が現金で払えないときは、足りない分を autoMonths 回のローンにする */
-  loan: { annualRate: number; minCredit: number; autoMinAmount: number; autoMonths: number };
+  /** maxPaymentRatio: ローンの毎月の返済の合計が額面の月収のこの割合まで(バイトは maxPaymentRatioParttime) */
+  loan: { annualRate: number; minCredit: number; autoMinAmount: number; autoMonths: number; maxPaymentRatio: number; maxPaymentRatioParttime: number };
   /** ボーナスの月(暦)と、ゲーム開始の月(暦) */
   bonus: { months: number[]; startCalendarMonth: number };
   /** 再雇用(会社員)と、65歳を過ぎてもバイトを続ける期間・給料の割合 */

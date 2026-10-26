@@ -2,7 +2,7 @@
 //   npx tsx scripts/balance.ts [--n 1000] [--seed 1] [--policy random|grind] [--json]
 import { defaultData } from '../src/data/index';
 import {
-  availableChoices,
+  selectableChoices,
   computeResult,
   createGame,
   createRng,
@@ -89,7 +89,7 @@ export function playLife(seed: number, fixed: Options['policy'] = 'random'): Lif
     state = stepMonth(state, rng);
     if (state.pendingEvent) {
       const ev = defaultData.events.find((e) => e.id === state.pendingEvent!.eventId)!;
-      const choice = player.pick(availableChoices(ev, state));
+      const choice = player.pick(selectableChoices(ev, state));
       state = resolveChoice(state, choice.index, createRng(state.rngState));
     }
   }

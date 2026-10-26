@@ -278,7 +278,8 @@
     "checkupNeglect": {
       "deathMonthly": 0,
       "health": 0
-    }
+    },
+    "trained": {}
   },
   "studentLoan": {
     "interestFreeProb": 0.35,
@@ -338,7 +339,9 @@
     "annualRate": 0.03,
     "minCredit": 30,
     "autoMinAmount": 300000,
-    "autoMonths": 60
+    "autoMonths": 60,
+    "maxPaymentRatio": 0.25,
+    "maxPaymentRatioParttime": 0.15
   },
   "rehire": {
     "months": 60,

@@ -925,3 +925,9 @@ input[type='number'] {
 .monthly-input {
   width: 5em;
 }
+
+/* 審査に通らないローンの選択肢 */
+.btn.choice.choice-blocked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

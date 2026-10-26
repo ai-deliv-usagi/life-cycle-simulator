@@ -802,7 +802,8 @@
       "employed": true,
       "ageMax": 55,
       "jobNotIn": [
-        "owner"
+        "owner",
+        "parttime"
       ]
     },
     "baseProb": 0.004,
@@ -1062,6 +1063,13 @@
       },
       {
         "label": "見送る"
+      }
+    ],
+    "probMods": [
+      {
+        "stat": "skill",
+        "below": 40,
+        "mul": 1.5
       }
     ]
   },
@@ -1424,6 +1432,11 @@
           "normal"
         ],
         "mul": 2
+      },
+      {
+        "stat": "skill",
+        "below": 40,
+        "mul": 2.5
       }
     ],
     "choices": [
@@ -1452,6 +1465,189 @@
         "valueShift": {
           "work": -0.1
         }
+      }
+    ]
+  },
+  {
+    "id": "company_training",
+    "category": "career",
+    "title": "社内研修",
+    "text": "仕事ぶりを見た上司から、社内研修を受けてみないかと勧められた。",
+    "conditions": {
+      "employed": true,
+      "ageMax": 60,
+      "jobNotIn": [
+        "owner",
+        "parttime"
+      ]
+    },
+    "baseProb": 0.003,
+    "cooldownMonths": 24,
+    "probMods": [
+      {
+        "stat": "skill",
+        "above": 40,
+        "mul": 0
+      }
+    ],
+    "choices": [
+      {
+        "label": "研修を受ける",
+        "effects": {
+          "stats": {
+            "skill": 6,
+            "stress": 3
+          }
+        },
+        "valueShift": {
+          "work": 0.1
+        }
+      },
+      {
+        "label": "忙しいので断る",
+        "effects": {
+          "stats": {
+            "stress": -2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "job_training",
+    "category": "career",
+    "title": "職業訓練",
+    "text": "ハローワークで、無料で受けられる職業訓練(数ヶ月のコース)を紹介された。",
+    "conditions": {
+      "ageMax": 50,
+      "retired": false,
+      "jobIn": [
+        "parttime",
+        "none"
+      ]
+    },
+    "baseProb": 0.005,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "stat": "skill",
+        "below": 40,
+        "mul": 2
+      }
+    ],
+    "choices": [
+      {
+        "label": "訓練を受ける",
+        "effects": {
+          "stats": {
+            "skill": 10,
+            "stress": 3
+          },
+          "setFlags": {
+            "trained": 36
+          }
+        },
+        "valueShift": {
+          "work": 0.1
+        }
+      },
+      {
+        "label": "受けない"
+      }
+    ]
+  },
+  {
+    "id": "regular_job_offer",
+    "category": "career",
+    "title": "正社員の求人",
+    "text": "正社員の求人を見つけた。バイトより安定していて、ボーナスや退職金もある。",
+    "conditions": {
+      "ageMax": 45,
+      "jobIn": [
+        "parttime"
+      ]
+    },
+    "baseProb": 0.05,
+    "cooldownMonths": 12,
+    "probMods": [
+      {
+        "flag": "trained",
+        "above": 0,
+        "mul": 2
+      },
+      {
+        "stat": "skill",
+        "above": 40,
+        "mul": 1.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "応募して就職する",
+        "effects": {
+          "job": "other_industry",
+          "setFlags": {
+            "payMul": 0.9
+          },
+          "stats": {
+            "stress": 5
+          },
+          "achievement": 3
+        }
+      },
+      {
+        "label": "バイトを続ける",
+        "effects": {
+          "stats": {
+            "stress": -2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "regular_conversion",
+    "category": "career",
+    "title": "正社員登用の話",
+    "text": "バイト先の店長から「正社員にならないか」と声をかけられた。",
+    "conditions": {
+      "ageMax": 50,
+      "jobIn": [
+        "parttime"
+      ]
+    },
+    "baseProb": 0.003,
+    "cooldownMonths": 24,
+    "probMods": [
+      {
+        "flag": "trained",
+        "above": 0,
+        "mul": 2
+      },
+      {
+        "stat": "skill",
+        "above": 40,
+        "mul": 2
+      },
+      {
+        "stat": "credit",
+        "above": 60,
+        "mul": 1.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "正社員になる",
+        "effects": {
+          "job": "other_industry",
+          "stats": {
+            "stress": 3
+          },
+          "achievement": 4
+        }
+      },
+      {
+        "label": "今のままバイトを続ける"
       }
     ]
   },
@@ -1969,9 +2165,10 @@
     "text": "車があれば生活が楽になりそうだ。",
     "conditions": {
       "ageMin": 20,
-      "ageMax": 75,
+      "ageMax": 69,
       "flags": {
-        "hasCar": false
+        "hasCar": false,
+        "licenseReturned": false
       }
     },
     "baseProb": 0.004,
@@ -2058,6 +2255,9 @@
         },
         "valueShift": {
           "spending": 0.2
+        },
+        "conditions": {
+          "ageMax": 60
         }
       },
       {
@@ -2369,7 +2569,7 @@
     "text": "ディーラーで、ワンランク上の高級車を勧められた。乗ってみると気分がいい。",
     "conditions": {
       "ageMin": 25,
-      "ageMax": 75
+      "ageMax": 60
     },
     "baseProb": 0.0004,
     "cooldownMonths": 60,
@@ -3015,7 +3215,8 @@
         "effects": {
           "setFlags": {
             "hasCar": false,
-            "elderlyDriver": false
+            "elderlyDriver": false,
+            "licenseReturned": true
           },
           "stats": {
             "stress": 3
@@ -4285,6 +4486,11 @@
           "rural"
         ],
         "mul": 0.7
+      },
+      {
+        "flag": "trained",
+        "above": 0,
+        "mul": 1.5
       }
     ],
     "choices": [

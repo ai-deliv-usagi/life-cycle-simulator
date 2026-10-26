@@ -47,12 +47,14 @@ export function eventModal(state: GameState): Promise<number> {
       h(
         'div',
         { class: 'choices' },
-        ...availableChoices(ev, state).map(({ choice, index }) => {
+        ...availableChoices(ev, state).map(({ choice, index, blocked }) => {
           const hint = costHint(choiceCost(ev, choice, state), choice.label);
+          // 審査に通らないローンの選択肢は、理由を出して押せなくする
           return h(
             'button',
             {
-              class: 'btn choice',
+              class: `btn choice${blocked ? ' choice-blocked' : ''}`,
+              disabled: blocked !== undefined,
               onclick: () => {
                 close();
                 resolve(index);
@@ -60,6 +62,7 @@ export function eventModal(state: GameState): Promise<number> {
             },
             h('span', {}, choice.label),
             hint ? h('span', { class: 'choice-hint small' }, hint) : null,
+            blocked ? h('span', { class: 'choice-hint small down' }, blocked) : null,
           );
         }),
       ),

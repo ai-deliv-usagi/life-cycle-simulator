@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultData } from '../src/data/index';
 import {
-  availableChoices,
+  selectableChoices,
   changePolicy,
   computeResult,
   createGame,
@@ -23,7 +23,7 @@ function advance(state: GameState): GameState {
   let s = stepMonth(state, createRng(state.rngState));
   if (s.pendingEvent) {
     const ev = defaultData.events.find((e) => e.id === s.pendingEvent!.eventId)!;
-    s = resolveChoice(s, availableChoices(ev, s)[0]!.index, createRng(s.rngState));
+    s = resolveChoice(s, selectableChoices(ev, s)[0]!.index, createRng(s.rngState));
   }
   return s;
 }

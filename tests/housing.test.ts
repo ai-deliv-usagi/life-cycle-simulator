@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultData } from '../src/data/index';
-import { applyChoice, applyEffects, isEligible } from '../src/engine/events';
+import { applyChoice, applyEffects, availableChoices, isEligible } from '../src/engine/events';
 import { homePrice, housingDeduction, mortgagePayment } from '../src/engine/housing';
 import { annualGross, applyMonthlyMoney, calcExpenses, calcIncome, declareBankruptcy, realLivingSpending } from '../src/engine/money';
 import type { EventDef, GameState } from '../src/engine/types';
@@ -56,12 +56,16 @@ describe('家を買う', () => {
   it('審査: 信用が低い・80歳までに返し終わらないと買えない', () => {
     const s = family();
     s.stats.credit = 10;
-    buy(s);
+    const blocked = (t: GameState) => availableChoices(byId('home_purchase'), t)[0]!.blocked;
+    expect(blocked(s)).toBe('審査に通らない(信用が足りない)');
+    expect(blocked(setAge(family(), 72))).toBe('審査に通らない(年齢的に返し終わらない)');
+    const part = family();
+    part.character.job = 'parttime';
+    expect(blocked(part)).toBe('審査に通らない(正社員でない)');
+    // 効果として家を買うときも審査する(落ちたら買わずにログ)
+    applyEffects(s, { buyHome: 0.1 }, flatRng);
     expect(s.home).toBeUndefined();
-    expect(s.log.at(-2)).toMatchObject({ id: 'mortgage_rejected' });
-    const old = setAge(family(), 72);
-    buy(old);
-    expect(old.home).toBeUndefined();
+    expect(s.log.at(-1)).toMatchObject({ id: 'mortgage_rejected' });
   });
 
   it('マイホームの検討は、持ち家がない会社員(28〜50歳)だけ。持ち家だと引っ越しイベントは起きない', () => {
