@@ -12,14 +12,19 @@ function holding() {
 }
 
 describe('投資を売って預金にする', () => {
-  it('売った額がそのまま預金になり(税金なし)、元本は売った割合だけ減る。純資産は変わらない', () => {
+  it('特定口座で売ると利益に20.315%の税金がかかり、残りが預金になる。元本は売った割合だけ減る', () => {
     const s = holding();
     const t = sellAsset(s, 'speculative', 600_000);
     expect(t.assets.speculative).toBe(600_000);
-    expect(t.assets.cash).toBe(700_000);
+    expect(t.assets.cash).toBe(700_000 - 20_315);
     expect(t.invested!.speculative).toBe(500_000);
-    expect(netWorth(t.assets)).toBe(netWorth(s.assets));
-    expect(t.log.at(-1)).toMatchObject({ type: 'policy', id: 'sell', text: '売却: 信用・仮想通貨を60万円売って預金にした(損益 +10万円)' });
+    expect(netWorth(t.assets)).toBe(netWorth(s.assets) - 20_315);
+    expect(t.ledger!.investTax).toBe(20_315);
+    expect(t.log.at(-1)).toMatchObject({
+      type: 'policy',
+      id: 'sell',
+      text: '売却: 信用・仮想通貨を60万円売って預金にした(損益 +10万円・税金 2万円)',
+    });
     // 元の state は変えない
     expect(s.assets.speculative).toBe(1_200_000);
   });
@@ -29,7 +34,7 @@ describe('投資を売って預金にする', () => {
     const all = sellAsset(s, 'speculative', 9_999_999);
     expect(all.assets.speculative).toBe(0);
     expect(all.invested!.speculative).toBe(0);
-    expect(all.assets.cash).toBe(1_300_000);
+    expect(all.assets.cash).toBe(1_300_000 - 40_630);
     expect(sellAsset(s, 'speculative', 0)).toBe(s);
     expect(sellAsset(s, 'index', 100_000)).toBe(s);
   });

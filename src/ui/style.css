@@ -629,6 +629,11 @@ input[type='number'] {
 .asset-table .pct {
   display: block;
 }
+/* 「うちNISA 468万円」は幅を取らないよう、空白で折り返して2行にする */
+.asset-table .nisa-note {
+  white-space: normal;
+  font-size: 0.75rem;
+}
 .asset-mix {
   margin: 12px 0;
 }
@@ -657,4 +662,18 @@ input[type='number'] {
   width: 7em;
   font: inherit;
   padding: 6px 8px;
+}
+.trade-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+.trade-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.trade-label {
+  flex: 1;
 }

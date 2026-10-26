@@ -3,7 +3,8 @@ import { defaultData } from '../data/index';
 import { logIndependence } from './children';
 import { rollDeath } from './death';
 import { applyChoice, drawEvent, fireEvent } from './events';
-import { cloneLedger, closeYear, recordMonth } from './ledger';
+import { cloneLedger, closeYear, recordInvestTax, recordMonth } from './ledger';
+import { buyInvestment, sellInvestment } from './nisa';
 import { computeHappiness, updateAdaptation } from './happiness';
 import { annualGross, applyMonthlyMoney, calcIncome, isRehired, retire, type MonthlyIncome } from './money';
 import { DEATH_CAUSE_LABELS } from './result';
@@ -35,6 +36,9 @@ function cloneState(s: GameState): GameState {
     stats: { ...s.stats },
     assets: { ...s.assets },
     ...(s.invested ? { invested: { ...s.invested } } : {}),
+    ...(s.nisa
+      ? { nisa: { frac: { ...s.nisa.frac }, principal: { ...s.nisa.principal }, year: { ...s.nisa.year } } }
+      : {}),
     ...(s.ledger ? { ledger: cloneLedger(s.ledger) } : {}),
     flags: { ...s.flags },
     happinessHistory: s.happinessHistory.slice(),
@@ -160,21 +164,42 @@ export function changePolicy(state: GameState, input: PolicyInput | Policy): Gam
 export type InvestKey = 'index' | 'stocks' | 'speculative';
 
 /**
- * 投資を売って預金にする(好きなタイミングで。税金はかけない=NISA扱い)。
- * amount は円。持っている額を超えたら全部売る。元本も売った割合だけ減らす。死亡後は何もしない
+ * 投資を売って預金にする(好きなタイミングで)。amount は円。持っている額を超えたら全部売る。
+ * from: 'auto' 特定口座から先に / 'taxable' 特定口座だけ / 'nisa' NISAだけ。特定口座の利益には税金がかかる。
+ * 0円以下・持っていない・死亡後は同じ state を返す
  */
-export function sellAsset(state: GameState, key: InvestKey, amount: number): GameState {
-  const held = state.assets[key];
-  const sell = Math.min(held, Math.max(0, Math.round(amount)));
-  if (state.dead || sell <= 0) return state;
+export function sellAsset(
+  state: GameState,
+  key: InvestKey,
+  amount: number,
+  from: 'auto' | 'taxable' | 'nisa' = 'auto',
+  data: GameData = defaultData,
+): GameState {
+  if (state.dead || Math.round(amount) <= 0 || state.assets[key] <= 0) return state;
   const s = cloneState(state);
-  const principal = s.invested ? s.invested[key] : undefined;
-  const soldPrincipal = principal === undefined ? undefined : Math.round((principal * sell) / held);
-  s.assets[key] -= sell;
-  s.assets.cash += sell;
-  if (s.invested && soldPrincipal !== undefined) s.invested[key] -= soldPrincipal;
-  const gain = soldPrincipal === undefined ? '' : `(損益 ${signedManYen(sell - soldPrincipal)})`;
-  addLog(s, 'policy', `売却: ${POLICY_LABELS.invest[key]}を${yenLabel(sell)}売って預金にした${gain}`, 'sell');
+  const sale = sellInvestment(s, key, Math.round(amount), from, data);
+  if (sale.gross <= 0) return state;
+  s.assets.cash += sale.gross - sale.tax;
+  recordInvestTax(s, sale.tax);
+  const notes = [
+    s.invested ? `損益 ${signedManYen(sale.gain)}` : '',
+    sale.fromNisa > 0 ? (sale.fromNisa === sale.gross ? 'NISA' : `うちNISA ${yenLabel(sale.fromNisa)}`) : '',
+    sale.tax > 0 ? `税金 ${yenLabel(sale.tax)}` : '',
+  ].filter(Boolean);
+  const note = notes.length > 0 ? `(${notes.join('・')})` : '';
+  addLog(s, 'policy', `売却: ${POLICY_LABELS.invest[key]}を${yenLabel(sale.gross)}売って預金にした${note}`, 'sell');
+  return s;
+}
+
+/** 預金で投資を買う(まとめ買い)。NISAの枠から先に使う。預金より多くは買えない */
+export function buyAsset(state: GameState, key: InvestKey, amount: number, data: GameData = defaultData): GameState {
+  const buy = Math.min(Math.round(amount), Math.max(0, state.assets.cash));
+  if (state.dead || buy <= 0) return state;
+  const s = cloneState(state);
+  s.assets.cash -= buy;
+  const toNisa = buyInvestment(s, key, buy, data);
+  const note = toNisa === buy ? '(NISA)' : toNisa > 0 ? `(うちNISA ${yenLabel(toNisa)})` : '(特定口座)';
+  addLog(s, 'policy', `購入: 預金で${POLICY_LABELS.invest[key]}を${yenLabel(buy)}買った${note}`, 'buy');
   return s;
 }
 

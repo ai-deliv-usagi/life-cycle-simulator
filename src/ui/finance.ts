@@ -43,6 +43,7 @@ export function ledgerTable(l: YearLedger): HTMLElement {
     .map((k) => row(EXPENSE_LABELS[k], manYen(l.expenses[k])));
   if (l.debtInterest > 0) expenseRows.push(row('カードローンの利息', manYen(l.debtInterest)));
   if (l.eventOut > 0) expenseRows.push(row('臨時の出費(イベント)', manYen(l.eventOut)));
+  if ((l.investTax ?? 0) > 0) expenseRows.push(row('投資の利益にかかる税金', manYen(l.investTax ?? 0)));
   const net = t.income - t.expenses;
 
   return h(
