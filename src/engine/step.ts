@@ -11,8 +11,8 @@ import { annualGross, applyMonthlyMoney, calcIncome, changeJob, isRehired, retir
 import { DEATH_CAUSE_LABELS } from './result';
 import type { Rng } from './rng';
 import { updateStats } from './stats';
-import { INVEST_KEYS, normalizePolicy } from './policy';
-import type { GameData, GameState, Policy, PolicyInput } from './types';
+import { fixedInvestShares, INVEST_KEYS, normalizePolicy } from './policy';
+import type { GameData, GameState, Invest, Policy, PolicyInput } from './types';
 import { addLog, financialAssets, findById, netWorth } from './util';
 
 export const POLICY_LABELS = {
@@ -160,6 +160,14 @@ export function resolveChoice(
 
 /** 投資の配分を「積立70%・預金30%」のように */
 export function allocationLabel(p: Policy): string {
+  if ((p.investMonthly ?? 0) > 0) {
+    // 毎月決まった額: 「毎月3万円(積立70%・個別株30%)」。配分の預金は使わない
+    const shares = Object.entries(fixedInvestShares(p)) as [Invest, number][];
+    if (shares.length === 0) return '預金100%';
+    const amount = `毎月${(p.investMonthly / 10_000).toLocaleString('ja-JP')}万円`;
+    if (shares.length === 1) return `${amount}を${POLICY_LABELS.invest[shares[0]![0]]}に`;
+    return `${amount}(${shares.map(([k, v]) => `${POLICY_LABELS.invest[k]}${Math.round(v * 100)}%`).join('・')})`;
+  }
   const parts = INVEST_KEYS.filter((k) => p.invest[k] > 0).map((k) => `${POLICY_LABELS.invest[k]}${p.invest[k]}%`);
   return parts.join('・') || '預金100%';
 }

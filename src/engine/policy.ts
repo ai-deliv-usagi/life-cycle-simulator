@@ -28,5 +28,19 @@ export function normalizePolicy(p: PolicyInput | Policy): Policy {
     invest: allocationOf(p.invest),
     prepay: p.prepay ?? false,
     education: p.education ?? 'public',
+    investMonthly: Math.max(0, Math.round(p.investMonthly ?? 0)),
   };
+}
+
+/**
+ * 毎月決まった額を積み立てるときの、積立・個別株・信用/仮想通貨の割合(合計1)。
+ * 配分の「預金」は使わず、残りの3つの比で分ける。どれも0なら空
+ */
+export function fixedInvestShares(p: Policy): Partial<Record<Exclude<Invest, 'deposit'>, number>> {
+  const keys = ['index', 'stocks', 'speculative'] as const;
+  const total = keys.reduce((s, k) => s + p.invest[k], 0);
+  const out: Partial<Record<Exclude<Invest, 'deposit'>, number>> = {};
+  if (total <= 0) return out;
+  for (const k of keys) if (p.invest[k] > 0) out[k] = p.invest[k] / total;
+  return out;
 }

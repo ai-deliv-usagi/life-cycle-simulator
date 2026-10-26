@@ -583,6 +583,20 @@ input[type='number'] {
   font-size: 0.75rem;
   opacity: 0.8;
 }
+/* ダークモードでは背景に溶け込むので、明るいスナックバーにする */
+@media (prefers-color-scheme: dark) {
+  .snack {
+    background: #eef0f3;
+    color: #1d1f23;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  }
+  .snack-money.up {
+    color: #1f8a4c;
+  }
+  .snack-money.down {
+    color: #c73a3a;
+  }
+}
 @keyframes snack-in {
   from {
     opacity: 0;
@@ -824,34 +838,13 @@ input[type='number'] {
   background: none;
 }
 .bar.bar-wide-label {
-  grid-template-columns: 8.5em 1fr 2.5em;
+  grid-template-columns: 8.5em 1fr 3.6em;
 }
 .weight-tag {
   margin-left: 4px;
   color: var(--accent);
 }
 
-/* 画面の上に少しだけ出す通知 */
-.toast {
-  position: fixed;
-  top: calc(8px + env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(92vw, 480px);
-  background: var(--text);
-  color: var(--surface);
-  border-radius: var(--radius);
-  padding: 10px 14px;
-  font-size: 0.9rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  z-index: 20;
-}
-.toast.toast-save {
-  width: auto;
-  padding: 6px 14px;
-  font-size: 0.8rem;
-  opacity: 0.85;
-}
 /* これから */
 .upcoming-list {
   list-style: none;
@@ -915,4 +908,20 @@ input[type='number'] {
 .stat-warning {
   margin: 4px 0 0;
   color: var(--down);
+}
+
+/* 毎月の積立額 */
+.monthly {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.monthly-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.monthly-input {
+  width: 5em;
 }

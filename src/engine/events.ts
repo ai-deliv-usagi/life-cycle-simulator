@@ -12,6 +12,7 @@ import type { Rng } from './rng';
 import type {
   Choice,
   Effects,
+  LuxuryItem,
   EventConditions,
   EventDef,
   Flags,
@@ -100,6 +101,7 @@ function modApplies(mod: ProbMod, state: GameState): boolean {
   if ('work' in mod) return isEmployed(state) && mod.work.includes(state.policy.work);
   if ('healthCare' in mod) return mod.healthCare.includes(state.policy.health);
   if ('spending' in mod) return mod.spending.includes(state.policy.spending);
+  if ('financial' in mod) return inRange(financialAssets(state.assets), mod.above, mod.below);
   if ('partnerYears' in mod) {
     const since = state.flags.partnerSince;
     return state.flags.partner === true && typeof since === 'number' && inRange((state.month - since) / 12, mod.above, mod.below);
@@ -157,8 +159,29 @@ export function drawEvent(state: GameState, rng: Rng, data: GameData = defaultDa
   return rng.weighted(hits);
 }
 
-/** scaleBySpending のイベントは、出費(cash・debt)を支出の方針で増減する */
-function scaled(ev: EventDef, effects: Effects, state: GameState, data: GameData): Effects {
+/** 高級品の値段。金融資産が多いほど、支出の方針がゆとり・浪費ほど高いものを選ぶ */
+export function luxuryPrice(item: LuxuryItem, state: GameState, data: GameData = defaultData): number {
+  const cfg = data.balance.luxury;
+  const c = cfg[item];
+  const want = Math.max(0, financialAssets(state.assets)) * c.share * data.balance.events.spendingCostMul[state.policy.spending];
+  return Math.round(clamp(want, c.min, c.max) / cfg.priceStep) * cfg.priceStep;
+}
+
+/** 高級品(luxury)を、現金・ローン・リボの出費に置き換える */
+function resolveLuxury(effects: Effects, state: GameState, data: GameData): Effects {
+  if (!effects.luxury) return effects;
+  const { item, pay } = effects.luxury;
+  const price = luxuryPrice(item, state, data);
+  const rest: Effects = { ...effects };
+  delete rest.luxury;
+  if (pay === 'loan') return { ...rest, loan: { amount: price, months: data.balance.luxury[item].loanMonths } };
+  if (pay === 'revolving') return { ...rest, debt: (rest.debt ?? 0) + price };
+  return { ...rest, cash: (rest.cash ?? 0) - price };
+}
+
+/** 高級品の値段を決め、scaleBySpending のイベントは出費(cash・debt)を支出の方針で増減する */
+function scaled(ev: EventDef, raw: Effects, state: GameState, data: GameData): Effects {
+  const effects = resolveLuxury(raw, state, data);
   if (!ev.scaleBySpending) return effects;
   const mul = data.balance.events.spendingCostMul[state.policy.spending];
   return {
@@ -171,6 +194,7 @@ function scaled(ev: EventDef, effects: Effects, state: GameState, data: GameData
 export interface ChoiceCost {
   spend: number; // 今払うお金の目安(円)。確率で決まる結果(outcomes)は含めない
   borrow: number; // ローン・リボなどで借りる額
+  borrowRate?: number; // 借りる額の年利(借りないときはなし)
   homePrice?: number; // 家を買う選択肢なら、買う家の値段
 }
 
@@ -181,11 +205,13 @@ export function choiceCost(ev: EventDef, choice: Choice, state: GameState, data:
   if (e.cashMonthsOfPay && e.cashMonthsOfPay < 0) spend += roundYen(-monthlyGrossPay(state, data) * e.cashMonthsOfPay);
   if (e.startBusiness) spend += data.balance.business.capital[e.startBusiness];
   let borrow = (e.loan?.amount ?? 0) + (e.debt ?? 0);
-  if (e.buyHome === undefined) return { spend, borrow };
+  // リボ(カードローン)のほうが金利が高いので、混ざるときはそちらを出す
+  const borrowRate = e.debt ? data.balance.debtAnnualRate : e.loan ? data.balance.loan.annualRate : undefined;
+  if (e.buyHome === undefined) return borrowRate === undefined ? { spend, borrow } : { spend, borrow, borrowRate };
   const price = homePrice(state, annualGross(state, data), data);
   spend += roundYen(price * (e.buyHome + data.balance.housing.closingCost));
   borrow += roundYen(price * (1 - e.buyHome));
-  return { spend, borrow, homePrice: price };
+  return { spend, borrow, borrowRate: data.balance.housing.mortgage.annualRate, homePrice: price };
 }
 
 /** イベントを起こす。選択肢があれば pendingEvent をセットして止まる */
