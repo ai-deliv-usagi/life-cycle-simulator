@@ -6,7 +6,8 @@ import type { YearLedger } from './ledger';
 // ---- 基本の列挙 ----
 
 export type Education = 'junior_high' | 'high' | 'vocational' | 'university';
-export type JobId = 'sales' | 'office' | 'engineer' | 'parttime' | 'factory' | 'none';
+export type JobId = 'sales' | 'office' | 'engineer' | 'parttime' | 'factory' | 'owner' | 'none'; // owner = 社長(第2弾。ガチャでは出ない)
+export type BusinessScale = 'small' | 'large'; // 起業の規模: 小さく/大きく
 export type FamilyTier = 1 | 2 | 3 | 4 | 5; // 5=太い, 1=実家が借金持ち
 export type RegionId = 'metro' | 'city' | 'rural'; // 大都市/地方都市/田舎
 export type SpouseType = 'fulltime' | 'parttime' | 'homemaker'; // 共働き/扶養内パート/専業
@@ -72,6 +73,13 @@ export interface Assets {
 
 /** 投資資産ごとの元本(つぎ込んだ額)。運用成績の表示用 */
 export type InvestedPrincipal = Pick<Assets, 'index' | 'stocks' | 'speculative'>;
+
+/** 経営している会社(第2弾)。役員報酬 = salaryBase × level */
+export interface Business {
+  since: number; // 起業した月(開始からの経過月)。ここから12ヶ月ごとに決算
+  scale: BusinessScale;
+  level: number; // 業績(1で役員報酬が基準額)。決算ごとに掛け算で動く
+}
 
 /** NISAに入れられる資産(信用・仮想通貨は入れられない) */
 export type NisaKey = 'index' | 'stocks';
@@ -151,6 +159,7 @@ export interface GameState {
   assets: Assets;
   invested?: InvestedPrincipal; // 古いセーブにはないので省略可
   nisa?: NisaState; // 第2弾。古いセーブにはない(NISAの分は0)
+  business?: Business; // 第2弾。起業して会社を経営している間だけある
   ledger?: YearLedger; // 今年の収支(古いセーブにはない)
   lastLedger?: YearLedger; // 前の年の収支(年間サマリー用)
   adaptedSpending: number; // 慣れた生活水準(月額・実質)
@@ -207,6 +216,8 @@ export interface EventConditions {
   gender?: Gender; // 本人の性別(古いセーブで性別がないときは満たさない)
   childrenBelow?: number; // 子どもの人数がこれ未満
   childAge?: [number, number]; // 子どもの誰かがこの年齢(歳、両端を含む)
+  hasBusiness?: boolean; // 会社を経営しているか
+  minBusinessLevel?: number; // 会社の業績がこれ以上
 }
 
 export type ProbMod =
@@ -240,6 +251,12 @@ export interface Effects {
   debt?: number;
   /** 子どもが生まれる */
   addChild?: boolean;
+  /** 起業する(元手を現金から払い、社長になる) */
+  startBusiness?: BusinessScale;
+  /** 会社の業績に掛ける */
+  businessLevel?: number;
+  /** 会社を売る(会社の価値を受け取り、無職になる) */
+  sellBusiness?: boolean;
 }
 
 export interface Outcome {
@@ -433,8 +450,27 @@ export interface Balance {
   result: { netWorthLine: number; happinessLine: number };
   children: ChildrenBalance;
   gender: { femaleProb: number };
+  business: BusinessBalance;
   /** NISAの枠(円)と、特定口座の利益にかかる税率 */
   nisa: { tsumitateAnnual: number; growthAnnual: number; lifetimeTotal: number; lifetimeGrowth: number; taxRate: number };
+}
+
+/** 起業(第2弾)。金額は円(役員報酬は月額・額面) */
+export interface BusinessBalance {
+  label: string;
+  capital: Record<BusinessScale, number>; // 元手
+  salaryBase: Record<BusinessScale, number>; // level 1 のときの役員報酬
+  salaryMin: number;
+  salaryMax: number;
+  startLevel: number;
+  failLevel: number; // 決算でこれを下回ると廃業
+  breakEvenLevel: number; // 会社の価値が出始める業績
+  maxLevel: number;
+  closeCost: Record<BusinessScale, number>; // 廃業の整理費用(借入の返済など)
+  valuationMonths: number; // 会社の価値 = 基準の役員報酬 × (level − breakEvenLevel) × この月数
+  successionShare: number; // 65歳で事業承継するとき受け取る割合
+  /** 決算の伸び(対数・年率) ~ N(mu + 補正, sigma) */
+  review: { mu: number; sigma: number; skillMul: number; luckMul: number; work: Record<WorkStyle, number>; recession: number };
 }
 
 /** 子ども(第2弾)。金額は1人あたりの月額 */

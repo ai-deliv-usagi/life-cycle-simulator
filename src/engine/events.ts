@@ -4,6 +4,7 @@ import { defaultData } from '../data/index';
 import { addChild, afterGivingBirth, childAgeMonths, childrenOf } from './children';
 import { baseAnnualMortality, genderFactor } from './death';
 import { scaleNisaPrincipal } from './nisa';
+import { businessValue, hasBusiness, startBusiness } from './business';
 import { recordEventCash } from './ledger';
 import { changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
@@ -72,6 +73,8 @@ export function conditionsMet(cond: EventConditions | undefined, state: GameStat
   if (cond.jobIn && !cond.jobIn.includes(state.character.job)) return false;
   const c = state.character;
   if (cond.gender && c.gender !== cond.gender) return false;
+  if (cond.hasBusiness !== undefined && hasBusiness(state) !== cond.hasBusiness) return false;
+  if (cond.minBusinessLevel !== undefined && (state.business?.level ?? 0) < cond.minBusinessLevel) return false;
   if (cond.spouseType && !(c.married && c.spouse && cond.spouseType.includes(c.spouse))) return false;
   if (cond.childrenBelow !== undefined && childrenOf(state).length >= cond.childrenBelow) return false;
   if (cond.childAge) {
@@ -111,7 +114,7 @@ export function eventProb(ev: EventDef, state: GameState, data: GameData = defau
   let p = ev.baseProb;
   if (ev.probFrom === 'layoffRate') {
     const job = state.character.job;
-    p = job === 'none' ? 0 : findById(data.jobs, job, 'job').layoffRate;
+    p = job === 'none' || job === 'owner' ? 0 : findById(data.jobs, job, 'job').layoffRate;
   }
   if (ev.probFrom === 'spouseMortality') {
     // 配偶者は本人と同い年の異性とみなす(性別のない古いセーブは男女の平均)
@@ -217,6 +220,8 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
       }
     }
   }
+  if (effects.startBusiness) a.cash -= data.balance.business.capital[effects.startBusiness];
+  if (effects.sellBusiness && state.business) a.cash += businessValue(state, data);
   if (effects.inheritance) {
     const family = data.family.find((f) => f.tier === state.character.familyTier);
     a.cash += family?.inheritance ?? 0;
@@ -227,6 +232,12 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   if (effects.debt) a.debt += effects.debt;
   if (effects.addChild) addChild(state, rng, data);
   if (effects.job) changeJob(state, pickJob(state, effects.job, rng, data), data);
+  if (effects.startBusiness) {
+    changeJob(state, 'owner', data); // 前の会社の退職金を受け取る
+    startBusiness(state, effects.startBusiness, data);
+  }
+  if (effects.sellBusiness && state.business) changeJob(state, 'none', data); // 会社を売ったら無職(失業給付なし)
+  if (effects.businessLevel && state.business) state.business.level *= effects.businessLevel;
   for (const [key, delta] of Object.entries(effects.stats ?? {}) as [keyof Stats, number][]) {
     state.stats[key] = clampStat(state.stats[key] + delta);
   }

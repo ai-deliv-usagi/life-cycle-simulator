@@ -3,6 +3,7 @@
 // calc 系の関数は state を読むだけ。apply 系の関数は stepMonth が複製した state を直接更新する
 // (stepMonth の外から呼ぶときは呼び出し側で複製すること)。
 import { defaultData } from '../data/index';
+import { businessValue, endBusiness, ownerJob, ownerSalary } from './business';
 import { childAllowance, childCost, parentalLeaveRate } from './children';
 import { recordSeverance } from './ledger';
 import { buyInvestment, resetNisaYear, sellForCash } from './nisa';
@@ -13,6 +14,7 @@ import { addLog, ageYears, annuityPayment, clamp, clampStat, findById, roundYen 
 // ---- 参照 ----
 
 function jobDef(job: JobId, data: GameData): JobDef | null {
+  if (job === 'owner') return ownerJob(data);
   return job === 'none' ? null : findById(data.jobs, job, 'job');
 }
 
@@ -44,6 +46,7 @@ export function isRehired(state: GameState): boolean {
 export function annualGross(state: GameState, data: GameData = defaultData): number {
   const job = jobDef(state.character.job, data);
   if (!job || state.character.retired) return 0;
+  if (job.id === 'owner') return ownerSalary(state, data) * 12; // 社長は会社の業績で決まる役員報酬
   const { balance } = data;
   const edu = findById(data.education, state.character.education, 'education');
   const age = ageYears(state);
@@ -546,11 +549,18 @@ export function declareBankruptcy(state: GameState, data: GameData = defaultData
 
 // ---- 退職・転職 ----
 
-/** 65歳の退職。退職金を受け取る */
+/** 65歳の退職。退職金を受け取る。社長は会社を事業承継して、会社の価値の一部を受け取る */
 export function retire(state: GameState, data: GameData = defaultData): void {
   const severance = severancePay(state, data);
   state.assets.cash += severance;
   recordSeverance(state, severance);
+  if (state.business) {
+    const price = roundYen(businessValue(state, data) * data.balance.business.successionShare);
+    state.assets.cash += price;
+    recordSeverance(state, price);
+    endBusiness(state);
+    addLog(state, 'event', `事業承継: 会社を後継者に引き継ぎ、${Math.round(price / 10_000).toLocaleString('ja-JP')}万円を受け取った`, 'business_succession');
+  }
   state.character.retired = true;
   state.character.jobYears = 0;
   state.flags.unemploymentBenefit = 0;
@@ -563,13 +573,16 @@ export function retire(state: GameState, data: GameData = defaultData): void {
 export function changeJob(state: GameState, newJob: JobId, data: GameData = defaultData): void {
   const c = state.character;
   if (newJob === c.job) return;
+  const wasOwner = c.job === 'owner';
+  if (wasOwner) endBusiness(state); // 社長を辞める = 会社をたたむ
   const severance = severancePay(state, data);
   state.assets.cash += severance;
   recordSeverance(state, severance);
-  if (c.job !== 'none') c.previousJob = c.job;
+  if (c.job !== 'none' && c.job !== 'owner') c.previousJob = c.job; // 再就職で「前職に戻る」のは会社員の仕事
   c.job = newJob;
   c.jobYears = 0;
   state.flags.payMul = 1;
   state.flags.rank = 0; // 役職は転職でリセット
-  state.flags.unemploymentBenefit = newJob === 'none' ? data.balance.unemployment.months : 0;
+  // 自営業(社長)には失業給付がない
+  state.flags.unemploymentBenefit = newJob === 'none' && !wasOwner ? data.balance.unemployment.months : 0;
 }
