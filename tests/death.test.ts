@@ -28,6 +28,20 @@ describe('死亡率', () => {
     expect(healthFactor(0)).toBeCloseTo(2 ** (50 / 15));
   });
 
+  it('85歳を過ぎると死亡率の上がり方が急になる(100歳で約2.5倍)', () => {
+    expect(baseAnnualMortality(85)).toBeCloseTo(a * Math.exp(0.085 * 65), 8);
+    expect(baseAnnualMortality(100)).toBeCloseTo(a * Math.exp(0.085 * 80) * Math.exp(0.06 * 15), 8);
+    expect(baseAnnualMortality(100) * defaultData.balance.death.genderMul.female).toBeGreaterThan(0.2);
+  });
+
+  it('健康が良いことで死亡率が下がる効果は、80歳から15年かけてなくなる。健康が悪いことの害はそのまま', () => {
+    const good = healthFactor(100);
+    expect(healthFactor(100, defaultData, 80)).toBeCloseTo(good);
+    expect(healthFactor(100, defaultData, 87.5)).toBeCloseTo(1 - (1 - good) / 2);
+    expect(healthFactor(100, defaultData, 95)).toBe(1);
+    expect(healthFactor(0, defaultData, 95)).toBeCloseTo(2 ** (50 / 15));
+  });
+
   it('行動補正: 残業多め1.15、激務1.5、ストレス70以上でさらに1.2。退職後は働き方の補正なし', () => {
     expect(behaviorFactor(makeState({}, { work: 'normal' }))).toBe(1);
     expect(behaviorFactor(makeState({}, { work: 'overtime' }))).toBeCloseTo(1.15);

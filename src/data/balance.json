@@ -177,8 +177,12 @@
     "a": 0.00014,
     "b": 0.085,
     "ageOffset": 20,
+    "oldAgeFrom": 85,
+    "oldAgeSlope": 0.06,
     "healthPivot": 50,
     "healthScale": 15,
+    "healthFadeFrom": 80,
+    "healthFadeYears": 15,
     "highStressMul": 1.2,
     "genderMul": {
       "male": 1.4,
