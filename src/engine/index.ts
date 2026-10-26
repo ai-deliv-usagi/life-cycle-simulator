@@ -8,5 +8,5 @@ export { createGame, rollCharacter } from './setup';
 export type { MonthlyIncome } from './money';
 export { emptyLedger, ledgerTotals, type ExpenseKey, type IncomeKey, type YearLedger } from './ledger';
 export { allocationOf, INVEST_KEYS, normalizePolicy } from './policy';
-export { allocationLabel, changePolicy, getMonthlyView, isYearEnd, POLICY_LABELS, resolveChoice, stepMonth, type MonthlyView } from './step';
+export { allocationLabel, changePolicy, sellAsset, type InvestKey, getMonthlyView, isYearEnd, POLICY_LABELS, resolveChoice, stepMonth, type MonthlyView } from './step';
 export type * from './types';

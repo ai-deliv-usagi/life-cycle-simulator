@@ -1,7 +1,7 @@
 // イベント・選択結果・年間サマリー・方針変更のモーダル
-import { availableChoices, gameData, getMonthlyView, ledgerTotals, type GameState, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
+import { availableChoices, gameData, getMonthlyView, ledgerTotals, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
 import { assetMixChart, assetMixPoints } from '../charts';
-import { h, openModal } from '../dom';
+import { append, clear, h, openModal } from '../dom';
 import { ageMonthLabel, calendarMonth, healthWord, manYen, signedManYen, signedPercent } from '../format';
 import { balanceSheet, ledgerTable, liabilitiesAndNet, monthIncomeTable, yearIncomeTable } from '../finance';
 import { policyForm } from '../policyForm';
@@ -191,20 +191,88 @@ export function policyModal(current: Policy): Promise<Policy | null> {
   });
 }
 
-/** 金融資産の内訳と運用成績 */
-export function assetsModal(state: GameState): Promise<void> {
+/** 金融資産の内訳と運用成績。onSell があれば投資を売れる(売ったあとの state を返す) */
+export function assetsModal(initial: GameState, onSell?: (key: InvestKey, amount: number) => GameState): Promise<void> {
+  return new Promise((resolve) => {
+    let close = () => {};
+    let destroyChart = () => {};
+    const body = h('div', { class: 'assets-modal' });
+
+    const render = (state: GameState) => {
+      destroyChart();
+      clear(body);
+      const mix = assetsContent(state, body, onSell ? (key, amount) => render(onSell(key, amount)) : undefined, () => close());
+      destroyChart = mix.draw();
+    };
+
+    close = openModal(body, {
+      dismissible: true,
+      onClose: () => {
+        destroyChart();
+        resolve(); // 外側をクリックして閉じたときも再開できるように
+      },
+    });
+    render(initial);
+  });
+}
+
+const INVEST_ROWS: { key: InvestKey; label: string }[] = [
+  { key: 'index', label: '積立' },
+  { key: 'stocks', label: '個別株' },
+  { key: 'speculative', label: '信用・仮想通貨' },
+];
+
+/** 売る額を選ぶ欄(全部・半分・金額を入れる) */
+function sellForm(label: string, held: number, sell: (amount: number) => void, cancel: () => void): HTMLElement {
+  const input = h('input', { type: 'number', min: '1', step: '1', inputmode: 'numeric', 'aria-label': `${label}を売る額(万円)` });
+  const error = h('p', { class: 'down small' });
+  const byInput = () => {
+    const man = Number(input.value);
+    if (!Number.isFinite(man) || man <= 0) {
+      error.textContent = '売る額を万円で入れてください';
+      return;
+    }
+    sell(Math.min(held, man * 10_000));
+  };
+  return h(
+    'div',
+    { class: 'sell-form' },
+    h('p', { class: 'small' }, `${label}を売って預金にする(持っている額 ${manYen(held)})`),
+    h(
+      'div',
+      { class: 'sell-buttons' },
+      h('button', { class: 'btn', onclick: () => sell(held) }, '全部'),
+      h('button', { class: 'btn', onclick: () => sell(Math.round(held / 2)) }, '半分'),
+    ),
+    h(
+      'div',
+      { class: 'sell-input' },
+      input,
+      h('span', {}, '万円'),
+      h('button', { class: 'btn primary', onclick: byInput }, '売る'),
+      h('button', { class: 'btn', onclick: cancel }, 'やめる'),
+    ),
+    error,
+  );
+}
+
+function assetsContent(
+  state: GameState,
+  body: HTMLElement,
+  onSell: ((key: InvestKey, amount: number) => void) | undefined,
+  close: () => void,
+): { draw: () => () => void } {
   const a = state.assets;
   const inv = state.invested;
-  const rows: { label: string; value: number; principal?: number }[] = [
+  const rows: { label: string; value: number; principal?: number; key?: InvestKey }[] = [
     { label: '預金', value: a.cash },
-    { label: '積立', value: a.index, principal: inv?.index },
-    { label: '個別株', value: a.stocks, principal: inv?.stocks },
-    { label: '信用・仮想通貨', value: a.speculative, principal: inv?.speculative },
+    ...INVEST_ROWS.map((r) => ({ label: r.label, value: a[r.key], principal: inv?.[r.key], key: r.key })),
   ];
   const total = rows.reduce((s, r) => s + r.value, 0);
   const investedTotal = inv ? inv.index + inv.stocks + inv.speculative : undefined;
   const investedValue = a.index + a.stocks + a.speculative;
   const mix = assetMixSection(state);
+  const formSlot = h('div', {});
 
   const gainCell = (value: number, principal: number | undefined) => {
     if (principal === undefined) return h('td', { class: 'muted' }, '—');
@@ -218,67 +286,76 @@ export function assetsModal(state: GameState): Promise<void> {
     );
   };
 
-  return new Promise((resolve) => {
-    let close = () => {};
-    const content = h(
-      'div',
-      { class: 'assets-modal' },
-      h('h2', {}, '資産と負債'),
-      h('h3', {}, '資産'),
-      h(
-        'table',
-        { class: 'asset-table' },
-        h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, '残高'), h('th', {}, '元本'), h('th', {}, '損益'))),
-        h(
-          'tbody',
-          {},
-          ...rows.map((r) =>
-            h(
-              'tr',
-              {},
-              h('th', {}, r.label),
-              h('td', {}, manYen(r.value)),
-              h('td', { class: 'muted' }, r.principal === undefined ? '—' : manYen(r.principal)),
-              r.principal === undefined ? h('td', { class: 'muted' }, '—') : gainCell(r.value, r.principal),
-            ),
-          ),
-          h(
-            'tr',
-            { class: 'total' },
-            h('th', {}, '合計'),
-            h('td', {}, manYen(total)),
-            h('td', { class: 'muted' }, investedTotal === undefined ? '—' : manYen(investedTotal + a.cash)),
-            gainCell(investedValue, investedTotal),
-          ),
-        ),
-      ),
-      liabilitiesAndNet(state),
-      mix.el,
-      state.ledger ? h('details', { class: 'summary-details' }, h('summary', {}, '今年のここまでの収支'), ledgerTable(state.ledger)) : null,
-      inv === undefined ? h('p', { class: 'muted small' }, '古いセーブデータのため、元本と損益は表示できない。') : null,
-      h('p', { class: 'muted small' }, '元本はつぎ込んだ金額。損益は今の残高との差。'),
+  const canSell = onSell && !state.dead;
+  const sellCell = (r: (typeof rows)[number]) => {
+    if (!canSell) return null;
+    if (!r.key || r.value <= 0) return h('td', {});
+    const key = r.key;
+    return h(
+      'td',
+      {},
       h(
         'button',
         {
-          class: 'btn primary',
+          class: 'btn small-btn',
+          'aria-label': `${r.label}を売る`,
           onclick: () => {
-            close();
-            resolve();
+            clear(formSlot);
+            formSlot.appendChild(sellForm(r.label, r.value, (amount) => onSell(key, amount), () => clear(formSlot)));
+            formSlot.querySelector('input')?.focus();
           },
         },
-        '閉じる',
+        '売る',
       ),
     );
-    let destroyChart = () => {};
-    close = openModal(content, {
-      dismissible: true,
-      onClose: () => {
-        destroyChart();
-        resolve(); // 外側をクリックして閉じたときも再開できるように
-      },
-    });
-    destroyChart = mix.draw();
-  });
+  };
+
+  append(body, [
+    h('h2', {}, '資産と負債'),
+    h('h3', {}, '資産'),
+    h(
+      'table',
+      { class: 'asset-table' },
+      h(
+        'thead',
+        {},
+        h('tr', {}, h('th', {}, ''), h('th', {}, '残高'), h('th', {}, '元本'), h('th', {}, '損益'), canSell ? h('th', {}, '') : null),
+      ),
+      h(
+        'tbody',
+        {},
+        ...rows.map((r) =>
+          h(
+            'tr',
+            {},
+            h('th', {}, r.label),
+            h('td', {}, manYen(r.value)),
+            h('td', { class: 'muted' }, r.principal === undefined ? '—' : manYen(r.principal)),
+            r.principal === undefined ? h('td', { class: 'muted' }, '—') : gainCell(r.value, r.principal),
+            sellCell(r),
+          ),
+        ),
+        h(
+          'tr',
+          { class: 'total' },
+          h('th', {}, '合計'),
+          h('td', {}, manYen(total)),
+          h('td', { class: 'muted' }, investedTotal === undefined ? '—' : manYen(investedTotal + a.cash)),
+          gainCell(investedValue, investedTotal),
+          canSell ? h('td', {}) : null,
+        ),
+      ),
+    ),
+    formSlot,
+    canSell ? h('p', { class: 'muted small' }, '売った分はすぐ預金になる(税金はかからない)。毎月の積立は方針の配分どおり続く。') : null,
+    liabilitiesAndNet(state),
+    mix.el,
+    state.ledger ? h('details', { class: 'summary-details' }, h('summary', {}, '今年のここまでの収支'), ledgerTable(state.ledger)) : null,
+    inv === undefined ? h('p', { class: 'muted small' }, '古いセーブデータのため、元本と損益は表示できない。') : null,
+    h('p', { class: 'muted small' }, '元本はつぎ込んだ金額。損益は今の残高との差。'),
+    h('button', { class: 'btn primary', onclick: close }, '閉じる'),
+  ]);
+  return mix;
 }
 
 /** 今年のここまでの収入。年が明けた直後でまだ何もなければ、去年1年間の分を出す */
