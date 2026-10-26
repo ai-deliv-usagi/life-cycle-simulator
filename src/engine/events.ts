@@ -5,9 +5,9 @@ import { addChild, afterGivingBirth, childAgeMonths, childrenOf } from './childr
 import { baseAnnualMortality, genderFactor } from './death';
 import { scaleNisaPrincipal } from './nisa';
 import { businessValue, hasBusiness, startBusiness } from './business';
-import { buyHome, homePrice, ownsHome } from './housing';
+import { buyHome, homePrice, mortgageRejection, ownsHome } from './housing';
 import { recordEventCash } from './ledger';
-import { annualGross, changeEmployer, changeJob, coverWithLoan, retire, isEmployed, monthlyGrossPay, takeLoan } from './money';
+import { annualGross, changeEmployer, changeJob, coverWithLoan, loanRejection, retire, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
 import type {
   Choice,
@@ -235,10 +235,33 @@ function withMoney(state: GameState, money: number): void {
 }
 
 /** 表示する選択肢(条件を満たすもの)。index は events.json での位置 */
-export function availableChoices(ev: EventDef, state: GameState): { choice: Choice; index: number }[] {
-  return (ev.choices ?? []).flatMap((choice, index) =>
-    conditionsMet(choice.conditions, state) ? [{ choice, index }] : [],
-  );
+export function availableChoices(
+  ev: EventDef,
+  state: GameState,
+  data: GameData = defaultData,
+): { choice: Choice; index: number; blocked?: string }[] {
+  return (ev.choices ?? []).flatMap((choice, index) => {
+    if (!conditionsMet(choice.conditions, state)) return [];
+    const blocked = loanBlock(ev, choice, state, data);
+    return [blocked ? { choice, index, blocked } : { choice, index }];
+  });
+}
+
+/** 選べる選択肢(審査に通らないローンの選択肢を除く) */
+export function selectableChoices(ev: EventDef, state: GameState, data: GameData = defaultData): { choice: Choice; index: number }[] {
+  return availableChoices(ev, state, data).filter((c) => !c.blocked);
+}
+
+/** ローン・住宅ローンを組む選択肢が審査に通らないなら、その理由(選択肢は押せない) */
+function loanBlock(ev: EventDef, choice: Choice, state: GameState, data: GameData): string | null {
+  const e = scaled(ev, choice.effects ?? {}, state, data);
+  let reason: string | null = null;
+  if (e.loan) reason = loanRejection(state, e.loan.amount, e.loan.months, data);
+  if (!reason && e.buyHome !== undefined && !ownsHome(state)) {
+    const gross = annualGross(state, data);
+    reason = mortgageRejection(state, roundYen(homePrice(state, gross, data) * (1 - e.buyHome)), gross, data);
+  }
+  return reason ? `審査に通らない(${reason})` : null;
 }
 
 /** 選択肢を適用する(resolveChoice から呼ぶ) */
@@ -249,7 +272,7 @@ export function applyChoice(
   rng: Rng,
   data: GameData = defaultData,
 ): void {
-  const entry = availableChoices(ev, state).find((c) => c.index === choiceIndex);
+  const entry = selectableChoices(ev, state, data).find((c) => c.index === choiceIndex);
   if (!entry) throw new Error(`choice ${choiceIndex} is not available for ${ev.id}`);
   const { choice } = entry;
   const worthBefore = netWorth(state.assets); // 使った・得た額はログの money に残す
@@ -304,7 +327,8 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   }
   // 家の頭金と諸費用(現金で払う分)も、足りなければ下のローンでまかなう
   if (effects.buyHome !== undefined && !ownsHome(state)) buyHome(state, effects.buyHome, annualGross(state, data), data);
-  coverWithLoan(state, cashBefore - a.cash, data); // 貯金で払えない大きな出費はローンにする
+  // 貯金で払えない大きな出費はローンにする(起業の元手は収入の基準を見ない創業融資)
+  coverWithLoan(state, cashBefore - a.cash, data, { incomeCheck: !effects.startBusiness });
   // 職業の変更(退職金)より前の、イベント自体のお金の出入り。ローンにした分は、毎月の返済として支出に入る
   recordEventCash(state, a.cash - cashBefore);
   if (effects.debt) a.debt += effects.debt;

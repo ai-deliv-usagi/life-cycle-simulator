@@ -32,6 +32,9 @@ export function mortgageRejection(state: GameState, principal: number, annualGro
   if (state.stats.credit < m.minCredit || (typeof state.flags.blacklist === 'number' && state.flags.blacklist > 0)) {
     return '信用が足りない';
   }
+  // 住宅ローンは安定した収入(会社員・社長)が前提。バイトや無職では通らない
+  const job = state.character.job;
+  if (job === 'parttime' || job === 'none') return '正社員でない';
   if (principal > annualGross * m.maxIncomeMultiple) return '年収に対して借りる額が大きすぎる';
   if (mortgageMonths(state, data) < 12 * m.minYears) return '年齢的に返し終わらない';
   return null;

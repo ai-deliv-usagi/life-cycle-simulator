@@ -295,9 +295,46 @@ function loanPayment(state: GameState, data: GameData): { payment: number; princ
 }
 
 /** ローンを組む。審査(信用・ブラックリスト)に通れば true。落ちたら何もしない */
-export function takeLoan(state: GameState, amount: number, months: number, data: GameData = defaultData): boolean {
+/** incomeCheck: false は収入の基準を見ない(起業の元手。事業の計画で借りる創業融資) */
+export interface LoanOptions {
+  incomeCheck?: boolean;
+}
+
+/** ローンの審査で見る毎月の収入(額面)。働いていれば給料、引退していれば年金、それ以外は0 */
+function loanIncome(state: GameState, data: GameData): number {
+  if (isEmployed(state)) return annualGross(state, data) / 12;
+  return state.character.retired ? pensionMonthly(state, data) : 0;
+}
+
+/**
+ * ローンの審査。通らなければ理由を返す。信用と、返済負担率(ローンの毎月の返済の合計 ÷ 額面の月収)を見る。
+ * バイトは基準が厳しい。住宅ローンは別枠(mortgageRejection)
+ */
+export function loanRejection(
+  state: GameState,
+  amount: number,
+  months: number,
+  data: GameData = defaultData,
+  opts: LoanOptions = {},
+): string | null {
   const cfg = data.balance.loan;
-  if (state.stats.credit < cfg.minCredit || num(state, 'blacklist', 0) > 0) return false;
+  if (state.stats.credit < cfg.minCredit || num(state, 'blacklist', 0) > 0) return '信用が足りない';
+  if (opts.incomeCheck === false) return null;
+  const ratio = state.character.job === 'parttime' ? cfg.maxPaymentRatioParttime : cfg.maxPaymentRatio;
+  const payment = (state.character.loanPayment ?? 0) + annuityPayment(amount, cfg.annualRate, months);
+  if (payment > loanIncome(state, data) * ratio) return '収入に対して返済が大きすぎる';
+  return null;
+}
+
+export function takeLoan(
+  state: GameState,
+  amount: number,
+  months: number,
+  data: GameData = defaultData,
+  opts: LoanOptions = {},
+): boolean {
+  const cfg = data.balance.loan;
+  if (loanRejection(state, amount, months, data, opts)) return false;
   state.assets.loan = (state.assets.loan ?? 0) + amount;
   state.character.loanPayment = (state.character.loanPayment ?? 0) + annuityPayment(amount, cfg.annualRate, months);
   return true;
@@ -552,13 +589,13 @@ function manYen(yen: number): string {
  * 大きな出費(autoMinAmount 以上)で、預金と投資を合わせても足りないとき、足りない分を1万円単位でローンにする。
  * 審査に落ちたらそのまま(月末に投資を売り、それでも足りなければカードローン)
  */
-export function coverWithLoan(state: GameState, spent: number, data: GameData = defaultData): void {
+export function coverWithLoan(state: GameState, spent: number, data: GameData = defaultData, opts: LoanOptions = {}): void {
   const cfg = data.balance.loan;
   const a = state.assets;
   const short = -(a.cash + a.index + a.stocks + a.speculative);
   if (spent < cfg.autoMinAmount || short <= 0) return;
   const amount = Math.ceil(short / 10_000) * 10_000;
-  if (!takeLoan(state, amount, cfg.autoMonths, data)) return;
+  if (!takeLoan(state, amount, cfg.autoMonths, data, opts)) return;
   a.cash += amount;
   addLog(
     state,
