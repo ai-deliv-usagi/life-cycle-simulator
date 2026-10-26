@@ -1,14 +1,48 @@
-// リザルト画面
-import { computeResult, DEATH_CAUSE_LABELS, LIFE_TYPE_LABELS, type GameState } from '../../engine/index';
+// リザルト画面: 人生タイプ・数字のタイル・グラフ・人生のハイライト。すべての出来事は年代ごとに折りたたむ
+import { computeResult, DEATH_CAUSE_LABELS, LIFE_TYPE_LABELS, type GameState, type LogEntry } from '../../engine/index';
 import { resultChart } from '../charts';
 import { download, h, mount } from '../dom';
-import { ageMonthLabel, bigYen, collapseLog, educationLabel, familyLabel, jobLabel, regionLabel } from '../format';
+import {
+  ageMonthLabel,
+  bigYen,
+  byDecade,
+  collapseLog,
+  EDUCATION_ICONS,
+  educationLabel,
+  eventIcon,
+  familyLabel,
+  genderIcon,
+  JOB_ICONS,
+  jobLabel,
+  LIFE_TYPE_ICONS,
+  lifeHighlights,
+  moneyLabel,
+  REGION_ICONS,
+  regionLabel,
+} from '../format';
 import type { Nav } from '../nav';
+
+const CAUSE_ICONS: Record<string, string> = { illness: '🏥', overwork: '💼', accident: '🚑', old_age: '🕊️' };
+
+/** 年表の1行(アイコン・年齢・文・お金の増減) */
+function logRow(e: LogEntry): HTMLElement {
+  const icon = e.type === 'death' ? '🕊️' : eventIcon(e.id);
+  const money = moneyLabel(e.money);
+  return h(
+    'li',
+    { class: `log log-${e.type}` },
+    h('span', { class: 'log-age' }, ageMonthLabel(e.ageMonths, e.month)),
+    h('span', { class: 'log-text' }, icon ? `${icon} ${e.text}` : e.text),
+    money ? h('span', { class: `log-money ${e.money! > 0 ? 'up' : 'down'}` }, money) : '',
+  );
+}
 
 export function resultScreen(root: HTMLElement, nav: Nav, state: GameState): void {
   const r = computeResult(state);
   const c = state.character;
   const canvas = h('canvas', { 'aria-label': '資産と幸福度の推移' });
+  const timeline = collapseLog(r.timeline);
+  const highlights = lifeHighlights(timeline);
 
   const exportLog = () => {
     const payload = {
@@ -20,45 +54,57 @@ export function resultScreen(root: HTMLElement, nav: Nav, state: GameState): voi
     download(`life-${state.seed}.json`, JSON.stringify(payload, null, 2));
   };
 
+  const tile = (icon: string, label: string, value: string, cls = '') =>
+    h('div', { class: 'tile' }, h('span', { class: 'tile-label' }, `${icon} ${label}`), h('span', { class: `tile-value ${cls}` }, value));
+
   mount(
     root,
     h(
       'main',
       { class: 'screen result-screen' },
-      h('p', { class: 'muted' }, `${c.name}の一生`),
-      h('h1', { class: `life-type type-${r.lifeType}` }, LIFE_TYPE_LABELS[r.lifeType]),
+      h('p', { class: 'muted' }, `${genderIcon(c.gender)} ${c.name}の一生`),
+      h(
+        'h1',
+        { class: `life-type type-${r.lifeType}` },
+        h('span', { class: 'life-type-icon', 'aria-hidden': 'true' }, LIFE_TYPE_ICONS[r.lifeType] ?? ''),
+        LIFE_TYPE_LABELS[r.lifeType],
+      ),
       h(
         'section',
         { class: 'tiles' },
-        h('div', { class: 'tile' }, h('span', { class: 'tile-label' }, '享年'), h('span', { class: 'tile-value' }, `${r.ageAtDeath}歳`)),
-        h('div', { class: 'tile' }, h('span', { class: 'tile-label' }, '死因'), h('span', { class: 'tile-value' }, DEATH_CAUSE_LABELS[r.cause])),
-        h('div', { class: 'tile' }, h('span', { class: 'tile-label' }, '最終資産'), h('span', { class: `tile-value ${r.finalNetWorth < 0 ? 'down' : ''}` }, bigYen(r.finalNetWorth))),
-        h('div', { class: 'tile' }, h('span', { class: 'tile-label' }, '生涯幸福スコア'), h('span', { class: 'tile-value' }, r.lifetimeHappiness.toFixed(1))),
+        tile('⏳', '享年', `${r.ageAtDeath}歳`),
+        tile(CAUSE_ICONS[r.cause] ?? '', '死因', DEATH_CAUSE_LABELS[r.cause]),
+        tile('🏦', '最終資産', bigYen(r.finalNetWorth), r.finalNetWorth < 0 ? 'down' : ''),
+        tile('🙂', '生涯幸福スコア', r.lifetimeHappiness.toFixed(1)),
       ),
       h(
         'p',
-        { class: 'muted small' },
-        `${educationLabel(c.education)}・実家${familyLabel(c.familyTier)}・${regionLabel(c.region)}暮らし・最後の職業 ${jobLabel(c.job)}・シード ${state.seed}`,
+        { class: 'muted small result-profile' },
+        `${EDUCATION_ICONS[c.education]} ${educationLabel(c.education)} · 🏠 実家${familyLabel(c.familyTier)} · ${REGION_ICONS[c.region]} ${regionLabel(c.region)} · ${JOB_ICONS[c.job]} 最後は${jobLabel(c.job)} · シード ${state.seed}`,
       ),
-      h('section', { class: 'card chart-card' }, h('h2', {}, '資産と幸福度の推移'), h('div', { class: 'chart-box tall' }, canvas)),
+      h('section', { class: 'card chart-card' }, h('h2', {}, '📈 資産と幸福度の推移'), h('div', { class: 'chart-box tall' }, canvas)),
       h(
         'section',
         { class: 'card' },
-        h('h2', {}, '年表'),
+        h('h2', {}, '✨ 人生のハイライト'),
+        h('ol', { class: 'timeline' }, ...highlights.map(logRow)),
         h(
-          'ol',
-          { class: 'timeline' },
-          ...collapseLog(r.timeline).map((e) => h('li', { class: `log log-${e.type}` }, h('span', { class: 'log-age' }, ageMonthLabel(e.ageMonths, e.month)), e.text)),
+          'details',
+          { class: 'all-events' },
+          h('summary', {}, `すべての出来事(${timeline.length}件)`),
+          ...byDecade(timeline).map(({ decade, entries }) =>
+            h('details', { class: 'decade' }, h('summary', {}, `${decade}代(${entries.length}件)`), h('ol', { class: 'timeline' }, ...entries.map(logRow))),
+          ),
         ),
       ),
       h(
         'div',
         { class: 'actions wrap' },
-        h('button', { class: 'btn primary', onclick: () => nav.setup(state.seed + 1) }, 'もう一度'),
-        h('button', { class: 'btn', onclick: () => nav.setup(state.seed) }, '同じシードで再挑戦'),
-        h('button', { class: 'btn', onclick: exportLog }, 'ログをJSONで保存'),
-        h('button', { class: 'btn', onclick: () => nav.title() }, 'タイトルへ'),
+        h('button', { class: 'btn primary', onclick: () => nav.setup(state.seed + 1) }, '🎲 もう一度'),
+        h('button', { class: 'btn', onclick: () => nav.setup(state.seed) }, '🔁 同じシードで'),
+        h('button', { class: 'btn', onclick: () => nav.title() }, '🏠 タイトルへ'),
       ),
+      h('button', { class: 'btn link-btn small', onclick: exportLog }, 'ログをJSONで保存'),
     ),
   );
   resultChart(canvas, r.yearly);

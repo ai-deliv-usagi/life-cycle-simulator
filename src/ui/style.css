@@ -1039,3 +1039,59 @@ input[type='number'] {
   font-weight: 400;
   line-height: 1.6;
 }
+
+/* リザルト: 人生タイプのアイコン、年代ごとの出来事 */
+.life-type {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 8px;
+}
+.life-type-icon {
+  font-size: 3rem;
+  line-height: 1;
+}
+.result-profile {
+  line-height: 1.7;
+}
+.all-events {
+  margin-top: 10px;
+}
+.all-events > summary,
+.decade > summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.9rem;
+  padding: 6px 0;
+}
+.decade {
+  margin-left: 8px;
+}
+.decade > summary {
+  color: var(--text);
+}
+.result-screen .link-btn {
+  align-self: center;
+}
+/* タイトル: 過去の人生とシード */
+.history-item {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px;
+}
+.history-icon {
+  font-size: 1.6rem;
+}
+.history-main {
+  display: flex;
+  flex-direction: column;
+}
+.seed-card > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.seed-card[open] > summary {
+  margin-bottom: 8px;
+}
