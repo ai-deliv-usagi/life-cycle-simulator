@@ -2,6 +2,8 @@
 import {
   changePolicy,
   createRng,
+  sellAsset,
+  type InvestKey,
   isYearEnd,
   resolveChoice,
   stepMonth,
@@ -92,6 +94,13 @@ export class GameController {
   changePolicy(policy: Policy): void {
     this.state = changePolicy(this.state, policy);
     this.ui.render(this.state, false);
+  }
+
+  /** 投資を売って預金にする。売ったあとの state を返す */
+  sell(key: InvestKey, amount: number): GameState {
+    this.state = sellAsset(this.state, key, amount);
+    this.ui.render(this.state, false);
+    return this.state;
   }
 
   /** モーダルなど、ループの外で操作している間は止めておく */

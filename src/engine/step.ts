@@ -154,6 +154,36 @@ export function changePolicy(state: GameState, input: PolicyInput | Policy): Gam
   return s;
 }
 
+export type InvestKey = 'index' | 'stocks' | 'speculative';
+
+/**
+ * 投資を売って預金にする(好きなタイミングで。税金はかけない=NISA扱い)。
+ * amount は円。持っている額を超えたら全部売る。元本も売った割合だけ減らす。死亡後は何もしない
+ */
+export function sellAsset(state: GameState, key: InvestKey, amount: number): GameState {
+  const held = state.assets[key];
+  const sell = Math.min(held, Math.max(0, Math.round(amount)));
+  if (state.dead || sell <= 0) return state;
+  const s = cloneState(state);
+  const principal = s.invested ? s.invested[key] : undefined;
+  const soldPrincipal = principal === undefined ? undefined : Math.round((principal * sell) / held);
+  s.assets[key] -= sell;
+  s.assets.cash += sell;
+  if (s.invested && soldPrincipal !== undefined) s.invested[key] -= soldPrincipal;
+  const gain = soldPrincipal === undefined ? '' : `(損益 ${signedManYen(sell - soldPrincipal)})`;
+  addLog(s, 'policy', `売却: ${POLICY_LABELS.invest[key]}を${yenLabel(sell)}売って預金にした${gain}`, 'sell');
+  return s;
+}
+
+/** 1万円未満は円で出す */
+function yenLabel(yen: number): string {
+  return Math.abs(yen) < 10_000 ? `${yen.toLocaleString('ja-JP')}円` : manYen(yen);
+}
+
+function signedManYen(yen: number): string {
+  return `${yen >= 0 ? '+' : '−'}${yenLabel(Math.abs(yen))}`;
+}
+
 export interface MonthlyView {
   age: number;
   jobLabel: string;

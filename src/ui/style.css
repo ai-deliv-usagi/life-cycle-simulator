@@ -635,3 +635,26 @@ input[type='number'] {
 .asset-mix .chart-box {
   height: 200px;
 }
+.small-btn {
+  padding: 4px 10px;
+  font-size: 0.85em;
+}
+.sell-form {
+  margin: 8px 0 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.sell-buttons,
+.sell-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+.sell-input input {
+  width: 7em;
+  font: inherit;
+  padding: 6px 8px;
+}
