@@ -2794,6 +2794,300 @@
     }
   },
   {
+    "id": "child_wish",
+    "category": "life",
+    "title": "子どもを考える",
+    "text": "配偶者と、子どものことを話し合った。",
+    "conditions": {
+      "ageMin": 23,
+      "ageMax": 42,
+      "flags": {
+        "married": true,
+        "trying": false,
+        "pregnant": 0
+      },
+      "childrenBelow": 3
+    },
+    "baseProb": 0.03,
+    "cooldownMonths": 12,
+    "probMods": [
+      {
+        "value": "relation",
+        "below": 0,
+        "mul": 1.3
+      }
+    ],
+    "choices": [
+      {
+        "label": "子どもがほしい",
+        "effects": {
+          "setFlags": {
+            "trying": true
+          }
+        },
+        "valueShift": {
+          "relation": -0.1
+        }
+      },
+      {
+        "label": "今はまだ",
+        "valueShift": {
+          "relation": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "pregnancy",
+    "category": "life",
+    "title": "妊娠",
+    "text": "妊娠がわかった。",
+    "good": true,
+    "conditions": {
+      "ageMax": 45,
+      "flags": {
+        "married": true,
+        "trying": true
+      }
+    },
+    "baseProb": 0.12,
+    "probMods": [
+      {
+        "age": true,
+        "above": 35,
+        "mul": 0.5
+      },
+      {
+        "age": true,
+        "above": 40,
+        "mul": 0.4
+      },
+      {
+        "flag": "fertilityCare",
+        "above": 0,
+        "mul": 2.5
+      }
+    ],
+    "effects": {
+      "setFlags": {
+        "trying": false,
+        "pregnant": 10,
+        "fertilityCare": 0
+      },
+      "stats": {
+        "stress": 3
+      }
+    }
+  },
+  {
+    "id": "fertility_treatment",
+    "category": "health",
+    "title": "不妊治療",
+    "text": "なかなか子どもができない。病院で不妊治療を勧められた。",
+    "conditions": {
+      "ageMin": 32,
+      "ageMax": 45,
+      "flags": {
+        "married": true,
+        "trying": true
+      }
+    },
+    "baseProb": 0.015,
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "治療を受ける",
+        "effects": {
+          "cash": -500000,
+          "stats": {
+            "stress": 10
+          },
+          "setFlags": {
+            "fertilityCare": 12
+          }
+        }
+      },
+      {
+        "label": "自然に任せる"
+      },
+      {
+        "label": "子どもはあきらめる",
+        "effects": {
+          "setFlags": {
+            "trying": false
+          },
+          "stats": {
+            "stress": 10,
+            "relations": -3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "child_sick",
+    "category": "health",
+    "title": "子どもの発熱",
+    "text": "保育園から「お子さんが熱を出しました」と電話がかかってきた。",
+    "conditions": {
+      "childAge": [
+        0,
+        8
+      ]
+    },
+    "baseProb": 0.01,
+    "good": false,
+    "cooldownMonths": 6,
+    "choices": [
+      {
+        "label": "仕事を休んで迎えに行く",
+        "effects": {
+          "stats": {
+            "stress": 3,
+            "relations": 2
+          }
+        }
+      },
+      {
+        "label": "病児保育を頼む",
+        "effects": {
+          "cash": -20000,
+          "stats": {
+            "stress": 5
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "rebellion",
+    "category": "life",
+    "title": "子どもの反抗期",
+    "text": "子どもが口をきいてくれなくなった。",
+    "conditions": {
+      "childAge": [
+        13,
+        17
+      ]
+    },
+    "baseProb": 0.01,
+    "cooldownMonths": 36,
+    "choices": [
+      {
+        "label": "そっと見守る",
+        "effects": {
+          "stats": {
+            "stress": 5
+          }
+        }
+      },
+      {
+        "label": "とことん向き合う",
+        "effects": {
+          "stats": {
+            "stress": 8,
+            "relations": 4
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "child_exam",
+    "category": "life",
+    "title": "子どもの受験",
+    "text": "子どもの受験が近づいてきた。塾の夏期講習を勧められた。",
+    "conditions": {
+      "childAge": [
+        14,
+        17
+      ]
+    },
+    "baseProb": 0.008,
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "夏期講習に通わせる",
+        "effects": {
+          "cash": -200000,
+          "stats": {
+            "relations": 2
+          },
+          "achievement": 2
+        }
+      },
+      {
+        "label": "自分の力でがんばらせる",
+        "effects": {
+          "stats": {
+            "stress": 3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "child_wedding",
+    "category": "life",
+    "title": "子どもの結婚",
+    "text": "子どもが結婚することになった。",
+    "conditions": {
+      "childAge": [
+        26,
+        35
+      ]
+    },
+    "baseProb": 0.01,
+    "good": true,
+    "cooldownMonths": 60,
+    "choices": [
+      {
+        "label": "結婚資金を援助する(100万円)",
+        "effects": {
+          "cash": -1000000,
+          "stats": {
+            "relations": 6,
+            "stress": -3
+          },
+          "achievement": 5
+        }
+      },
+      {
+        "label": "お祝いだけ渡す(10万円)",
+        "effects": {
+          "cash": -100000,
+          "stats": {
+            "relations": 3
+          },
+          "achievement": 3
+        }
+      }
+    ]
+  },
+  {
+    "id": "grandchild",
+    "category": "life",
+    "title": "孫が生まれる",
+    "text": "孫が生まれた。",
+    "good": true,
+    "conditions": {
+      "childAge": [
+        27,
+        45
+      ]
+    },
+    "baseProb": 0.008,
+    "cooldownMonths": 36,
+    "effects": {
+      "cash": -50000,
+      "stats": {
+        "relations": 6,
+        "stress": -5
+      },
+      "achievement": 5
+    }
+  },
+  {
     "id": "silver_job",
     "category": "career",
     "title": "シルバー人材センター",
@@ -3072,6 +3366,76 @@
           "stats": {
             "stress": -8
           }
+        }
+      }
+    ]
+  },
+  {
+    "id": "birth",
+    "category": "system",
+    "title": "出産",
+    "text": "子どもが生まれた。育休をどうするか決めよう。",
+    "conditions": {
+      "flags": {
+        "pregnant": 1
+      }
+    },
+    "baseProb": 1,
+    "choices": [
+      {
+        "label": "自分が育休を取る(1年)",
+        "effects": {
+          "addChild": true,
+          "cash": -100000,
+          "stats": {
+            "relations": 5,
+            "stress": 5
+          },
+          "achievement": 10,
+          "setFlags": {
+            "parentalLeave": 12
+          }
+        },
+        "conditions": {
+          "employed": true
+        },
+        "valueShift": {
+          "relation": -0.1
+        }
+      },
+      {
+        "label": "配偶者が育休を取る(1年)",
+        "effects": {
+          "addChild": true,
+          "cash": -100000,
+          "stats": {
+            "relations": 5,
+            "stress": 5
+          },
+          "achievement": 10,
+          "setFlags": {
+            "spouseLeave": 12
+          }
+        },
+        "conditions": {
+          "spouseType": [
+            "fulltime"
+          ]
+        }
+      },
+      {
+        "label": "育休は取らない",
+        "effects": {
+          "addChild": true,
+          "cash": -100000,
+          "stats": {
+            "relations": 5,
+            "stress": 5
+          },
+          "achievement": 10
+        },
+        "valueShift": {
+          "work": 0.1
         }
       }
     ]

@@ -57,6 +57,7 @@ function randomPolicy(rng: Rng, fixed: Options['policy']): Policy {
     invest: { ...rng.pick(ALLOCATIONS) },
     prepay: rng.chance(0.3),
     health: rng.pick(CARES),
+    education: rng.chance(0.25) ? 'private' : 'public',
   };
 }
 

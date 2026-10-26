@@ -19,8 +19,8 @@ export interface YearLedger {
 
 export function emptyLedger(): YearLedger {
   return {
-    income: { salary: 0, bonus: 0, pension: 0, unemployment: 0, spouse: 0, family: 0, severance: 0 },
-    expenses: { living: 0, car: 0, health: 0, remittance: 0, parentSupport: 0, studentLoan: 0, loan: 0 },
+    income: { salary: 0, bonus: 0, pension: 0, unemployment: 0, spouse: 0, family: 0, childAllowance: 0, parentalLeave: 0, severance: 0 },
+    expenses: { living: 0, car: 0, health: 0, remittance: 0, parentSupport: 0, studentLoan: 0, loan: 0, children: 0 },
     debtInterest: 0,
     eventIn: 0,
     eventOut: 0,
@@ -56,7 +56,9 @@ export function recordMonth(state: GameState, m: MonthMoney): void {
   for (const k of Object.keys(m.income) as (keyof MonthlyIncome)[]) {
     if (k !== 'total') l.income[k] = (l.income[k] ?? 0) + m.income[k];
   }
-  for (const k of Object.keys(l.expenses) as ExpenseKey[]) l.expenses[k] += m.expenses[k];
+  for (const k of Object.keys(m.expenses) as (keyof MonthlyExpenses)[]) {
+    if (k !== 'total') l.expenses[k] = (l.expenses[k] ?? 0) + m.expenses[k]; // 古いセーブの ledger にないキーもある
+  }
   l.debtInterest += m.debtInterest;
   l.invested += m.invested;
   l.prepaid += m.prepaid;

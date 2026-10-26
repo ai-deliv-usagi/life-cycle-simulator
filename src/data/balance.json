@@ -252,6 +252,10 @@
     "unemploymentBenefit": {},
     "blacklist": {},
     "rehire": {},
+    "pregnant": {},
+    "parentalLeave": {},
+    "spouseLeave": {},
+    "fertilityCare": {},
     "illnessTreated": {
       "deathMonthly": 0.001,
       "health": 0
@@ -323,5 +327,79 @@
       12
     ],
     "startCalendarMonth": 4
+  },
+  "children": {
+    "max": 3,
+    "universityProb": 0.6,
+    "livingOffset": 0.5,
+    "stages": [
+      {
+        "until": 6,
+        "label": "未就学",
+        "living": 40000,
+        "education": {
+          "public": 15000,
+          "private": 15000
+        }
+      },
+      {
+        "until": 12,
+        "label": "小学生",
+        "living": 50000,
+        "education": {
+          "public": 28000,
+          "private": 28000
+        }
+      },
+      {
+        "until": 15,
+        "label": "中学生",
+        "living": 60000,
+        "education": {
+          "public": 45000,
+          "private": 120000
+        }
+      },
+      {
+        "until": 18,
+        "label": "高校生",
+        "living": 60000,
+        "education": {
+          "public": 42000,
+          "private": 88000
+        }
+      },
+      {
+        "until": 22,
+        "label": "大学生",
+        "living": 30000,
+        "education": {
+          "public": 50000,
+          "private": 100000
+        }
+      }
+    ],
+    "allowance": {
+      "under3": 15000,
+      "school": 10000,
+      "third": 30000,
+      "until": 18
+    },
+    "parentalLeave": {
+      "months": 12,
+      "firstMonths": 6,
+      "firstRate": 0.67,
+      "laterRate": 0.5,
+      "spouseFirstRate": 0.84,
+      "spouseLaterRate": 0.63
+    },
+    "happiness": {
+      "relationsPerChild": 6,
+      "relationsMax": 12,
+      "youngUntil": 12,
+      "freeTimePerYoung": -8,
+      "babyUntil": 6,
+      "stressPerBaby": 0.2
+    }
   }
 }

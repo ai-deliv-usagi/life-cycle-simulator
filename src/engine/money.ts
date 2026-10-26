@@ -3,6 +3,7 @@
 // calc 系の関数は state を読むだけ。apply 系の関数は stepMonth が複製した state を直接更新する
 // (stepMonth の外から呼ぶときは呼び出し側で複製すること)。
 import { defaultData } from '../data/index';
+import { childAllowance, childCost, parentalLeaveRate } from './children';
 import { recordSeverance } from './ledger';
 import type { Rng } from './rng';
 import type { GameData, GameState, JobDef, JobId, RegionDef } from './types';
@@ -131,6 +132,8 @@ export interface MonthlyIncome {
   unemployment: number; // 失業給付
   spouse: number; // 配偶者の手取り + 配偶者控除による本人の手取り増
   family: number; // 実家からの仕送り
+  childAllowance: number; // 児童手当
+  parentalLeave: number; // 本人の育休手当(非課税)
   total: number;
 }
 
@@ -144,8 +147,15 @@ export function calcIncome(state: GameState, data: GameData = defaultData): Mont
     annual = monthly * 12;
   }
   const rate = takeHomeRate(annual, data);
-  const salary = roundYen(monthly * rate);
-  const bonus = roundYen(bonusGross(state, data) * rate);
+  let salary = roundYen(monthly * rate);
+  let bonus = roundYen(bonusGross(state, data) * rate);
+  // 育休中は給与とボーナスが止まり、額面月給の一定割合を非課税で受け取る
+  const leaveRate = isEmployed(state) ? parentalLeaveRate(num(state, 'parentalLeave', 0), false, data) : null;
+  const parentalLeave = leaveRate === null ? 0 : roundYen(monthly * leaveRate);
+  if (leaveRate !== null) {
+    salary = 0;
+    bonus = 0;
+  }
   const pension = c.retired ? roundYen(pensionMonthly(state, data) * balance.takeHome.pension) : 0;
   const unemployment =
     num(state, 'unemploymentBenefit', 0) > 0 ? roundYen(c.lastMonthlyPay * balance.unemployment.payRate) : 0;
@@ -154,12 +164,25 @@ export function calcIncome(state: GameState, data: GameData = defaultData): Mont
   if (c.married && c.spouse && ageYears(state) < balance.pension.retireAge) {
     const t = balance.spouse.types[c.spouse];
     spouse = t.monthlyNet + (salary > 0 ? t.taxBenefit : 0); // 控除は本人に給与があるときだけ
+    const spouseLeave = parentalLeaveRate(num(state, 'spouseLeave', 0), true, data);
+    if (spouseLeave !== null) spouse = roundYen(t.monthlyNet * spouseLeave);
   }
 
   const transfer = findFamily(state, data).monthlyTransfer;
   const family = transfer > 0 && bool(state, 'parentAlive') ? transfer : 0;
 
-  return { salary, bonus, pension, unemployment, spouse, family, total: salary + bonus + pension + unemployment + spouse + family };
+  const allowance = childAllowance(state, data);
+  return {
+    salary,
+    bonus,
+    pension,
+    unemployment,
+    spouse,
+    family,
+    childAllowance: allowance,
+    parentalLeave,
+    total: salary + bonus + pension + unemployment + spouse + family + allowance + parentalLeave,
+  };
 }
 
 // ---- 支出 ----
@@ -189,6 +212,7 @@ function obligations(state: GameState, data: GameData, welfare: boolean) {
     parentSupport: num(state, 'parentSupport', 0) > 0 ? balance.timers.parentSupport.monthlyCost : 0,
     studentLoan: studentLoanPayment(state).payment,
     loan: loanPayment(state, data).payment,
+    children: childCost(state, data),
   };
 }
 
@@ -203,7 +227,9 @@ function livingNominal(state: GameState, data: GameData, welfare: boolean): numb
   const l = data.balance.living;
   const fixed = (state.character.married ? l.married : l.single) * regionDef(state, data).livingMul;
   const o = obligations(state, data, welfare);
-  const committed = o.car + o.health + o.remittance + o.parentSupport + o.studentLoan + o.loan;
+  // 子どもの費用は一部だけ親の生活費を削ってまかない、残りは貯金が減る
+  const committed =
+    o.car + o.health + o.remittance + o.parentSupport + o.studentLoan + o.loan + o.children * data.balance.children.livingOffset;
   // 毎月の生活費は月々の収入で決める。ボーナス月はボーナスの一部を使う(残りは貯まる)
   const inc = calcIncome(state, data);
   const disposable = Math.max(0, inc.total - inc.bonus - committed);
@@ -278,6 +304,7 @@ export interface MonthlyExpenses {
   parentSupport: number; // 親の病気の仕送り
   studentLoan: number;
   loan: number;
+  children: number; // 子どもの生活費と教育費
   total: number;
 }
 
@@ -288,7 +315,7 @@ export function calcExpenses(
 ): MonthlyExpenses {
   // 地域の生活費係数は最低限の生活費(主に家賃)にだけ掛ける。収入に応じた分は、地域の給料の差にすでに含まれている
   const living = roundYen(livingNominal(state, data, welfare) * num(state, 'priceLevel', 1));
-  const { car, health, remittance, parentSupport, studentLoan, loan } = obligations(state, data, welfare);
+  const { car, health, remittance, parentSupport, studentLoan, loan, children } = obligations(state, data, welfare);
   return {
     living,
     car,
@@ -297,7 +324,8 @@ export function calcExpenses(
     parentSupport,
     studentLoan,
     loan,
-    total: living + car + health + remittance + parentSupport + studentLoan + loan,
+    children,
+    total: living + car + health + remittance + parentSupport + studentLoan + loan + children,
   };
 }
 

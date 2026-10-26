@@ -1,6 +1,7 @@
 // イベントの条件判定・確率・抽選・効果適用(SPEC.md「イベント」、DESIGN.md §7)
 // stepMonth / resolveChoice が複製した state を直接更新する。
 import { defaultData } from '../data/index';
+import { addChild, childAgeMonths, childrenOf } from './children';
 import { baseAnnualMortality } from './death';
 import { recordEventCash } from './ledger';
 import { changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
@@ -67,6 +68,13 @@ export function conditionsMet(cond: EventConditions | undefined, state: GameStat
   if (cond.region && !cond.region.includes(state.character.region)) return false;
   if (cond.jobNotIn?.includes(state.character.job)) return false;
   if (cond.jobIn && !cond.jobIn.includes(state.character.job)) return false;
+  const c = state.character;
+  if (cond.spouseType && !(c.married && c.spouse && cond.spouseType.includes(c.spouse))) return false;
+  if (cond.childrenBelow !== undefined && childrenOf(state).length >= cond.childrenBelow) return false;
+  if (cond.childAge) {
+    const [min, max] = cond.childAge;
+    if (!childrenOf(state).some((ch) => inRange(childAgeMonths(state, ch) / 12, min - 1e-9, max + 1))) return false;
+  }
   return true;
 }
 
@@ -124,6 +132,9 @@ export function drawEvent(state: GameState, rng: Rng, data: GameData = defaultDa
   }
   if (hits.length === 0) return null;
   if (hits.length === 1) return hits[0]!.item;
+  // 確率1のイベント(出産・再雇用の話など)は、ほかのイベントに埋もれないよう先に起こす
+  const forced = hits.filter((h) => h.weight >= 1);
+  if (forced.length > 0) return rng.weighted(forced);
   return rng.weighted(hits);
 }
 
@@ -205,6 +216,7 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   // 職業の変更(退職金)より前の、イベント自体のお金の出入り。ローンにした分は、毎月の返済として支出に入る
   recordEventCash(state, a.cash - cashBefore);
   if (effects.debt) a.debt += effects.debt;
+  if (effects.addChild) addChild(state, rng, data);
   if (effects.job) changeJob(state, pickJob(state, effects.job, rng, data), data);
   for (const [key, delta] of Object.entries(effects.stats ?? {}) as [keyof Stats, number][]) {
     state.stats[key] = clampStat(state.stats[key] + delta);

@@ -1,5 +1,6 @@
 // 1ヶ月を進める(SPEC.md「月次処理の順序」、DESIGN.md §4)。計算は各モジュールに任せ、ここは順番だけを持つ。
 import { defaultData } from '../data/index';
+import { logIndependence } from './children';
 import { rollDeath } from './death';
 import { applyChoice, drawEvent, fireEvent } from './events';
 import { cloneLedger, closeYear, recordMonth } from './ledger';
@@ -17,6 +18,7 @@ export const POLICY_LABELS = {
   spending: { frugal: '節約', normal: '普通', comfort: 'ゆとり', lavish: '浪費' },
   invest: { deposit: '預金', index: '積立', stocks: '個別株', speculative: '信用・仮想通貨' },
   health: { ignore: '気にしない', normal: '普通', active: '意識高め' },
+  education: { public: '公立中心', private: '私立中心' },
 } as const;
 
 /**
@@ -70,6 +72,7 @@ export function stepMonth(state: GameState, rng: Rng, data: GameData = defaultDa
 
   // 2〜5. お金。そのあとタイマーを1ヶ月進める(DESIGN.md §3)
   recordMonth(s, applyMonthlyMoney(s, rng, data));
+  logIndependence(s, data);
   for (const key of Object.keys(balance.timers)) {
     const v = s.flags[key];
     if (typeof v === 'number' && v > 0) s.flags[key] = v - 1;
@@ -149,7 +152,7 @@ export function changePolicy(state: GameState, input: PolicyInput | Policy): Gam
   addLog(
     s,
     'policy',
-    `方針変更: 働き方「${l.work[policy.work]}」支出「${l.spending[policy.spending]}」投資「${allocationLabel(policy)}${policy.prepay ? '・繰上げ返済あり' : ''}」健康「${l.health[policy.health]}」`,
+    `方針変更: 働き方「${l.work[policy.work]}」支出「${l.spending[policy.spending]}」投資「${allocationLabel(policy)}${policy.prepay ? '・繰上げ返済あり' : ''}」健康「${l.health[policy.health]}」教育「${l.education[policy.education]}」`,
   );
   return s;
 }
@@ -203,7 +206,8 @@ export interface MonthlyView {
 export function getMonthlyView(state: GameState, data: GameData = defaultData): MonthlyView {
   const c = state.character;
   const jobName = c.job === 'none' ? '無職' : findById(data.jobs, c.job, 'job').label;
-  const jobLabel = c.retired ? (isRehired(state) ? `再雇用(${jobName})` : '退職') : jobName;
+  const onLeave = Number(state.flags.parentalLeave ?? 0) > 0 && c.job !== 'none';
+  const jobLabel = c.retired ? (isRehired(state) ? `再雇用(${jobName})` : '退職') : onLeave ? `${jobName}(育休中)` : jobName;
   const income = calcIncome(state, data);
   return {
     age: Math.floor(state.ageMonths / 12),
