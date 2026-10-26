@@ -476,7 +476,8 @@ export interface Balance {
   loan: { annualRate: number; minCredit: number; autoMinAmount: number; autoMonths: number };
   /** ボーナスの月(暦)と、ゲーム開始の月(暦) */
   bonus: { months: number[]; startCalendarMonth: number };
-  rehire: { months: number; payRate: number };
+  /** 再雇用(会社員)と、65歳を過ぎてもバイトを続ける期間・給料の割合 */
+  rehire: { months: number; payRate: number; parttimeMonths: number; parttimePayRate: number };
   result: { netWorthLine: number; happinessLine: number };
   children: ChildrenBalance;
   gender: { femaleProb: number };

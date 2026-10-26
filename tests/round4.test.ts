@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { defaultData } from '../src/data/index';
 import { applyChoice, applyEffects, eventProb, isEligible } from '../src/engine/events';
+import { calcIncome } from '../src/engine/money';
+import { createRng } from '../src/engine/rng';
+import { getMonthlyView, stepMonth } from '../src/engine/step';
 import type { EventDef } from '../src/engine/types';
 import { flatRng, makeState, setAge } from './helpers';
 
@@ -69,5 +72,46 @@ describe('支出の方針で変わる出費', () => {
     applyChoice(t, byId('travel'), 2, flatRng);
     expect(t.assets.cash).toBe(0);
     expect(t.log.at(-1)!.text).toBe('旅行のチャンス: 「家でゆっくりする」');
+  });
+});
+
+describe('バイトには定年がない', () => {
+  function at65(job: 'parttime' | 'sales') {
+    let s = setAge(makeState({ job }), 65);
+    s.ageMonths = 65 * 12 - 1;
+    s.character.lastMonthlyPay = 160_000;
+    s = stepMonth(s, createRng(1));
+    delete s.pendingEvent;
+    return s;
+  }
+
+  it('65歳で年金をもらい始め、バイトは同じ給料のまま続ける(定年退職のログは出ない)', () => {
+    const s = at65('parttime');
+    expect(s.log.some((e) => e.id === 'retirement')).toBe(false);
+    expect(s.log.some((e) => e.id === 'pension_start')).toBe(true);
+    expect(s.flags.rehire).toBe(59); // 65歳の月の分はもう受け取った(60ヶ月働く)
+    const inc = calcIncome(s);
+    expect(inc.salary).toBe(Math.round(160_000 * 0.8));
+    expect(inc.pension).toBeGreaterThan(0);
+    expect(getMonthlyView(s).jobLabel).toBe('バイト(年金あり)');
+    expect(isEligible(byId('rehire_offer'), s)).toBe(false);
+  });
+
+  it('70歳で引退し、ログに残る。会社員は今までどおり定年退職', () => {
+    let s = at65('parttime');
+    s.flags.rehire = 1;
+    s = stepMonth(s, createRng(2));
+    expect(s.flags.rehire).toBe(0);
+    expect(s.log.some((e) => e.id === 'work_end')).toBe(true);
+    expect(calcIncome(s).salary).toBe(0);
+    expect(at65('sales').log.some((e) => e.id === 'retirement')).toBe(true);
+  });
+});
+
+describe('昇進は55歳まで', () => {
+  it('役職定年(55歳)を過ぎると昇進の話は来ない', () => {
+    const ev = byId('promotion');
+    expect(eventProb(ev, setAge(makeState({ job: 'sales' }), 54))).toBeGreaterThan(0);
+    expect(eventProb(ev, setAge(makeState({ job: 'sales' }), 56))).toBe(0);
   });
 });

@@ -342,7 +342,9 @@
   },
   "rehire": {
     "months": 60,
-    "payRate": 0.5
+    "payRate": 0.5,
+    "parttimeMonths": 60,
+    "parttimePayRate": 1.0
   },
   "bonus": {
     "months": [
