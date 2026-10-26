@@ -3976,7 +3976,8 @@
       "ageMax": 65,
       "jobNotIn": [
         "none",
-        "owner"
+        "owner",
+        "parttime"
       ]
     },
     "baseProb": 1,

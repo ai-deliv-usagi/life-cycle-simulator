@@ -149,7 +149,9 @@ export function calcIncome(state: GameState, data: GameData = defaultData): Mont
   let annual = annualGross(state, data);
   let monthly = monthlyGrossPay(state, data);
   if (isRehired(state)) {
-    monthly = roundYen(c.lastMonthlyPay * balance.rehire.payRate); // 再雇用は退職前の月給の一定割合(ボーナスなし)
+    // 再雇用は退職前の月給の一定割合(ボーナスなし)。バイトはそのままの給料で続ける
+    const rate = c.job === 'parttime' ? balance.rehire.parttimePayRate : balance.rehire.payRate;
+    monthly = roundYen(c.lastMonthlyPay * rate);
     annual = monthly * 12;
   }
   const rate = takeHomeRate(annual, data);

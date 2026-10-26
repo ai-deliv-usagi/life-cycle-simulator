@@ -73,8 +73,15 @@ export function stepMonth(state: GameState, rng: Rng, data: GameData = defaultDa
   s.month += 1;
   s.ageMonths += 1;
   if (!s.character.retired && s.ageMonths >= balance.pension.retireAge * 12) {
+    const parttime = s.character.job === 'parttime';
     retire(s, data);
-    addLog(s, 'event', `定年退職: ${balance.pension.retireAge}歳で退職した`, 'retirement');
+    if (parttime) {
+      // バイトに定年はない。年金をもらいながら、そのまま働き続ける
+      s.flags.rehire = balance.rehire.parttimeMonths;
+      addLog(s, 'event', `年金の受け取り開始: ${balance.pension.retireAge}歳になり年金をもらい始めた。バイトはこのまま続ける`, 'pension_start');
+    } else {
+      addLog(s, 'event', `定年退職: ${balance.pension.retireAge}歳で退職した`, 'retirement');
+    }
   }
 
   // 2〜5. お金。そのあとタイマーを1ヶ月進める(DESIGN.md §3)
@@ -84,6 +91,9 @@ export function stepMonth(state: GameState, rng: Rng, data: GameData = defaultDa
   for (const key of Object.keys(balance.timers)) {
     const v = s.flags[key];
     if (typeof v === 'number' && v > 0) s.flags[key] = v - 1;
+  }
+  if (state.flags.rehire === 1 && s.flags.rehire === 0) {
+    addLog(s, 'event', `引退: ${Math.floor(s.ageMonths / 12)}歳で仕事を辞め、年金で暮らすことにした`, 'work_end');
   }
 
   // 6. ステータス
@@ -242,7 +252,8 @@ export function getMonthlyView(state: GameState, data: GameData = defaultData): 
         : findById(data.jobs, c.job, 'job').label;
   const leave = Number(state.flags.maternityLeave ?? 0) > 0 ? '産休中' : Number(state.flags.parentalLeave ?? 0) > 0 ? '育休中' : '';
   const working = leave && c.job !== 'none' ? `${jobName}(${leave})` : jobName;
-  const jobLabel = c.retired ? (isRehired(state) ? `再雇用(${jobName})` : '退職') : working;
+  const rehiredLabel = c.job === 'parttime' ? `${jobName}(年金あり)` : `再雇用(${jobName})`;
+  const jobLabel = c.retired ? (isRehired(state) ? rehiredLabel : '退職') : working;
   const income = calcIncome(state, data);
   return {
     age: Math.floor(state.ageMonths / 12),
