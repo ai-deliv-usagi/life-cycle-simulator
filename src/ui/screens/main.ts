@@ -13,6 +13,9 @@ import {
   regionLabel,
   signedManYen,
   happinessFace,
+  IMPORTANT_EVENTS,
+  logTitle,
+  moneyLabel,
   STAT_EFFECTS,
   STAT_LABELS,
   STAT_LEVEL_LABELS,
@@ -44,10 +47,12 @@ export interface MainScreenHooks {
 }
 
 const TOAST_MS = 2500;
+const SNACK_MS = 4000; // 大事な出来事はその倍
+const SNACK_MAX = 3;
 const LEVEL_ORDER = ['good', 'normal', 'caution', 'danger'] as const;
 const UPCOMING_MAX = 5;
 
-/** 選択肢のないイベントは、再生中だと気づきにくいので画面の上に少しだけ出す */
+/** 選択肢のないイベントは、再生中だと気づきにくいので画面の下にスナックバーで出す */
 function eventsWithoutChoice(entries: LogEntry[]): LogEntry[] {
   return entries.filter((e) => {
     if (e.type !== 'event') return false;
@@ -117,10 +122,28 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     if (toastTimer) clearTimeout(toastTimer);
     toastTimer = setTimeout(() => (toast.hidden = true), TOAST_MS);
   };
+  // 選択肢のない出来事のスナックバー(画面の下、操作ボタンの上に積む)
+  const snackbars = h('div', { class: 'snackbars', role: 'status', 'aria-live': 'polite' });
+  const showSnack = (e: LogEntry, stopped: boolean) => {
+    const money = moneyLabel(e.money);
+    const important = IMPORTANT_EVENTS.has(e.id ?? '');
+    const item = h(
+      'div',
+      { class: `snack${important ? ' snack-important' : ''}` },
+      h('span', { class: 'snack-date' }, ageMonthLabel(e.ageMonths, e.month)),
+      h('span', { class: 'snack-text' }, h('strong', {}, logTitle(e.text)), h('span', { class: 'snack-body' }, e.text.slice(logTitle(e.text).length + 1))),
+      money ? h('span', { class: `snack-money ${e.money! > 0 ? 'up' : 'down'}` }, money) : '',
+      stopped ? h('span', { class: 'snack-note' }, '大事な出来事なので一時停止しました') : '',
+    );
+    snackbars.appendChild(item);
+    while (snackbars.children.length > SNACK_MAX) snackbars.firstElementChild!.remove();
+    setTimeout(() => item.remove(), important ? SNACK_MS * 2 : SNACK_MS);
+  };
   let seenLog = initial.log.length;
   let showAllLogs = false;
   const moreLogs = h('button', { class: 'btn link-btn small' }, 'もっと見る');
-  const settings = { autoCloseSummary: false };
+  const settings = { autoCloseSummary: false, pauseOnImportant: true };
+  const isStopEvent = (e: LogEntry) => settings.pauseOnImportant && e.type === 'event' && IMPORTANT_EVENTS.has(e.id ?? '');
   const debtTile = h('div', { class: 'tile tile-wide' }, h('span', { class: 'tile-label' }, '借金・ローン'), fields.debt, fields.debtSub);
   const canvas = h('canvas', { 'aria-label': '資産推移グラフ' });
   const playBtn = h('button', { class: 'btn primary', 'aria-label': '再生' }, '▶ 再生');
@@ -219,6 +242,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       h(
         'nav',
         { class: 'controls' },
+        snackbars,
         playBtn,
         h('div', { class: 'speeds' }, ...speedBtns),
         h('button', { class: 'btn', onclick: () => void controller.skipToEvent() }, '次のイベントまで'),
@@ -326,11 +350,10 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       upcomingList.appendChild(h('li', {}, h('span', {}, u.label), h('span', { class: 'muted' }, untilLabel(u.months, state.ageMonths))));
     }
 
-    // 前回の描画のあとに起きた、選択肢のないイベントを通知する(何件あっても最新の1件)
+    // 前回の描画のあとに起きた、選択肢のないイベントを通知する(新しい SNACK_MAX 件)
     const fresh = eventsWithoutChoice(state.log.slice(seenLog));
     seenLog = state.log.length;
-    const latest = fresh.at(-1);
-    if (latest) showToast(latest.text);
+    for (const e of fresh.slice(-SNACK_MAX)) showSnack(e, isStopEvent(e));
 
     clear(logList);
     const shown = showAllLogs ? LOG_MORE : RECENT_LOGS;
@@ -339,8 +362,15 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     moreLogs.hidden = all.length <= RECENT_LOGS;
     moreLogs.textContent = showAllLogs ? '閉じる' : 'もっと見る';
     for (const e of recent) {
+      const money = moneyLabel(e.money);
       logList.appendChild(
-        h('li', { class: `log log-${e.type}` }, h('span', { class: 'log-age' }, ageMonthLabel(e.ageMonths, e.month)), e.text),
+        h(
+          'li',
+          { class: `log log-${e.type}` },
+          h('span', { class: 'log-age' }, ageMonthLabel(e.ageMonths, e.month)),
+          h('span', { class: 'log-text' }, e.text),
+          money ? h('span', { class: `log-money ${e.money! > 0 ? 'up' : 'down'}` }, money) : '',
+        ),
       );
     }
     if (chartChanged) chart.update(chartPoints(state));
@@ -352,7 +382,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     showChoiceResult: (state) => choiceResultModal(state),
     yearSummary: async (state) => {
       const financial = getMonthlyView(state).financialAssets;
-      const events = state.log.filter((e) => e.month > lastSummaryMonth && e.type === 'event');
+      const events = collapseLog(state.log.filter((e) => e.month > lastSummaryMonth && (e.type === 'event' || e.type === 'choice')));
       await yearSummaryModal(state, { financial, previousFinancial, events }, settings.autoCloseSummary);
     },
     onYearEnd: (state) => {
@@ -366,6 +396,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       playBtn.textContent = playing ? '⏸ 一時停止' : '▶ 再生';
       playBtn.setAttribute('aria-label', playing ? '一時停止' : '再生');
     },
+    shouldStop: (state, since) => state.log.slice(since).some(isStopEvent),
     onDeath: (state) => {
       chart.destroy();
       setTimeout(() => nav.result(state), 1500);

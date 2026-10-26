@@ -4,7 +4,9 @@ import { businessValue, ownerSalary, reviewBusiness, reviewMean } from '../src/e
 import { applyChoice, eventProb, isEligible } from '../src/engine/events';
 import { annualGross, calcIncome, retire } from '../src/engine/money';
 import type { Rng } from '../src/engine/rng';
-import { getMonthlyView } from '../src/engine/step';
+import { createRng } from '../src/engine/rng';
+import { getMonthlyView, stepMonth } from '../src/engine/step';
+import { upcoming } from '../src/engine/upcoming';
 import type { EventDef, GameState } from '../src/engine/types';
 import { flatRng, makeState, setAge } from './helpers';
 
@@ -102,7 +104,7 @@ describe('会社を手放す', () => {
     expect(s.flags.unemploymentBenefit).toBe(0);
   });
 
-  it('65歳の定年では事業承継して、会社の価値の半分を受け取る', () => {
+  it('事業承継すると、会社の価値の半分を受け取る', () => {
     const s = startup();
     s.business!.level = 2;
     const value = businessValue(s);
@@ -135,5 +137,36 @@ describe('起業のチャンスは挑戦志向の人だけ', () => {
     expect(some).toBeGreaterThan(0);
     s.values.risk = 2;
     expect(eventProb(ev, s)).toBeGreaterThan(some);
+  });
+});
+
+describe('社長に定年はない', () => {
+  /** 指定の年齢になる直前の社長を1ヶ月進める */
+  function ownerTurning(age: number): GameState {
+    let s = startup();
+    s.ageMonths = age * 12 - 1;
+    s = stepMonth(s, createRng(3));
+    delete s.pendingEvent;
+    return s;
+  }
+
+  it('65歳になっても社長のまま。そこからは「引退を考える」が起き、引退を選ぶと事業承継', () => {
+    const s = ownerTurning(65);
+    expect(s.character.retired).toBe(false);
+    expect(s.business).toBeDefined();
+    expect(upcoming(s)[0]!.label).toBe(`事業承継(${cfg.retireAgeMax}歳まで)`);
+    const ev = byId('owner_retirement');
+    expect(isEligible(ev, s)).toBe(true);
+    expect(isEligible(ev, setAge(startup(), 60))).toBe(false);
+    applyChoice(s, ev, 0, flatRng);
+    expect(s.character.retired).toBe(true);
+    expect(s.business).toBeUndefined();
+    expect(s.log.some((e) => e.id === 'business_succession')).toBe(true);
+  });
+
+  it(`${cfg.retireAgeMax}歳では必ず事業承継する`, () => {
+    const s = ownerTurning(cfg.retireAgeMax);
+    expect(s.character.retired).toBe(true);
+    expect(s.business).toBeUndefined();
   });
 });

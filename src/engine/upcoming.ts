@@ -30,8 +30,13 @@ export function upcoming(state: GameState, data: GameData = defaultData): Upcomi
   const timer = (key: string) => (typeof f[key] === 'number' ? (f[key] as number) : 0);
 
   if (!c.retired && isEmployed(state)) {
-    const label = c.job === 'parttime' ? '年金の受け取り開始' : c.job === 'owner' ? '事業承継(65歳)' : '定年退職(65歳)';
-    out.push({ label, months: toAge(balance.pension.retireAge) });
+    const retireAge = balance.pension.retireAge;
+    const lastAge = balance.business.retireAgeMax;
+    if (c.job === 'owner' && ageYears(state) >= retireAge) out.push({ label: `事業承継(${lastAge}歳まで)`, months: toAge(lastAge) });
+    else {
+      const label = c.job === 'parttime' ? '年金の受け取り開始' : c.job === 'owner' ? `引退を考え始める(${retireAge}歳)` : `定年退職(${retireAge}歳)`;
+      out.push({ label, months: toAge(retireAge) });
+    }
   }
   if (isRehired(state)) out.push({ label: '仕事を辞める', months: timer('rehire') });
   if (timer('maternityLeave') > 0) out.push({ label: '産休が終わる', months: timer('maternityLeave') });

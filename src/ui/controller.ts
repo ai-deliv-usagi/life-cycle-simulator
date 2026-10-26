@@ -30,6 +30,8 @@ export interface ControllerUI {
   onYearEnd(state: GameState): void;
   onPlayingChange(playing: boolean): void;
   onDeath(state: GameState): void;
+  /** log[since] 以降に、止まるべき出来事(大事な出来事)があるか。再生とスキップを止める */
+  shouldStop?(state: GameState, since: number): boolean;
 }
 
 export class GameController {
@@ -81,14 +83,21 @@ export class GameController {
     const wasPlaying = this._playing;
     this.clearTimer();
     this.busy = true;
+    let stopped = false;
     for (let i = 0; i < SKIP_LIMIT_MONTHS; i++) {
+      const since = this.state.log.length;
       this.state = stepMonth(this.state, createRng(this.state.rngState));
       if (isYearEnd(this.state)) this.ui.onYearEnd(this.state);
       if (this.state.dead || this.state.pendingEvent) break;
+      if (this.ui.shouldStop?.(this.state, since)) {
+        stopped = true;
+        break;
+      }
     }
     this.busy = false;
     await this.afterStep({ showYearSummary: false });
-    if (wasPlaying && !this.state.dead) this.play();
+    if (stopped) this.pause();
+    else if (wasPlaying && !this.state.dead) this.play();
   }
 
   /** 方針変更。次の月から反映される */
@@ -150,8 +159,10 @@ export class GameController {
 
   private async tick(): Promise<void> {
     if (!this._playing || this.busy) return;
+    const since = this.state.log.length;
     this.state = stepMonth(this.state, createRng(this.state.rngState));
     await this.afterStep({ showYearSummary: true });
+    if (this.ui.shouldStop?.(this.state, since)) this.pause();
     this.schedule();
   }
 

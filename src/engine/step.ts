@@ -72,7 +72,10 @@ export function stepMonth(state: GameState, rng: Rng, data: GameData = defaultDa
   // 1. 時間。65歳で退職
   s.month += 1;
   s.ageMonths += 1;
-  if (!s.character.retired && s.ageMonths >= balance.pension.retireAge * 12) {
+  // 社長に定年はない(65歳からは毎年引退を考えるイベント。retireAgeMax 歳で必ず事業承継)
+  const owner = s.character.job === 'owner' && s.business !== undefined;
+  const retireAge = owner ? balance.business.retireAgeMax : balance.pension.retireAge;
+  if (!s.character.retired && s.ageMonths >= retireAge * 12) {
     const parttime = s.character.job === 'parttime';
     retire(s, data);
     if (parttime) {

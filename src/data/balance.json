@@ -468,6 +468,7 @@
     },
     "valuationMonths": 48,
     "successionShare": 0.5,
+    "retireAgeMax": 75,
     "review": {
       "mu": -0.05,
       "sigma": 0.45,
