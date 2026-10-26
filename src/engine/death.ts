@@ -5,16 +5,27 @@ import { effectiveWork } from './stats';
 import type { DeathCause, Gender, GameData, GameState } from './types';
 import { ageYears } from './util';
 
-/** 年間の基本死亡率 q(年齢) = min(1, a·e^{b(年齢 − offset)}) */
+/**
+ * 年間の基本死亡率 q(年齢) = min(1, a·e^{b(年齢 − offset)} × e^{oldAgeSlope·max(0, 年齢 − oldAgeFrom)})。
+ * 85歳を過ぎると死亡率の上がり方が急になる(実際の生命表に合わせる。これがないと100歳を超える人が多すぎる)
+ */
 export function baseAnnualMortality(age: number, data: GameData = defaultData): number {
   const d = data.balance.death;
-  return Math.min(1, d.a * Math.exp(d.b * (age - d.ageOffset)));
+  const old = Math.exp(d.oldAgeSlope * Math.max(0, age - d.oldAgeFrom));
+  return Math.min(1, d.a * Math.exp(d.b * (age - d.ageOffset)) * old);
 }
 
-/** 健康補正: 健康100で0.25倍、50で1倍、0で4倍 */
-export function healthFactor(health: number, data: GameData = defaultData): number {
+/**
+ * 健康補正: 健康50で1倍、それより良いと下がり、悪いと上がる(2 ^ ((50 − 健康) / 15))。
+ * 健康が良いことで死亡率が下がる効果は、healthFadeFrom 歳から healthFadeYears 年かけて弱まる
+ * (高齢になると、いくら健康でも老化には勝てない。健康が悪いことの害はそのまま)
+ */
+export function healthFactor(health: number, data: GameData = defaultData, age = 0): number {
   const d = data.balance.death;
-  return 2 ** ((d.healthPivot - health) / d.healthScale);
+  const f = 2 ** ((d.healthPivot - health) / d.healthScale);
+  if (f >= 1) return f;
+  const keep = Math.min(1, Math.max(0, 1 - (age - d.healthFadeFrom) / d.healthFadeYears));
+  return 1 - (1 - f) * keep;
 }
 
 /** 行動補正: 働き方(残業多め1.15・激務1.5)× ストレス70以上で1.2 */
@@ -36,7 +47,7 @@ export function monthlyDeathProb(state: GameState, data: GameData = defaultData)
   if (age >= data.balance.death.maxAge) return 1;
   const p =
     (baseAnnualMortality(age, data) / 12) *
-    healthFactor(state.stats.health, data) *
+    healthFactor(state.stats.health, data, age) *
     behaviorFactor(state, data) *
     genderFactor(state.character.gender, data);
   return Math.min(1, p);

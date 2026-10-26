@@ -419,8 +419,12 @@ export interface Balance {
     a: number;
     b: number;
     ageOffset: number;
+    oldAgeFrom: number; // この年齢から死亡率の上がり方が急になる
+    oldAgeSlope: number; // その上乗せ(e^{slope × (年齢 − oldAgeFrom)})
     healthPivot: number;
     healthScale: number;
+    healthFadeFrom: number; // 健康が良いことで死亡率が下がる効果が弱まり始める年齢
+    healthFadeYears: number; // その効果がなくなるまでの年数
     highStressMul: number;
     /** 男女の死亡率の係数(男性は高く、女性は低い。平均寿命の差 約6年) */
     genderMul: Record<Gender, number>;
