@@ -1,9 +1,9 @@
 // タイトル画面
-import { LIFE_TYPE_LABELS } from '../../engine/index';
+import { gameData, LIFE_TYPE_LABELS } from '../../engine/index';
 import { h, mount } from '../dom';
 import { bigYen, LIFE_TYPE_ICONS } from '../format';
 import { freshSeed, type Nav } from '../nav';
-import { clearSave, loadGame, loadHistory } from '../storage';
+import { clearSave, earnedSoFar, loadGame, loadHistory } from '../storage';
 
 const HISTORY_SHOWN = 10;
 const HISTORY_FIRST = 3; // はじめに見せる件数。残りは「もっと見る」
@@ -59,6 +59,31 @@ function historySection(): HTMLElement | null {
   );
 }
 
+/** 実績: 取ったものと、まだのもの(条件は見せる。目標になるように) */
+function achievementsSection(): HTMLElement | null {
+  const history = loadHistory();
+  if (history.length === 0) return null;
+  const earned = earnedSoFar(history);
+  const defs = gameData.achievements;
+  return h(
+    'details',
+    { class: 'card seed-card' },
+    h('summary', {}, `🏅 実績 ${earned.size}/${defs.length}`),
+    h(
+      'ul',
+      { class: 'achievement-list' },
+      ...defs.map((d) =>
+        h(
+          'li',
+          { class: `achievement${earned.has(d.id) ? '' : ' locked'}` },
+          h('span', { class: 'achievement-icon', 'aria-hidden': 'true' }, earned.has(d.id) ? d.icon : '🔒'),
+          h('span', {}, h('strong', {}, d.title), h('span', { class: 'muted small achievement-desc' }, d.description)),
+        ),
+      ),
+    ),
+  );
+}
+
 export function titleScreen(root: HTMLElement, nav: Nav): void {
   const seedInput = h('input', {
     type: 'number',
@@ -103,6 +128,7 @@ export function titleScreen(root: HTMLElement, nav: Nav): void {
           h('button', { class: 'btn', type: 'submit' }, 'このシードで始める'),
         ),
       ),
+      achievementsSection(),
       historySection(),
     ),
   );

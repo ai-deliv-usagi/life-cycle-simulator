@@ -580,7 +580,17 @@ export interface ChildrenBalance {
   happiness: { relationsPerChild: number; relationsMax: number; youngUntil: number; freeTimePerYoung: number; babyUntil: number; stressPerBaby: number };
 }
 
+/** 実績(achievements.json)。判定は engine/achievements.ts、threshold はその実績の条件の数値 */
+export interface AchievementDef {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  threshold?: number;
+}
+
 export interface GameData {
+  achievements: AchievementDef[];
   education: EducationDef[];
   jobs: JobDef[];
   family: FamilyDef[];

@@ -89,6 +89,11 @@ export function stepMonth(state: GameState, rng: Rng, data: GameData = defaultDa
 
   // 2〜5. お金。そのあとタイマーを1ヶ月進める(DESIGN.md §3)
   recordMonth(s, applyMonthlyMoney(s, rng, data));
+  if (s.ageMonths === balance.pension.retireAge * 12) {
+    // 実績「無借金で定年」用に、65歳の時点で借りているものがないかを残す
+    const a = s.assets;
+    s.flags.debtFreeAt65 = a.debt + (a.loan ?? 0) + a.studentLoan + (a.mortgage ?? 0) <= 0;
+  }
   logIndependence(s, data);
   if (reviewBusiness(s, rng, data)) changeJob(s, 'none', data); // 廃業したら無職(失業給付なし)
   for (const key of Object.keys(balance.timers)) {

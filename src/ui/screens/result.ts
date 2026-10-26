@@ -1,5 +1,5 @@
 // リザルト画面: 人生タイプ・数字のタイル・グラフ・人生のハイライト。すべての出来事は年代ごとに折りたたむ
-import { computeResult, DEATH_CAUSE_LABELS, LIFE_TYPE_LABELS, type GameState, type LogEntry } from '../../engine/index';
+import { computeResult, DEATH_CAUSE_LABELS, earnedAchievements, gameData, LIFE_TYPE_LABELS, type GameState, type LogEntry } from '../../engine/index';
 import { resultChart } from '../charts';
 import { download, h, mount } from '../dom';
 import {
@@ -21,6 +21,7 @@ import {
   regionLabel,
 } from '../format';
 import type { Nav } from '../nav';
+import { earnedSoFar, loadHistory } from '../storage';
 
 const CAUSE_ICONS: Record<string, string> = { illness: '🏥', overwork: '💼', accident: '🚑', old_age: '🕊️' };
 
@@ -54,6 +55,37 @@ export function resultScreen(root: HTMLElement, nav: Nav, state: GameState): voi
     download(`life-${state.seed}.json`, JSON.stringify(payload, null, 2));
   };
 
+  // 実績: この人生で取ったもの。前の人生までに取っていなければ NEW(リザルトの前に今回の記録は保存済み)
+  const earned = earnedAchievements(state);
+  const before = earnedSoFar(loadHistory().slice(1));
+  const total = earnedSoFar(loadHistory());
+  const achievementsCard = h(
+    'section',
+    { class: 'card' },
+    h('h2', {}, `🏅 実績(これまでに ${total.size}/${gameData.achievements.length})`),
+    earned.length > 0
+      ? h(
+          'ul',
+          { class: 'achievement-list' },
+          ...gameData.achievements
+            .filter((d) => earned.includes(d.id))
+            .map((d) =>
+              h(
+                'li',
+                { class: 'achievement' },
+                h('span', { class: 'achievement-icon', 'aria-hidden': 'true' }, d.icon),
+                h(
+                  'span',
+                  {},
+                  h('span', {}, h('strong', {}, d.title), before.has(d.id) ? '' : h('span', { class: 'new-badge' }, 'NEW')),
+                  h('span', { class: 'muted small achievement-desc' }, d.description),
+                ),
+              ),
+            ),
+        )
+      : h('p', { class: 'muted small' }, 'この人生で取った実績はない。'),
+  );
+
   const tile = (icon: string, label: string, value: string, cls = '') =>
     h('div', { class: 'tile' }, h('span', { class: 'tile-label' }, `${icon} ${label}`), h('span', { class: `tile-value ${cls}` }, value));
 
@@ -82,6 +114,7 @@ export function resultScreen(root: HTMLElement, nav: Nav, state: GameState): voi
         { class: 'muted small result-profile' },
         `${EDUCATION_ICONS[c.education]} ${educationLabel(c.education)} · 🏠 実家${familyLabel(c.familyTier)} · ${REGION_ICONS[c.region]} ${regionLabel(c.region)} · ${JOB_ICONS[c.job]} 最後は${jobLabel(c.job)} · シード ${state.seed}`,
       ),
+      achievementsCard,
       h('section', { class: 'card chart-card' }, h('h2', {}, '📈 資産と幸福度の推移'), h('div', { class: 'chart-box tall' }, canvas)),
       h(
         'section',

@@ -1,0 +1,14 @@
+[
+  { "id": "debt_free_retire", "icon": "🧾", "title": "無借金で定年", "description": "65歳の時点で、借金もローンも奨学金もない" },
+  { "id": "okuribito", "icon": "💎", "title": "億り人", "description": "純資産が1億円に届く", "threshold": 100000000 },
+  { "id": "centenarian", "icon": "🎂", "title": "百寿", "description": "100歳まで生きる", "threshold": 100 },
+  { "id": "big_family", "icon": "👨‍👩‍👧‍👦", "title": "大家族", "description": "子どもが3人", "threshold": 3 },
+  { "id": "grandparent", "icon": "👶", "title": "孫に囲まれて", "description": "孫が生まれる" },
+  { "id": "succession", "icon": "🏯", "title": "一国一城", "description": "起業して、会社を後継者に引き継ぐ" },
+  { "id": "mortgage_paid", "icon": "🏡", "title": "完済", "description": "住宅ローンを返し終えたマイホームで暮らす" },
+  { "id": "happy_life", "icon": "🌈", "title": "しあわせな一生", "description": "生涯幸福スコアが65以上", "threshold": 65 },
+  { "id": "comeback", "icon": "🔥", "title": "七転び八起き", "description": "自己破産から立ち直り、最後の純資産が1,000万円以上", "threshold": 10000000 },
+  { "id": "job_hopper", "icon": "🧳", "title": "転職を重ねて", "description": "3回転職する", "threshold": 3 },
+  { "id": "never_hospital", "icon": "💪", "title": "健康第一", "description": "一度も入院せず、70歳を超えて生きる", "threshold": 70 },
+  { "id": "regular_path", "icon": "🪪", "title": "正社員への道", "description": "バイトから正社員になる" }
+]
