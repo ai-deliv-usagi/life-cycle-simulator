@@ -264,3 +264,58 @@ export function eventIcon(id: string | undefined): string {
   const ev = id ? gameData.events.find((e) => e.id === id) : undefined;
   return ev ? (CATEGORY_ICONS[ev.category] ?? '') : '';
 }
+
+// ---- リザルトの「人生のハイライト」 ----
+
+/** 選んだら人生の節目になる選択肢(ラベルの先頭)。断った・見送ったものは出さない */
+const MILESTONE_CHOICES: Record<string, string[]> = {
+  proposal: ['結婚する'],
+  promotion: ['受ける'],
+  job_offer: ['同業他社に転職する', '異業種に転職する'],
+  startup_chance: ['小さく起業する', '大きく起業する'],
+  divorce_crisis: ['離婚する'],
+  jukunen_divorce: ['別々の道を歩む'],
+  regular_job_offer: ['応募して就職する'],
+  regular_conversion: ['正社員になる'],
+  birth: [''], // どの選択肢でも子どもが生まれる
+  owner_retirement: ['引退して'],
+  rehire_offer: ['再雇用で'],
+};
+
+/** 起きたら節目になる出来事(選択肢のないもの・記録) */
+const MILESTONE_EVENTS = new Set([
+  ...IMPORTANT_EVENTS,
+  'grandchild',
+  'child_independent',
+  'home_bought',
+  'pension_start',
+  'work_end',
+  'business_closed',
+]);
+
+/** 大きなお金の動き(これ以上なら節目として出す) */
+const MILESTONE_MONEY = 3_000_000;
+
+/** 年表から節目だけを選ぶ(結婚・出産・転職・昇進・マイホーム・大きなお金の動き・家族の死・定年・亡くなったとき) */
+export function lifeHighlights<T extends { type: string; id?: string; text: string; money?: number }>(entries: readonly T[]): T[] {
+  return entries.filter((e) => {
+    if (e.type === 'death') return true;
+    if (e.money !== undefined && Math.abs(e.money) >= MILESTONE_MONEY) return true;
+    if (e.type === 'event') return MILESTONE_EVENTS.has(e.id ?? '');
+    if (e.type === 'choice') {
+      const labels = MILESTONE_CHOICES[e.id ?? ''];
+      return labels !== undefined && labels.some((l) => e.text.includes(`「${l}`));
+    }
+    return false;
+  });
+}
+
+/** 年代ごとに分ける(20代・30代…)。年代の若い順 */
+export function byDecade<T extends { ageMonths: number }>(entries: readonly T[]): { decade: number; entries: T[] }[] {
+  const groups = new Map<number, T[]>();
+  for (const e of entries) {
+    const decade = Math.floor(e.ageMonths / 120) * 10;
+    groups.set(decade, [...(groups.get(decade) ?? []), e]);
+  }
+  return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([decade, list]) => ({ decade, entries: list }));
+}
