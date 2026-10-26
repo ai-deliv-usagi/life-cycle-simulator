@@ -61,16 +61,21 @@ export function typedChoice(state: GameState, ev: EventDef, rng: Rng): number {
   return best.index;
 }
 
-export const TYPED_PLAYERS: Player[] = VALUE_PRESETS.map((t) => {
-  const preset = POLICY_PRESETS.find((p) => p.id === t.policy)!;
+function typedPlayer(id: string, label: string, values: Values, policyId: string): Player {
+  const preset = POLICY_PRESETS.find((p) => p.id === policyId)!;
   return {
-    id: t.id,
-    label: t.label,
-    values: () => ({ ...t.values }),
+    id,
+    label,
+    values: () => ({ ...values }),
     policy: (_rng, _month, current) => current ?? { ...preset.policy, invest: { ...preset.policy.invest }, prepay: false, education: 'public', investMonthly: 0 },
     choose: typedChoice,
   };
-});
+}
+
+export const TYPED_PLAYERS: Player[] = VALUE_PRESETS.map((t) => typedPlayer(t.id, t.label, t.values, t.policy));
+
+/** 出世派の価値観で「モーレツ」(激務・健康は気にしない)を一生続ける。激務の寿命の目安を見る */
+export const HUSTLE_PLAYER: Player = typedPlayer('hustle', 'モーレツ', VALUE_PRESETS.find((t) => t.id === 'climber')!.values, 'hustle');
 
 // ---- でたらめ ----
 

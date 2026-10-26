@@ -14,7 +14,7 @@ import {
   type GameState,
   type LifeResult,
 } from '../src/engine/index';
-import { RANDOM_PLAYER, SYSTEM_EVENTS, TYPED_PLAYERS, type Player } from './players';
+import { HUSTLE_PLAYER, RANDOM_PLAYER, SYSTEM_EVENTS, TYPED_PLAYERS, type Player } from './players';
 
 interface Options {
   n: number;
@@ -107,11 +107,12 @@ export function runBalance(opts: Options) {
   // タイプ別: 同じ生まれの並びを6タイプで順に使う(タイプの差が生まれの差に埋もれないように)
   const lives = Array.from({ length: opts.n }, (_, i) => playLife(base + Math.floor(i / TYPED_PLAYERS.length), TYPED_PLAYERS[i % TYPED_PLAYERS.length]!));
   const random = Array.from({ length: opts.n }, (_, i) => playLife(base + i, RANDOM_PLAYER));
+  const hustle = Array.from({ length: Math.ceil(opts.n / TYPED_PLAYERS.length) }, (_, i) => playLife(base + i, HUSTLE_PLAYER));
   const elapsed = (Date.now() - started) / 1000;
 
   const byType = Object.fromEntries(TYPED_PLAYERS.map((p) => [p.id, lives.filter((l) => l.player === p.id)])) as Record<string, LifeStats[]>;
   const lifespan = mean(lives.map((l) => l.result.ageAtDeath));
-  const hustleLifespan = mean(byType.climber!.map((l) => l.result.ageAtDeath));
+  const hustleLifespan = mean(hustle.map((l) => l.result.ageAtDeath));
   const medianNetWorth = median(lives.map((l) => l.result.finalNetWorth));
   const typeShare = Object.fromEntries(LIFE_TYPES.map((t) => [t, share(lives, (l) => l.result.lifeType === t)])) as Record<string, number>;
   const totalYears = lives.reduce((s, l) => s + l.years, 0);
@@ -132,12 +133,14 @@ export function runBalance(opts: Options) {
       bankrupt: share(ls, (l) => l.bankrupt),
       married: share(ls, (l) => l.married),
       winner: share(ls, (l) => l.result.lifeType === 'winner'),
+      happy: share(ls, (l) => l.result.lifeType === 'winner' || l.result.lifeType === 'poor_happy'), // 勝ち組(幸せ)
       lifeTypes: Object.fromEntries(LIFE_TYPES.map((t) => [t, share(ls, (l) => l.result.lifeType === t)])),
     };
   });
   const row = (id: string) => typeRows.find((r) => r.id === id)!;
   const steady = row('steady');
-  const maxWinner = typeRows.reduce((m, r) => (r.winner > m.winner ? r : m));
+  const maxHappy = typeRows.reduce((m, r) => (r.happy > m.happy ? r : m));
+  const minHappy = typeRows.reduce((m, r) => (r.happy < m.happy ? r : m));
   const spender = row('spender');
   const family = row('family');
   const minMarried = Math.min(...typeRows.map((r) => r.married));
@@ -145,7 +148,7 @@ export function runBalance(opts: Options) {
   const checks = [
     { name: '平均寿命(タイプ別プレイヤー全体)', value: `${lifespan.toFixed(1)}歳`, target: '78〜85歳', ok: lifespan >= 78 && lifespan <= 85 },
     {
-      name: '出世派(激務)の平均寿命',
+      name: 'モーレツ(激務・健康は気にしない)を続けた平均寿命',
       value: `${hustleLifespan.toFixed(1)}歳(全体との差 ${(lifespan - hustleLifespan).toFixed(1)}歳)`,
       target: '全体より5〜12歳短い',
       ok: lifespan - hustleLifespan >= 5 && lifespan - hustleLifespan <= 12,
@@ -160,10 +163,16 @@ export function runBalance(opts: Options) {
     { name: '選択で止まる回数', value: `年${choicesPerYear.toFixed(2)}回`, target: '年0.7〜1.5回', ok: choicesPerYear >= 0.7 && choicesPerYear <= 1.5 },
     { name: '選択のない通知', value: `年${noticesPerYear.toFixed(2)}回`, target: '年0.3〜1.5回', ok: noticesPerYear >= 0.3 && noticesPerYear <= 1.5 },
     {
-      name: '勝ちパターンがない(どのタイプも勝ち組になりすぎない)',
-      value: `いちばん高い ${maxWinner.label} で ${pct(maxWinner.winner)}`,
-      target: '70%以下',
-      ok: maxWinner.winner <= 0.7,
+      name: '勝ちパターンがない(勝ち組=幸せな人生になりやすすぎるタイプがない)',
+      value: `いちばん高い ${maxHappy.label} で ${pct(maxHappy.happy)}`,
+      target: '75%以下',
+      ok: maxHappy.happy <= 0.75,
+    },
+    {
+      name: 'どのタイプにも勝ち筋がある',
+      value: `いちばん低い ${minHappy.label} で ${pct(minHappy.happy)}`,
+      target: '25%以上',
+      ok: minHappy.happy >= 0.25,
     },
     { name: '堅実派の自己破産', value: pct(steady.bankrupt), target: '5%未満', ok: steady.bankrupt < 0.05 },
     { name: '浪費家の自己破産', value: pct(spender.bankrupt), target: '20〜50%', ok: spender.bankrupt >= 0.2 && spender.bankrupt <= 0.5 },
@@ -214,7 +223,7 @@ function main() {
   console.log('\nタイプ別:');
   for (const t of detail.types) {
     console.log(
-      `  ${t.label.padEnd(5)} 寿命 ${t.lifespan.toFixed(1)}歳 / 資産中央値 ${man(t.medianNetWorth)} / 破産 ${pct(t.bankrupt)} / 結婚 ${pct(t.married)} / ` +
+      `  ${t.label.padEnd(5)} 寿命 ${t.lifespan.toFixed(1)}歳 / 資産中央値 ${man(t.medianNetWorth)} / 破産 ${pct(t.bankrupt)} / 結婚 ${pct(t.married)} / 勝ち組 ${pct(t.happy)} / ` +
         LIFE_TYPES.map((k) => `${k} ${pct(t.lifeTypes[k]!)}`).join(' '),
     );
   }

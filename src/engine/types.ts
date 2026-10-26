@@ -460,7 +460,10 @@ export interface Balance {
     livingRelMax: number;
     livingRelSlope: number;
     adaptMonths: number;
-    skillAchievementShare: number; // 達成感 = スキル × この値 + achievement
+    skillAchievementShare: number; // 達成感 = スキル × この値 + achievement + 役職・会社の業績の分
+    rankAchievement: number; // 役職1段(主任〜部長)あたりの達成感
+    businessAchievement: number; // 社長の業績1あたりの達成感(businessAchievementMaxLevel まで)
+    businessAchievementMaxLevel: number;
     /** 重み w = base + Σ 係数 × 価値観(最小 minWeight) */
     weights: Record<HappinessPart, { base: number } & Partial<Record<keyof Values, number>>>;
   };

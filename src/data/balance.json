@@ -209,7 +209,7 @@
   },
   "happiness": {
     "minWeight": 0.2,
-    "marriedRelationsBonus": 15,
+    "marriedRelationsBonus": 10,
     "securityMonths": 36,
     "debtSecurityPenalty": 30,
     "livingAbsScale": 200000,
@@ -234,8 +234,8 @@
       },
       "freeTime": {
         "base": 1,
-        "relation": 0.25,
-        "work": -0.15
+        "relation": 0.35,
+        "work": -0.25
       },
       "health": {
         "base": 1
@@ -243,9 +243,12 @@
       "achievement": {
         "base": 1,
         "risk": 0.2,
-        "work": 0.25
+        "work": 0.4
       }
-    }
+    },
+    "rankAchievement": 12,
+    "businessAchievement": 10,
+    "businessAchievementMaxLevel": 3
   },
   "events": {
     "luckGoodBase": 0.8,
@@ -473,8 +476,8 @@
       "birthHealth": -5
     },
     "happiness": {
-      "relationsPerChild": 6,
-      "relationsMax": 12,
+      "relationsPerChild": 4,
+      "relationsMax": 8,
       "youngUntil": 12,
       "freeTimePerYoung": -8,
       "babyUntil": 6,
