@@ -218,3 +218,49 @@ export function annualRateLabel(rate: number): string {
   if (rate === 0) return '無利子';
   return `年${Number((rate * 100).toFixed(1))}%`;
 }
+
+// ---- アイコン(絵文字)。文字の前に添えて、ひと目でわかるようにする ----
+
+export const JOB_ICONS: Record<JobId, string> = {
+  sales: '💼',
+  office: '🗂️',
+  engineer: '💻',
+  parttime: '🏪',
+  factory: '🏭',
+  owner: '👔',
+  none: '🛋️',
+};
+
+export const EDUCATION_ICONS: Record<Education, string> = { junior_high: '📘', high: '🏫', vocational: '🛠️', university: '🎓' };
+
+export const REGION_ICONS: Record<RegionId, string> = { metro: '🏙️', city: '🌆', rural: '🌾' };
+
+export const STAT_ICONS: Record<keyof typeof STAT_LABELS, string> = {
+  health: '❤️',
+  stress: '😣',
+  skill: '🛠️',
+  credit: '🤝',
+  relations: '👥',
+};
+
+/** イベントのカテゴリ(ログ・スナックバー・イベントの画面) */
+export const CATEGORY_ICONS: Record<string, string> = {
+  life: '🏠',
+  career: '💼',
+  money: '💰',
+  health: '❤️',
+  social: '🌐',
+  system: '📌',
+};
+
+export const LIFE_TYPE_ICONS: Record<string, string> = { winner: '🏆', poor_happy: '🙂', rich_unhappy: '💸', hardship: '😩' };
+
+export function genderIcon(gender: 'male' | 'female' | undefined): string {
+  return gender === 'female' ? '👩' : gender === 'male' ? '👨' : '🧑';
+}
+
+/** ログのイベントのカテゴリのアイコン(イベント以外の記録は空) */
+export function eventIcon(id: string | undefined): string {
+  const ev = id ? gameData.events.find((e) => e.id === id) : undefined;
+  return ev ? (CATEGORY_ICONS[ev.category] ?? '') : '';
+}
