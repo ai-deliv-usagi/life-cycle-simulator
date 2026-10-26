@@ -403,11 +403,61 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
       a.cash = 0;
     }
   }
-  // 免責から7年は再び自己破産できない(借金は延滞として残る)
-  if (a.debt > debtLimit(state, data) && num(state, 'blacklist', 0) <= 0) declareBankruptcy(state, data);
+  checkDebtLimit(state, data);
   if (bool(state, 'welfare') && income.total >= minimalLiving) state.flags.welfare = false;
 
   return { income, expenses, debtInterest, invested, prepaid, returns, welfare };
+}
+
+/**
+ * 借金が借入上限を超えた状態が graceMonths 続いたら自己破産(超えた月に警告を出す)。
+ * 免責から7年は再び自己破産できない(借金は延滞として残る)
+ */
+function checkDebtLimit(state: GameState, data: GameData): void {
+  const limit = debtLimit(state, data);
+  const over = num(state, 'overLimit', 0);
+  if (state.assets.debt <= limit || num(state, 'blacklist', 0) > 0) {
+    if (over > 0) state.flags.overLimit = 0;
+    return;
+  }
+  const grace = data.balance.bankruptcy.graceMonths;
+  state.flags.overLimit = over + 1;
+  if (over === 0 && grace > 1) {
+    addLog(
+      state,
+      'event',
+      `借金が限界に: 借金が借入上限(${manYen(limit)})を超えた。${grace}ヶ月のうちに減らせないと自己破産になる`,
+      'debt_warning',
+    );
+  }
+  if (over + 1 >= grace) {
+    state.flags.overLimit = 0;
+    declareBankruptcy(state, data);
+  }
+}
+
+function manYen(yen: number): string {
+  return `${Math.round(yen / 10_000).toLocaleString('ja-JP')}万円`;
+}
+
+/**
+ * 大きな出費(autoMinAmount 以上)で、預金と投資を合わせても足りないとき、足りない分を1万円単位でローンにする。
+ * 審査に落ちたらそのまま(月末に投資を売り、それでも足りなければカードローン)
+ */
+export function coverWithLoan(state: GameState, spent: number, data: GameData = defaultData): void {
+  const cfg = data.balance.loan;
+  const a = state.assets;
+  const short = -(a.cash + a.index + a.stocks + a.speculative);
+  if (spent < cfg.autoMinAmount || short <= 0) return;
+  const amount = Math.ceil(short / 10_000) * 10_000;
+  if (!takeLoan(state, amount, cfg.autoMonths, data)) return;
+  a.cash += amount;
+  addLog(
+    state,
+    'event',
+    `ローンを組んだ: 貯金では足りず、${manYen(amount)}をローンにした(${cfg.autoMonths / 12}年で返済)`,
+    'auto_loan',
+  );
 }
 
 /** 運用リターン。乱数の消費を保有額によらず一定にして、方針を変えても乱数列がずれないようにする */

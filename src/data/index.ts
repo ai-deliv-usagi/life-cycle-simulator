@@ -100,7 +100,7 @@ export function validateData(data: GameData): string[] {
     for (const r of ev.conditions.region ?? []) {
       if (!REGIONS.includes(r)) errors.push(`events.${ev.id}: 不明な地域 "${r}"`);
     }
-    for (const j of ev.conditions.jobNotIn ?? []) {
+    for (const j of [...(ev.conditions.jobNotIn ?? []), ...(ev.conditions.jobIn ?? [])]) {
       if (![...JOBS, 'none'].includes(j)) errors.push(`events.${ev.id}: 不明な職業 "${j}"`);
     }
     const effectsList = [ev.effects, ...(ev.choices ?? []).flatMap((c) => [c.effects, ...(c.outcomes ?? []).map((o) => o.effects)])];

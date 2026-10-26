@@ -24,6 +24,24 @@
         "value": "relation",
         "below": 0,
         "mul": 1.3
+      },
+      {
+        "work": [
+          "grind"
+        ],
+        "mul": 0.5
+      },
+      {
+        "work": [
+          "overtime"
+        ],
+        "mul": 0.75
+      },
+      {
+        "work": [
+          "regular"
+        ],
+        "mul": 1.2
       }
     ],
     "effects": {
@@ -350,7 +368,7 @@
     "id": "wedding_rush",
     "category": "life",
     "title": "友人の結婚式ラッシュ",
-    "text": "友人の結婚式の招待状が立て続けに届いた。",
+    "text": "今年だけで友人の結婚式の招待状が3通届いた。ご祝儀に交通費、服や美容院も合わせると1件5万円ほどかかる。",
     "conditions": {
       "ageMin": 25,
       "ageMax": 35
@@ -359,7 +377,7 @@
     "cooldownMonths": 24,
     "choices": [
       {
-        "label": "全部出席する",
+        "label": "3件とも出席する(約15万円)",
         "effects": {
           "cash": -150000,
           "stats": {
@@ -368,9 +386,9 @@
         }
       },
       {
-        "label": "ご祝儀だけ送る",
+        "label": "欠席してご祝儀だけ送る(約3万円)",
         "effects": {
-          "cash": -50000,
+          "cash": -30000,
           "stats": {
             "relations": 2
           }
@@ -777,7 +795,10 @@
     "title": "上司とのトラブル",
     "text": "上司と意見がぶつかり、職場の空気が悪くなった。",
     "conditions": {
-      "employed": true
+      "employed": true,
+      "jobNotIn": [
+        "parttime"
+      ]
     },
     "baseProb": 0.006,
     "good": false,
@@ -843,6 +864,316 @@
             "skill": -3,
             "stress": -10
           }
+        }
+      }
+    ]
+  },
+  {
+    "id": "shop_trouble",
+    "category": "career",
+    "title": "店長とのトラブル",
+    "text": "バイト先の店長とシフトのことで言い合いになった。",
+    "conditions": {
+      "employed": true,
+      "jobIn": [
+        "parttime"
+      ]
+    },
+    "baseProb": 0.006,
+    "good": false,
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "我慢する",
+        "effects": {
+          "stats": {
+            "stress": 10
+          }
+        }
+      },
+      {
+        "label": "言い返す",
+        "outcomes": [
+          {
+            "prob": 0.5,
+            "text": "言い分が通って、働きやすくなった",
+            "effects": {
+              "stats": {
+                "stress": -5
+              }
+            }
+          },
+          {
+            "prob": 0.5,
+            "text": "シフトを減らされてしまった",
+            "effects": {
+              "addFlags": {
+                "payMul": -0.15
+              },
+              "stats": {
+                "stress": 10
+              }
+            }
+          }
+        ],
+        "valueShift": {
+          "risk": 0.1
+        }
+      },
+      {
+        "label": "辞めて別のバイトを探す",
+        "effects": {
+          "cash": -50000,
+          "stats": {
+            "stress": -10,
+            "skill": -2
+          },
+          "setFlags": {
+            "payMul": 1
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "overwork_collapse",
+    "category": "career",
+    "title": "過労で倒れる",
+    "text": "連日の長時間労働がたたり、職場で倒れて病院に運ばれた。",
+    "conditions": {
+      "employed": true
+    },
+    "baseProb": 0.0003,
+    "good": false,
+    "cooldownMonths": 24,
+    "probMods": [
+      {
+        "work": [
+          "grind"
+        ],
+        "mul": 8
+      },
+      {
+        "work": [
+          "overtime"
+        ],
+        "mul": 3
+      },
+      {
+        "stat": "stress",
+        "above": 70,
+        "mul": 2
+      }
+    ],
+    "choices": [
+      {
+        "label": "しばらく休職する",
+        "effects": {
+          "cashMonthsOfPay": -1,
+          "stats": {
+            "health": 5,
+            "stress": -20,
+            "skill": -2
+          }
+        }
+      },
+      {
+        "label": "すぐに復帰する",
+        "effects": {
+          "cash": -50000,
+          "stats": {
+            "health": -6,
+            "stress": 10
+          },
+          "achievement": 2
+        },
+        "valueShift": {
+          "work": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "burnout",
+    "category": "career",
+    "title": "燃え尽き",
+    "text": "ある朝、どうしても会社に行く気力がわかなくなった。",
+    "conditions": {
+      "employed": true,
+      "ageMax": 64
+    },
+    "baseProb": 0.0003,
+    "good": false,
+    "cooldownMonths": 60,
+    "probMods": [
+      {
+        "work": [
+          "grind"
+        ],
+        "mul": 8
+      },
+      {
+        "work": [
+          "overtime"
+        ],
+        "mul": 3
+      },
+      {
+        "stat": "stress",
+        "above": 75,
+        "mul": 3
+      }
+    ],
+    "choices": [
+      {
+        "label": "休職して立て直す",
+        "effects": {
+          "cashMonthsOfPay": -2,
+          "stats": {
+            "stress": -25,
+            "health": 3
+          },
+          "achievement": -3
+        }
+      },
+      {
+        "label": "仕事を辞める",
+        "effects": {
+          "job": "none",
+          "stats": {
+            "stress": -35
+          },
+          "achievement": -5
+        },
+        "valueShift": {
+          "work": -0.1
+        }
+      },
+      {
+        "label": "気力を振り絞って続ける",
+        "effects": {
+          "stats": {
+            "stress": 10,
+            "health": -5
+          }
+        },
+        "valueShift": {
+          "work": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "family_neglect",
+    "category": "life",
+    "title": "家庭がギクシャク",
+    "text": "仕事ばかりで家にいない日が続き、配偶者との会話が減っている。",
+    "conditions": {
+      "employed": true,
+      "flags": {
+        "married": true
+      }
+    },
+    "baseProb": 0.001,
+    "good": false,
+    "cooldownMonths": 24,
+    "probMods": [
+      {
+        "work": [
+          "grind"
+        ],
+        "mul": 6
+      },
+      {
+        "work": [
+          "overtime"
+        ],
+        "mul": 3
+      },
+      {
+        "work": [
+          "regular"
+        ],
+        "mul": 0.3
+      }
+    ],
+    "choices": [
+      {
+        "label": "休みを取って家族と過ごす",
+        "effects": {
+          "cash": -50000,
+          "stats": {
+            "relations": 8,
+            "stress": -5,
+            "skill": -1
+          }
+        }
+      },
+      {
+        "label": "仕事を優先する",
+        "effects": {
+          "stats": {
+            "relations": -10,
+            "stress": 5
+          },
+          "achievement": 2
+        },
+        "valueShift": {
+          "relation": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "evening_class",
+    "category": "career",
+    "title": "夜の時間",
+    "text": "定時で帰れる日が続き、夜の時間が空くようになった。",
+    "conditions": {
+      "employed": true,
+      "ageMax": 60
+    },
+    "baseProb": 0.0005,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "work": [
+          "regular"
+        ],
+        "mul": 8
+      },
+      {
+        "work": [
+          "normal"
+        ],
+        "mul": 2
+      }
+    ],
+    "choices": [
+      {
+        "label": "社会人スクールに通う",
+        "effects": {
+          "cash": -200000,
+          "stats": {
+            "skill": 8,
+            "stress": 3
+          },
+          "achievement": 3
+        },
+        "valueShift": {
+          "work": 0.1
+        }
+      },
+      {
+        "label": "のんびり過ごす",
+        "effects": {
+          "stats": {
+            "stress": -5,
+            "relations": 2
+          }
+        },
+        "valueShift": {
+          "work": -0.1
         }
       }
     ]
@@ -919,7 +1250,8 @@
     "title": "投資詐欺の勧誘",
     "text": "「絶対に儲かる」という投資話を持ちかけられた。",
     "conditions": {
-      "ageMin": 25
+      "ageMin": 25,
+      "minFinancial": 1000000
     },
     "baseProb": 0.0025,
     "good": false,
@@ -1158,6 +1490,18 @@
         }
       },
       {
+        "label": "中古車をローンで買う",
+        "effects": {
+          "setFlags": {
+            "hasCar": true
+          },
+          "loan": {
+            "amount": 800000,
+            "months": 36
+          }
+        }
+      },
+      {
         "label": "買わない",
         "valueShift": {
           "spending": -0.1
@@ -1258,7 +1602,10 @@
               }
             }
           }
-        ]
+        ],
+        "conditions": {
+          "minFinancial": 500000
+        }
       },
       {
         "label": "断る",
@@ -1267,6 +1614,174 @@
             "relations": -8
           }
         }
+      }
+    ]
+  },
+  {
+    "id": "impulse_buy",
+    "category": "money",
+    "title": "衝動買い",
+    "text": "店先で一目ぼれした高級品。値札を見ると30万円。",
+    "conditions": {
+      "ageMin": 20
+    },
+    "baseProb": 0.001,
+    "cooldownMonths": 12,
+    "probMods": [
+      {
+        "spending": [
+          "lavish"
+        ],
+        "mul": 6
+      },
+      {
+        "spending": [
+          "comfort"
+        ],
+        "mul": 2.5
+      },
+      {
+        "spending": [
+          "frugal"
+        ],
+        "mul": 0.2
+      },
+      {
+        "value": "spending",
+        "above": 0.5,
+        "mul": 1.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "買う",
+        "effects": {
+          "cash": -300000,
+          "stats": {
+            "stress": -5
+          },
+          "achievement": 1
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "我慢する",
+        "effects": {
+          "stats": {
+            "stress": 3
+          }
+        },
+        "valueShift": {
+          "spending": -0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "revolving",
+    "category": "money",
+    "title": "リボ払いの誘い",
+    "text": "カード会社から「毎月の支払いが一定で安心」とリボ払いを勧められた。",
+    "conditions": {
+      "ageMin": 20,
+      "ageMax": 75
+    },
+    "baseProb": 0.0005,
+    "cooldownMonths": 36,
+    "choices": [
+      {
+        "label": "リボ払いで欲しいものを買う",
+        "effects": {
+          "debt": 400000,
+          "stats": {
+            "stress": -5,
+            "credit": -5
+          }
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "断る",
+        "valueShift": {
+          "spending": -0.1
+        }
+      }
+    ],
+    "probMods": [
+      {
+        "spending": [
+          "lavish"
+        ],
+        "mul": 8
+      },
+      {
+        "spending": [
+          "comfort"
+        ],
+        "mul": 3
+      },
+      {
+        "spending": [
+          "frugal"
+        ],
+        "mul": 0
+      }
+    ]
+  },
+  {
+    "id": "frugal_stingy",
+    "category": "life",
+    "title": "付き合いが悪い",
+    "text": "節約続きで飲み会を断ってばかりいたら、「最近付き合い悪いね」と言われた。",
+    "conditions": {
+      "ageMin": 20,
+      "ageMax": 70
+    },
+    "baseProb": 0.0003,
+    "cooldownMonths": 24,
+    "choices": [
+      {
+        "label": "たまには付き合う",
+        "effects": {
+          "cash": -30000,
+          "stats": {
+            "relations": 4
+          }
+        },
+        "valueShift": {
+          "spending": 0.1
+        }
+      },
+      {
+        "label": "気にしない",
+        "effects": {
+          "stats": {
+            "relations": -5
+          }
+        },
+        "valueShift": {
+          "spending": -0.1
+        }
+      }
+    ],
+    "probMods": [
+      {
+        "spending": [
+          "frugal"
+        ],
+        "mul": 12
+      },
+      {
+        "spending": [
+          "normal",
+          "comfort",
+          "lavish"
+        ],
+        "mul": 0
       }
     ]
   },
@@ -1327,6 +1842,9 @@
         "effects": {
           "stats": {
             "health": -5
+          },
+          "setFlags": {
+            "checkupNeglect": 60
           }
         },
         "valueShift": {
@@ -1378,6 +1896,11 @@
         "flag": "hasCar",
         "equals": true,
         "mul": 1.5
+      },
+      {
+        "flag": "elderlyDriver",
+        "equals": true,
+        "mul": 2
       }
     ],
     "effects": {
@@ -1432,16 +1955,16 @@
     "id": "serious_illness",
     "category": "health",
     "title": "大病",
-    "text": "体の不調を放っておいた結果、大きな病気が見つかった。長期の入院が必要だ。",
+    "text": "検査で大きな病気が見つかった。治療には長い入院と通院が必要だ。",
     "conditions": {},
-    "baseProb": 0.0005,
+    "baseProb": 0.0002,
     "good": false,
     "cooldownMonths": 36,
     "probMods": [
       {
         "stat": "health",
         "below": 30,
-        "mul": 6
+        "mul": 5
       },
       {
         "stat": "health",
@@ -1451,17 +1974,298 @@
       {
         "age": true,
         "above": 50,
+        "mul": 3
+      },
+      {
+        "age": true,
+        "above": 65,
+        "mul": 2
+      },
+      {
+        "flag": "checkupNeglect",
+        "above": 0,
+        "mul": 3
+      }
+    ],
+    "choices": [
+      {
+        "label": "治療に専念する",
+        "effects": {
+          "cash": -1000000,
+          "stats": {
+            "health": -10,
+            "stress": 20
+          },
+          "achievement": -5,
+          "setFlags": {
+            "illnessTreated": 12,
+            "checkupNeglect": 0
+          }
+        }
+      },
+      {
+        "label": "治療しない",
+        "effects": {
+          "stats": {
+            "stress": 10
+          },
+          "setFlags": {
+            "illnessUntreated": 36
+          }
+        },
+        "valueShift": {
+          "risk": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "license_return",
+    "category": "life",
+    "title": "免許返納",
+    "text": "家族から「そろそろ運転はやめたら」と免許の返納を勧められた。",
+    "conditions": {
+      "ageMin": 70,
+      "flags": {
+        "hasCar": true
+      }
+    },
+    "baseProb": 0.02,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "age": true,
+        "above": 75,
+        "mul": 1.5
+      }
+    ],
+    "choices": [
+      {
+        "label": "免許を返納する",
+        "effects": {
+          "setFlags": {
+            "hasCar": false,
+            "elderlyDriver": false
+          },
+          "stats": {
+            "stress": 3
+          }
+        }
+      },
+      {
+        "label": "まだ運転を続ける",
+        "effects": {
+          "setFlags": {
+            "elderlyDriver": true
+          }
+        },
+        "valueShift": {
+          "risk": 0.1
+        }
+      }
+    ]
+  },
+  {
+    "id": "elderly_crash",
+    "category": "health",
+    "title": "運転中の事故",
+    "text": "アクセルとブレーキを踏み間違えて事故を起こした。幸い大事には至らなかったが、免許を返納した。",
+    "conditions": {
+      "ageMin": 70,
+      "flags": {
+        "hasCar": true
+      }
+    },
+    "baseProb": 0.001,
+    "good": false,
+    "once": true,
+    "probMods": [
+      {
+        "flag": "elderlyDriver",
+        "equals": true,
+        "mul": 2
+      },
+      {
+        "age": true,
+        "above": 80,
         "mul": 2
       }
     ],
     "effects": {
-      "cash": -1000000,
+      "cash": -500000,
       "stats": {
         "health": -10,
-        "stress": 20
+        "stress": 20,
+        "relations": -5
       },
-      "achievement": -5
+      "setFlags": {
+        "hasCar": false,
+        "elderlyDriver": false
+      }
     }
+  },
+  {
+    "id": "marathon",
+    "category": "health",
+    "title": "マラソン大会",
+    "text": "走るのが習慣になり、市民マラソンに誘われた。",
+    "conditions": {
+      "ageMin": 25,
+      "ageMax": 70
+    },
+    "baseProb": 0.0005,
+    "cooldownMonths": 24,
+    "probMods": [
+      {
+        "healthCare": [
+          "active"
+        ],
+        "mul": 10
+      },
+      {
+        "healthCare": [
+          "ignore"
+        ],
+        "mul": 0
+      },
+      {
+        "stat": "health",
+        "below": 40,
+        "mul": 0.3
+      }
+    ],
+    "choices": [
+      {
+        "label": "出場する",
+        "effects": {
+          "cash": -20000
+        },
+        "outcomes": [
+          {
+            "prob": 0.7,
+            "text": "完走できた",
+            "effects": {
+              "stats": {
+                "health": 4,
+                "stress": -5
+              },
+              "achievement": 4
+            }
+          },
+          {
+            "prob": 0.3,
+            "text": "途中で足を痛めて棄権した",
+            "effects": {
+              "stats": {
+                "health": -3,
+                "stress": 3
+              }
+            }
+          }
+        ]
+      },
+      {
+        "label": "見送る"
+      }
+    ]
+  },
+  {
+    "id": "early_detection",
+    "category": "health",
+    "title": "人間ドックで早期発見",
+    "text": "人間ドックで初期の病気が見つかった。早く治療できたので大事に至らずに済んだ。",
+    "conditions": {
+      "ageMin": 40
+    },
+    "baseProb": 0.0003,
+    "good": true,
+    "cooldownMonths": 60,
+    "probMods": [
+      {
+        "healthCare": [
+          "active"
+        ],
+        "mul": 8
+      },
+      {
+        "healthCare": [
+          "ignore"
+        ],
+        "mul": 0
+      },
+      {
+        "age": true,
+        "above": 55,
+        "mul": 2
+      }
+    ],
+    "effects": {
+      "cash": -100000,
+      "stats": {
+        "stress": 5
+      },
+      "setFlags": {
+        "checkupNeglect": 0
+      }
+    }
+  },
+  {
+    "id": "lifestyle_disease",
+    "category": "health",
+    "title": "生活習慣病の疑い",
+    "text": "体重と血圧が気になり始めた。医者からは生活を見直すよう言われた。",
+    "conditions": {
+      "ageMin": 40,
+      "ageMax": 80
+    },
+    "baseProb": 0.001,
+    "good": false,
+    "cooldownMonths": 36,
+    "probMods": [
+      {
+        "healthCare": [
+          "ignore"
+        ],
+        "mul": 5
+      },
+      {
+        "healthCare": [
+          "active"
+        ],
+        "mul": 0.2
+      },
+      {
+        "stat": "health",
+        "below": 40,
+        "mul": 2
+      }
+    ],
+    "choices": [
+      {
+        "label": "生活を改める",
+        "effects": {
+          "cash": -20000,
+          "stats": {
+            "health": 5,
+            "stress": 5
+          }
+        }
+      },
+      {
+        "label": "気にしない",
+        "effects": {
+          "stats": {
+            "health": -5
+          },
+          "setFlags": {
+            "checkupNeglect": 36
+          }
+        },
+        "valueShift": {
+          "risk": 0.1
+        }
+      }
+    ]
   },
   {
     "id": "recession",
@@ -1991,9 +2795,10 @@
     "id": "ore_ore",
     "category": "money",
     "title": "オレオレ詐欺",
-    "text": "「オレだよ、事故を起こして示談金が必要なんだ」と電話がかかってきた。",
+    "text": "「オレだよ、事故を起こして示談金が200万円必要なんだ」と電話がかかってきた。",
     "conditions": {
-      "ageMin": 70
+      "ageMin": 70,
+      "minFinancial": 2000000
     },
     "baseProb": 0.003,
     "good": false,

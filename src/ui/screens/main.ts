@@ -6,7 +6,7 @@ import { clear, h, mount } from '../dom';
 import { ageMonthLabel, bigYen, calendarMonth, collapseLog, manYen, RANK_LABELS, regionLabel, STAT_LABELS, yearNumber, yen } from '../format';
 import type { Nav } from '../nav';
 import { policySummary } from '../policyForm';
-import { assetsModal, choiceResultModal, eventModal, policyModal, yearSummaryModal } from './modals';
+import { assetsModal, choiceResultModal, eventModal, incomeModal, policyModal, yearSummaryModal } from './modals';
 
 const RECENT_LOGS = 10;
 const SPEEDS: Speed[] = [1, 4, 16];
@@ -63,7 +63,16 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       h(
         'section',
         { class: 'tiles' },
-        tile(fields.netLabel, fields.net),
+        h(
+          'button',
+          {
+            class: 'tile tile-button',
+            'aria-label': '収入の内訳を見る',
+            onclick: () => void controller.whilePaused(() => incomeModal(controller.state)),
+          },
+          fields.netLabel,
+          fields.net,
+        ),
         h(
           'button',
           {
@@ -132,11 +141,13 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     fields.job.textContent = rank && !c.retired ? `${v.jobLabel}(${rank})` : v.jobLabel;
     fields.region.textContent = regionLabel(c.region);
     fields.family.textContent = c.married ? '既婚' : state.flags.partner === true ? '恋人あり' : '独身';
-    fields.netLabel.textContent = c.retired
-      ? '年金・世帯の手取り(月)'
-      : Number(state.flags.unemploymentBenefit ?? 0) > 0
-        ? '失業給付・世帯の手取り(月)'
-        : '世帯の手取り(月)';
+    fields.netLabel.textContent = `${
+      c.retired
+        ? '年金・世帯の手取り(月)'
+        : Number(state.flags.unemploymentBenefit ?? 0) > 0
+          ? '失業給付・世帯の手取り(月)'
+          : '世帯の手取り(月)'
+    } ›`;
     fields.net.textContent = yen(v.householdNet);
     fields.assets.textContent = bigYen(v.financialAssets);
     fields.debt.textContent = v.debt > 0 ? manYen(v.debt) : 'なし';

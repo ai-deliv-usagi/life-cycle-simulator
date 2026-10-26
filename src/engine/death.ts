@@ -52,8 +52,35 @@ export function pickCause(state: GameState, rng: Rng, data: GameData = defaultDa
   return rng.weighted((Object.keys(w) as DeathCause[]).map((cause) => ({ item: cause, weight: w[cause] })));
 }
 
+/** 大病(治療中・治療しない)による今月の死亡リスク */
+export function illnessDeathProb(state: GameState, data: GameData = defaultData): number {
+  let p = 0;
+  for (const [key, t] of Object.entries(data.balance.timers)) {
+    const v = state.flags[key];
+    if ('deathMonthly' in t && typeof v === 'number' && v > 0) p += t.deathMonthly;
+  }
+  return p;
+}
+
+/** 過労死の今月のリスク。年齢に関係なく、働きすぎてストレスが高いと起きる */
+export function karoshiProb(state: GameState, data: GameData = defaultData): number {
+  const k = data.balance.death.karoshi;
+  if (state.stats.stress < k.minStress) return 0;
+  const work = effectiveWork(state);
+  return work === 'grind' ? k.grindMonthly : work === 'overtime' ? k.overtimeMonthly : 0;
+}
+
 /** 今月死ぬかを判定し、死んだら死因を返す。生きていれば null */
 export function rollDeath(state: GameState, rng: Rng, data: GameData = defaultData): DeathCause | null {
-  if (!rng.chance(monthlyDeathProb(state, data))) return null;
+  const base = monthlyDeathProb(state, data);
+  const illness = illnessDeathProb(state, data);
+  const karoshi = karoshiProb(state, data);
+  const total = base + illness + karoshi;
+  if (!rng.chance(Math.min(1, total))) return null;
+  if (illness + karoshi > 0) {
+    const r = rng.next() * total;
+    if (r < illness) return 'illness';
+    if (r < illness + karoshi) return 'overwork';
+  }
   return pickCause(state, rng, data);
 }

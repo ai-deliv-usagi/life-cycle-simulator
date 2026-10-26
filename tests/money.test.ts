@@ -334,11 +334,15 @@ describe('月次の適用', () => {
     expect(t.flags.welfare).toBe(false);
   });
 
-  it('借入上限を超えたら自己破産: 借金0・信用0・ストレス+30・ログ。7年間は再び破産できない', () => {
+  it('借入上限を超えた状態が6ヶ月続いたら自己破産: 借金0・信用0・ストレス+30・ログ。7年間は再び破産できない', () => {
     const s = overspender();
     const limit = debtLimit(s);
     expect(limit).toBe(2_000_000);
     s.assets.debt = 1_999_000;
+    for (let i = 0; i < 5; i++) applyMonthlyMoney(s, flatRng);
+    expect(s.log.filter((e) => e.id === 'debt_warning')).toHaveLength(1); // 超えた月に1回だけ警告
+    expect(s.flags.bankrupt).toBeFalsy();
+    s.stats.stress = 20;
     applyMonthlyMoney(s, flatRng);
     expect(s.assets.debt).toBe(0);
     expect(s.stats.credit).toBe(0);
@@ -352,8 +356,19 @@ describe('月次の適用', () => {
     expect(s.log.filter((e) => e.id === 'bankruptcy')).toHaveLength(1);
     expect(s.assets.debt).toBeGreaterThan(debtLimit(s));
     s.flags.blacklist = 0;
-    applyMonthlyMoney(s, flatRng);
+    for (let i = 0; i < 6; i++) applyMonthlyMoney(s, flatRng);
     expect(s.log.filter((e) => e.id === 'bankruptcy')).toHaveLength(2);
+  });
+
+  it('猶予の間に上限より下まで減らせば破産しない', () => {
+    const s = overspender();
+    s.assets.debt = 2_100_000;
+    applyMonthlyMoney(s, flatRng);
+    expect(s.flags.overLimit).toBe(1);
+    s.assets.debt = 1_000_000;
+    applyMonthlyMoney(s, flatRng);
+    expect(s.flags.overLimit).toBe(0);
+    expect(s.flags.bankrupt).toBeFalsy();
   });
 
   it('借入上限は額面年収の半分(最低200万円)', () => {

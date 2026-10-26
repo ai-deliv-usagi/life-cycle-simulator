@@ -45,9 +45,15 @@ export function mount(root: HTMLElement, ...children: Child[]): void {
 }
 
 /** モーダルを開く。戻り値で閉じる */
-export function openModal(content: HTMLElement, opts: { dismissible?: boolean } = {}): () => void {
+export function openModal(
+  content: HTMLElement,
+  opts: { dismissible?: boolean; onClose?: () => void } = {},
+): () => void {
   const overlay = h('div', { class: 'modal-overlay', role: 'dialog', 'aria-modal': 'true' }, h('div', { class: 'modal' }, content));
-  const close = () => overlay.remove();
+  const close = () => {
+    overlay.remove();
+    opts.onClose?.();
+  };
   if (opts.dismissible) {
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) close();

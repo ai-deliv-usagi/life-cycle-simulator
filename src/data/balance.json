@@ -173,6 +173,11 @@
     "healthPivot": 50,
     "healthScale": 15,
     "highStressMul": 1.2,
+    "karoshi": {
+      "grindMonthly": 0.00015,
+      "overtimeMonthly": 0.00003,
+      "minStress": 70
+    },
     "maxAge": 120,
     "cause": {
       "overworkGrind": 40,
@@ -239,7 +244,19 @@
     },
     "unemploymentBenefit": {},
     "blacklist": {},
-    "rehire": {}
+    "rehire": {},
+    "illnessTreated": {
+      "deathMonthly": 0.001,
+      "health": 0
+    },
+    "illnessUntreated": {
+      "deathMonthly": 0.012,
+      "health": -0.3
+    },
+    "checkupNeglect": {
+      "deathMonthly": 0,
+      "health": 0
+    }
   },
   "studentLoan": {
     "interestFreeProb": 0.35,
@@ -276,7 +293,8 @@
     "minLimit": 2000000,
     "incomeShare": 0.5,
     "stress": 30,
-    "blacklistMonths": 84
+    "blacklistMonths": 84,
+    "graceMonths": 6
   },
   "result": {
     "netWorthLine": 25000000,
@@ -284,7 +302,9 @@
   },
   "loan": {
     "annualRate": 0.03,
-    "minCredit": 30
+    "minCredit": 30,
+    "autoMinAmount": 300000,
+    "autoMonths": 60
   },
   "rehire": {
     "months": 60,

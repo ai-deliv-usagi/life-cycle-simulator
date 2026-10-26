@@ -101,6 +101,8 @@ export interface LogEntry {
   id?: string;
   text: string;
   snapshot: { netWorth: number; health: number; happiness: number };
+  /** 年間サマリーだけ: 年末の金融資産の内訳(円) */
+  assets?: { cash: number; index: number; stocks: number; speculative: number };
 }
 
 export interface PendingEvent {
@@ -157,7 +159,7 @@ export interface LifeResult {
   finalNetWorth: number;
   lifetimeHappiness: number;
   lifeType: LifeType;
-  yearly: { age: number; netWorth: number; happiness: number }[];
+  yearly: { age: number; netWorth: number; happiness: number; assets?: NonNullable<LogEntry['assets']> }[];
   timeline: LogEntry[];
 }
 
@@ -170,8 +172,10 @@ export interface EventConditions {
   employed?: boolean; // job != 'none' かつ未退職
   retired?: boolean;
   minInvested?: number; // index+stocks+speculative の下限(円)
+  minFinancial?: number; // 金融資産(預金+投資)の下限(円)。お金がないと起きない詐欺など
   region?: RegionId[];
   jobNotIn?: JobId[]; // この職業のときは起きない
+  jobIn?: JobId[]; // この職業のときだけ起きる
 }
 
 export type ProbMod =
@@ -181,6 +185,7 @@ export type ProbMod =
   | { age: true; above?: number; below?: number; mul: number }
   | { work: WorkStyle[]; mul: number }
   | { healthCare: HealthCare[]; mul: number }
+  | { spending: Spending[]; mul: number }
   | { region: RegionId[]; mul: number };
 
 export interface Effects {
@@ -200,6 +205,8 @@ export interface Effects {
   relocate?: 'down';
   /** ローンで払う。審査(信用・ブラックリスト)に落ちたら現金で払う */
   loan?: { amount: number; months: number };
+  /** カードローン・リボ払いの借金を増やす(現金は動かない) */
+  debt?: number;
 }
 
 export interface Outcome {
@@ -326,6 +333,8 @@ export interface Balance {
     healthPivot: number;
     healthScale: number;
     highStressMul: number;
+    /** 過労死: ストレスが minStress 以上で激務・残業多めのとき、年齢に関係なく毎月この確率 */
+    karoshi: { grindMonthly: number; overtimeMonthly: number; minStress: number };
     maxAge: number;
     cause: {
       overworkGrind: number;
@@ -358,14 +367,20 @@ export interface Balance {
     unemploymentBenefit: Record<string, never>;
     blacklist: Record<string, never>; // 自己破産後、借りられず再破産もできない残り月数
     rehire: Record<string, never>; // 再雇用の残り月数
+    /** 大病の治療中・治療しないままの残り月数。その間は毎月 deathMonthly の死亡リスクと健康の増減がある */
+    illnessTreated: { deathMonthly: number; health: number };
+    illnessUntreated: { deathMonthly: number; health: number };
+    checkupNeglect: { deathMonthly: number; health: number }; // 再検査を放置した残り月数(大病が起きやすい)
   };
   studentLoan: { interestFreeProb: number; annualRate: number; months: number };
   unemployment: { months: number; payRate: number };
   spouse: {
     types: Record<SpouseType, { prob: number; monthlyNet: number; taxBenefit: number; employeePension: number }>;
   };
-  bankruptcy: { minLimit: number; incomeShare: number; stress: number; blacklistMonths: number };
-  loan: { annualRate: number; minCredit: number };
+  /** graceMonths: 借金が上限を超えた状態がこの月数続いたら自己破産 */
+  bankruptcy: { minLimit: number; incomeShare: number; stress: number; blacklistMonths: number; graceMonths: number };
+  /** autoMinAmount 以上の出費が現金で払えないときは、足りない分を autoMonths 回のローンにする */
+  loan: { annualRate: number; minCredit: number; autoMinAmount: number; autoMonths: number };
   /** ボーナスの月(暦)と、ゲーム開始の月(暦) */
   bonus: { months: number[]; startCalendarMonth: number };
   rehire: { months: number; payRate: number };

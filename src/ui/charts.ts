@@ -1,5 +1,7 @@
 // グラフ(Chart.js)。16倍速でも重くならないようアニメーションは切る
 import {
+  BarController,
+  BarElement,
   CategoryScale,
   Chart,
   Filler,
@@ -10,9 +12,21 @@ import {
   PointElement,
   Tooltip,
 } from 'chart.js';
+import type { LogEntry } from '../engine/index';
 import { manYen } from './format';
 
-Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler, Legend, Tooltip);
+Chart.register(
+  LineController,
+  LineElement,
+  PointElement,
+  BarController,
+  BarElement,
+  LinearScale,
+  CategoryScale,
+  Filler,
+  Legend,
+  Tooltip,
+);
 
 function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -119,4 +133,53 @@ export function resultChart(
       },
     },
   });
+}
+
+export interface AssetMixPoint {
+  age: number;
+  assets: NonNullable<LogEntry['assets']>;
+}
+
+const ASSET_SERIES = [
+  { key: 'cash', label: '預金', color: '--asset-cash' },
+  { key: 'index', label: '積立', color: '--asset-index' },
+  { key: 'stocks', label: '個別株', color: '--asset-stocks' },
+  { key: 'speculative', label: '信用・仮想通貨', color: '--asset-speculative' },
+] as const;
+
+/** 年末の金融資産の内訳(積み上げ棒)。預金がマイナスの年は0として描く */
+export function assetMixChart(canvas: HTMLCanvasElement, points: AssetMixPoint[]): Chart<'bar'> {
+  return new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: points.map((p) => Math.floor(p.age)),
+      datasets: ASSET_SERIES.map((s) => ({
+        label: s.label,
+        data: points.map((p) => Math.max(0, p.assets[s.key])),
+        backgroundColor: cssVar(s.color),
+        borderWidth: 0,
+        barPercentage: 0.9,
+        categoryPercentage: 0.9,
+      })),
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: cssVar('--text'), boxWidth: 12 } },
+        tooltip: { callbacks: { label: (c) => `${c.dataset.label} ${manYen(Number(c.raw))}` } },
+      },
+      scales: {
+        x: { stacked: true, title: { display: true, text: '年齢' }, ticks: { maxTicksLimit: 8, color: cssVar('--muted') }, grid: { display: false } },
+        y: { stacked: true, ticks: { callback: yenTick, maxTicksLimit: 5, color: cssVar('--muted') }, grid: { color: cssVar('--grid') } },
+      },
+    },
+  });
+}
+
+/** log の年間サマリーから、年末の内訳を取り出す(内訳のない古いセーブの年は飛ばす) */
+export function assetMixPoints(log: readonly LogEntry[]): AssetMixPoint[] {
+  return log.flatMap((e) => (e.type === 'year_summary' && e.assets ? [{ age: e.ageMonths / 12, assets: e.assets }] : []));
 }
