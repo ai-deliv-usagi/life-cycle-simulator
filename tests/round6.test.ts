@@ -87,3 +87,14 @@ describe('スキルが低いときの手当て', () => {
     expect(isEligible(byId('job_training'), setAge(makeState({ job: 'office' }), 30))).toBe(false);
   });
 });
+
+describe('リボ払いはお金がないときだけ', () => {
+  it('金融資産が100万円以上なら、リボ払いの誘いは起きず、ブランド品の「リボ払いで買う」も出ない', () => {
+    const poor = setAge(makeState({ initialCash: 500_000 }), 30);
+    const rich = setAge(makeState({ initialCash: 1_000_000 }), 30);
+    expect(isEligible(byId('revolving'), poor)).toBe(true);
+    expect(isEligible(byId('revolving'), rich)).toBe(false);
+    expect(labels('luxury_brand', poor)).toContain('リボ払いで買う');
+    expect(labels('luxury_brand', rich)).not.toContain('リボ払いで買う');
+  });
+});

@@ -224,6 +224,7 @@ export interface EventConditions {
   retired?: boolean;
   minInvested?: number; // index+stocks+speculative の下限(円)
   minFinancial?: number; // 金融資産(預金+投資)の下限(円)。お金がないと起きない詐欺など
+  maxFinancial?: number; // 金融資産の上限(円)。お金があれば使わないリボ払いなど
   region?: RegionId[];
   jobNotIn?: JobId[]; // この職業のときは起きない
   jobIn?: JobId[]; // この職業のときだけ起きる

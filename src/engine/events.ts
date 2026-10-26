@@ -71,6 +71,7 @@ export function conditionsMet(cond: EventConditions | undefined, state: GameStat
     if (a.index + a.stocks + a.speculative < cond.minInvested) return false;
   }
   if (cond.minFinancial !== undefined && financialAssets(state.assets) < cond.minFinancial) return false;
+  if (cond.maxFinancial !== undefined && financialAssets(state.assets) >= cond.maxFinancial) return false;
   if (cond.region && !cond.region.includes(state.character.region)) return false;
   if (cond.jobNotIn?.includes(state.character.job)) return false;
   if (cond.jobIn && !cond.jobIn.includes(state.character.job)) return false;
