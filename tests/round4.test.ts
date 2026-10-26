@@ -107,3 +107,11 @@ describe('バイトには定年がない', () => {
     expect(at65('sales').log.some((e) => e.id === 'retirement')).toBe(true);
   });
 });
+
+describe('昇進は55歳まで', () => {
+  it('役職定年(55歳)を過ぎると昇進の話は来ない', () => {
+    const ev = byId('promotion');
+    expect(eventProb(ev, setAge(makeState({ job: 'sales' }), 54))).toBeGreaterThan(0);
+    expect(eventProb(ev, setAge(makeState({ job: 'sales' }), 56))).toBe(0);
+  });
+});

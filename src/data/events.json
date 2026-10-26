@@ -736,7 +736,7 @@
       {
         "age": true,
         "above": 55,
-        "mul": 0.2
+        "mul": 0
       }
     ],
     "choices": [
