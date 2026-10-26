@@ -10,6 +10,7 @@ export type JobId = 'sales' | 'office' | 'engineer' | 'parttime' | 'factory' | '
 export type FamilyTier = 1 | 2 | 3 | 4 | 5; // 5=太い, 1=実家が借金持ち
 export type RegionId = 'metro' | 'city' | 'rural'; // 大都市/地方都市/田舎
 export type SpouseType = 'fulltime' | 'parttime' | 'homemaker'; // 共働き/扶養内パート/専業
+export type Gender = 'male' | 'female';
 
 export type WorkStyle = 'regular' | 'normal' | 'overtime' | 'grind'; // 定時/普通/残業多め/激務
 export type Spending = 'frugal' | 'normal' | 'comfort' | 'lavish'; // 節約/普通/ゆとり/浪費
@@ -80,6 +81,7 @@ export interface StudentLoan {
 
 export interface Character {
   name: string;
+  gender?: Gender; // 第2弾。古いセーブにはない(男女の平均で扱う)
   education: Education;
   job: JobId;
   jobYears: number; // 現職の勤続年数
@@ -162,6 +164,7 @@ export interface CharacterRoll {
   luck: number;
   initialCash: number;
   studentLoan: (StudentLoan & { amount: number }) | null;
+  gender?: Gender; // rollCharacter は必ず決める。省略すると男女の平均で扱う(テスト用)
 }
 
 // ---- リザルト ----
@@ -190,6 +193,7 @@ export interface EventConditions {
   jobNotIn?: JobId[]; // この職業のときは起きない
   jobIn?: JobId[]; // この職業のときだけ起きる
   spouseType?: SpouseType[]; // 配偶者がこのタイプのときだけ
+  gender?: Gender; // 本人の性別(古いセーブで性別がないときは満たさない)
   childrenBelow?: number; // 子どもの人数がこれ未満
   childAge?: [number, number]; // 子どもの誰かがこの年齢(歳、両端を含む)
 }
@@ -355,6 +359,8 @@ export interface Balance {
     healthPivot: number;
     healthScale: number;
     highStressMul: number;
+    /** 男女の死亡率の係数(男性は高く、女性は低い。平均寿命の差 約6年) */
+    genderMul: Record<Gender, number>;
     /** 過労死: ストレスが minStress 以上で激務・残業多めのとき、年齢に関係なく毎月この確率 */
     karoshi: { grindMonthly: number; overtimeMonthly: number; minStress: number };
     maxAge: number;
@@ -393,6 +399,7 @@ export interface Balance {
     parentalLeave: Record<string, never>; // 本人の育休の残り月数
     spouseLeave: Record<string, never>; // 配偶者の育休の残り月数
     fertilityCare: Record<string, never>; // 不妊治療の残り月数(妊娠しやすい)
+    maternityLeave: Record<string, never>; // 女性本人の産休の残り月数
     /** 大病の治療中・治療しないままの残り月数。その間は毎月 deathMonthly の死亡リスクと健康の増減がある */
     illnessTreated: { deathMonthly: number; health: number };
     illnessUntreated: { deathMonthly: number; health: number };
@@ -401,6 +408,8 @@ export interface Balance {
   studentLoan: { interestFreeProb: number; annualRate: number; months: number };
   unemployment: { months: number; payRate: number };
   spouse: {
+    /** 本人の性別ごとの、配偶者のタイプの確率(性別のない古いセーブは types の prob) */
+    probByGender: Record<Gender, Record<SpouseType, number>>;
     types: Record<SpouseType, { prob: number; monthlyNet: number; taxBenefit: number; employeePension: number }>;
   };
   /** graceMonths: 借金が上限を超えた状態がこの月数続いたら自己破産 */
@@ -412,6 +421,7 @@ export interface Balance {
   rehire: { months: number; payRate: number };
   result: { netWorthLine: number; happinessLine: number };
   children: ChildrenBalance;
+  gender: { femaleProb: number };
 }
 
 /** 子ども(第2弾)。金額は1人あたりの月額 */
@@ -425,7 +435,18 @@ export interface ChildrenBalance {
   /** 児童手当: under3 は3歳未満、それ以外は高校生(18歳)まで。3人目からは third */
   allowance: { under3: number; school: number; third: number; until: number };
   /** 育休: months ヶ月。最初の firstMonths は額面月給の firstRate、残りは laterRate(非課税)。配偶者は手取りに spouse* を掛ける */
-  parentalLeave: { months: number; firstMonths: number; firstRate: number; laterRate: number; spouseFirstRate: number; spouseLaterRate: number };
+  parentalLeave: {
+    months: number;
+    firstMonths: number;
+    firstRate: number;
+    laterRate: number;
+    spouseFirstRate: number;
+    spouseLaterRate: number;
+    /** 女性本人の産休(産後休業): 出産のあと maternityMonths は額面月給の maternityRate。出産で健康 birthHealth */
+    maternityMonths: number;
+    maternityRate: number;
+    birthHealth: number;
+  };
   /** 幸福度とストレス: 人間関係 +perChild(上限 relationsMax)、youngUntil 歳未満の子1人ごとに自由時間 freeTimePerYoung、babyUntil 歳未満の子1人ごとにストレス stressPerBaby/月 */
   happiness: { relationsPerChild: number; relationsMax: number; youngUntil: number; freeTimePerYoung: number; babyUntil: number; stressPerBaby: number };
 }

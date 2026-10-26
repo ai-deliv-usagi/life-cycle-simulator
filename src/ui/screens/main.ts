@@ -134,7 +134,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
   function render(state: GameState, chartChanged: boolean): void {
     const v = getMonthlyView(state);
     const c = state.character;
-    fields.name.textContent = c.name;
+    fields.name.textContent = c.gender ? `${c.name}(${c.gender === 'female' ? '女性' : '男性'})` : c.name;
     fields.age.textContent = `${v.age}歳`;
     fields.date.textContent = `${calendarMonth(state.month)}月(${yearNumber(state.month)}年目)`;
     const rank = RANK_LABELS[Number(state.flags.rank ?? 0)] ?? '';

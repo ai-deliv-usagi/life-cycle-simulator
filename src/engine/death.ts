@@ -2,7 +2,7 @@
 import { defaultData } from '../data/index';
 import type { Rng } from './rng';
 import { effectiveWork } from './stats';
-import type { DeathCause, GameData, GameState } from './types';
+import type { DeathCause, Gender, GameData, GameState } from './types';
 import { ageYears } from './util';
 
 /** 年間の基本死亡率 q(年齢) = min(1, a·e^{b(年齢 − offset)}) */
@@ -26,11 +26,19 @@ export function behaviorFactor(state: GameState, data: GameData = defaultData): 
   return workMul * stressMul;
 }
 
+/** 男女の補正(性別のない古いセーブは1) */
+export function genderFactor(gender: Gender | undefined, data: GameData = defaultData): number {
+  return gender ? data.balance.death.genderMul[gender] : 1;
+}
+
 export function monthlyDeathProb(state: GameState, data: GameData = defaultData): number {
   const age = ageYears(state);
   if (age >= data.balance.death.maxAge) return 1;
   const p =
-    (baseAnnualMortality(age, data) / 12) * healthFactor(state.stats.health, data) * behaviorFactor(state, data);
+    (baseAnnualMortality(age, data) / 12) *
+    healthFactor(state.stats.health, data) *
+    behaviorFactor(state, data) *
+    genderFactor(state.character.gender, data);
   return Math.min(1, p);
 }
 

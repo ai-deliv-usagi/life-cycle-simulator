@@ -51,6 +51,7 @@ export function rollCharacter(seed: number, data: GameData = defaultData): Chara
     luck,
     initialCash: family.initialCash,
     studentLoan,
+    gender: rng.chance(balance.gender.femaleProb) ? 'female' : 'male', // 過去のシードの結果を変えないよう最後に引く
   };
 }
 
@@ -96,6 +97,7 @@ export function createGame(
     ageMonths: education.startAge * 12,
     character: {
       name,
+      ...(roll.gender ? { gender: roll.gender } : {}),
       education: roll.education,
       job: roll.job,
       jobYears: 0,

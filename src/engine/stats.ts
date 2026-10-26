@@ -21,7 +21,8 @@ export function healthBaseline(state: GameState, data: GameData = defaultData): 
 export function effectiveWork(state: GameState): WorkStyle | null {
   if (state.character.retired) return isRehired(state) ? 'regular' : null;
   if (state.character.job === 'none') return 'regular';
-  if (typeof state.flags.parentalLeave === 'number' && state.flags.parentalLeave > 0) return 'regular'; // 育休中
+  const leave = (k: string) => typeof state.flags[k] === 'number' && (state.flags[k] as number) > 0;
+  if (leave('parentalLeave') || leave('maternityLeave')) return 'regular'; // 育休・産休中
   return state.policy.work;
 }
 

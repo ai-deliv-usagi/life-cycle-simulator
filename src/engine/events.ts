@@ -1,8 +1,8 @@
 // イベントの条件判定・確率・抽選・効果適用(SPEC.md「イベント」、DESIGN.md §7)
 // stepMonth / resolveChoice が複製した state を直接更新する。
 import { defaultData } from '../data/index';
-import { addChild, childAgeMonths, childrenOf } from './children';
-import { baseAnnualMortality } from './death';
+import { addChild, afterGivingBirth, childAgeMonths, childrenOf } from './children';
+import { baseAnnualMortality, genderFactor } from './death';
 import { recordEventCash } from './ledger';
 import { changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
@@ -33,8 +33,9 @@ function setMarried(state: GameState, married: boolean, rng: Rng, data: GameData
   const c = state.character;
   if (married && !c.married) {
     const types = data.balance.spouse.types;
+    const byGender = c.gender ? data.balance.spouse.probByGender[c.gender] : undefined;
     c.spouse = rng.weighted(
-      (Object.keys(types) as SpouseType[]).map((t) => ({ item: t, weight: types[t].prob })),
+      (Object.keys(types) as SpouseType[]).map((t) => ({ item: t, weight: byGender ? byGender[t] : types[t].prob })),
     );
   }
   if (!married) c.spouse = null;
@@ -69,6 +70,7 @@ export function conditionsMet(cond: EventConditions | undefined, state: GameStat
   if (cond.jobNotIn?.includes(state.character.job)) return false;
   if (cond.jobIn && !cond.jobIn.includes(state.character.job)) return false;
   const c = state.character;
+  if (cond.gender && c.gender !== cond.gender) return false;
   if (cond.spouseType && !(c.married && c.spouse && cond.spouseType.includes(c.spouse))) return false;
   if (cond.childrenBelow !== undefined && childrenOf(state).length >= cond.childrenBelow) return false;
   if (cond.childAge) {
@@ -110,7 +112,12 @@ export function eventProb(ev: EventDef, state: GameState, data: GameData = defau
     const job = state.character.job;
     p = job === 'none' ? 0 : findById(data.jobs, job, 'job').layoffRate;
   }
-  if (ev.probFrom === 'spouseMortality') p = baseAnnualMortality(ageYears(state), data) / 12;
+  if (ev.probFrom === 'spouseMortality') {
+    // 配偶者は本人と同い年の異性とみなす(性別のない古いセーブは男女の平均)
+    const g = state.character.gender;
+    const spouseGender = g === 'male' ? 'female' : g === 'female' ? 'male' : undefined;
+    p = (baseAnnualMortality(ageYears(state), data) / 12) * genderFactor(spouseGender, data);
+  }
   for (const mod of ev.probMods ?? []) if (modApplies(mod, state)) p *= mod.mul;
   const e = data.balance.events;
   const luck = state.character.luck / 100;
@@ -231,6 +238,7 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   applyFlags(state, effects.setFlags, (_, v) => v, rng, data);
   applyFlags(state, effects.addFlags, (old, v) => (typeof old === 'number' ? old : 0) + v, rng, data);
   applyFlags(state, effects.mulFlags, (old, v) => (typeof old === 'number' ? old : 1) * v, rng, data);
+  if (effects.addChild && state.character.gender === 'female') afterGivingBirth(state, data);
   if (effects.region) state.character.region = effects.region;
   if (effects.relocate === 'down') {
     const order = ['metro', 'city', 'rural'] as const;

@@ -11,7 +11,7 @@ const INCOME_LABELS: Record<IncomeKey, string> = {
   spouse: '配偶者の収入',
   family: '実家からの仕送り',
   childAllowance: '児童手当',
-  parentalLeave: '育休手当',
+  parentalLeave: '育休・産休の手当',
   severance: '退職金',
 };
 

@@ -150,7 +150,8 @@ export function calcIncome(state: GameState, data: GameData = defaultData): Mont
   let salary = roundYen(monthly * rate);
   let bonus = roundYen(bonusGross(state, data) * rate);
   // 育休中は給与とボーナスが止まり、額面月給の一定割合を非課税で受け取る
-  const leaveRate = isEmployed(state) ? parentalLeaveRate(num(state, 'parentalLeave', 0), false, data) : null;
+  const maternity = num(state, 'maternityLeave', 0) > 0 ? data.balance.children.parentalLeave.maternityRate : null;
+  const leaveRate = isEmployed(state) ? (maternity ?? parentalLeaveRate(num(state, 'parentalLeave', 0), false, data)) : null;
   const parentalLeave = leaveRate === null ? 0 : roundYen(monthly * leaveRate);
   if (leaveRate !== null) {
     salary = 0;
