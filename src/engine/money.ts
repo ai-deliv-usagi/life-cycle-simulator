@@ -610,6 +610,14 @@ export function retire(state: GameState, data: GameData = defaultData): void {
   state.flags.unemploymentBenefit = 0;
 }
 
+/** 同じ職業のまま別の会社に移る。按分した退職金を受け取り、勤続年数は0に戻る(給料の水準と役職は持っていく) */
+export function changeEmployer(state: GameState, data: GameData = defaultData): void {
+  const severance = severancePay(state, data);
+  state.assets.cash += severance;
+  recordSeverance(state, severance);
+  state.character.jobYears = 0;
+}
+
 /**
  * 職を変える(転職・リストラ・再就職)。按分した退職金を払い、勤続年数と昇給をリセットする。
  * 無職になるとき(リストラ)は失業給付を始め、職に就いたら打ち切る。
