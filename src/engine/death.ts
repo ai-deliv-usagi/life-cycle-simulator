@@ -52,8 +52,21 @@ export function pickCause(state: GameState, rng: Rng, data: GameData = defaultDa
   return rng.weighted((Object.keys(w) as DeathCause[]).map((cause) => ({ item: cause, weight: w[cause] })));
 }
 
+/** 大病(治療中・治療しない)による今月の死亡リスク */
+export function illnessDeathProb(state: GameState, data: GameData = defaultData): number {
+  let p = 0;
+  for (const [key, t] of Object.entries(data.balance.timers)) {
+    const v = state.flags[key];
+    if ('deathMonthly' in t && typeof v === 'number' && v > 0) p += t.deathMonthly;
+  }
+  return p;
+}
+
 /** 今月死ぬかを判定し、死んだら死因を返す。生きていれば null */
 export function rollDeath(state: GameState, rng: Rng, data: GameData = defaultData): DeathCause | null {
-  if (!rng.chance(monthlyDeathProb(state, data))) return null;
+  const base = monthlyDeathProb(state, data);
+  const illness = illnessDeathProb(state, data);
+  if (!rng.chance(Math.min(1, base + illness))) return null;
+  if (illness > 0 && rng.chance(illness / (base + illness))) return 'illness';
   return pickCause(state, rng, data);
 }

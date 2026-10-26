@@ -40,7 +40,12 @@ export function computeResult(state: GameState, data: GameData = defaultData): L
   for (const entry of state.log) {
     if (entry.type !== 'year_summary') continue;
     const months = state.happinessHistory.slice(Math.max(0, entry.month - 12), entry.month);
-    yearly.push({ age: entry.ageMonths / 12, netWorth: entry.snapshot.netWorth, happiness: mean(months) });
+    yearly.push({
+      age: entry.ageMonths / 12,
+      netWorth: entry.snapshot.netWorth,
+      happiness: mean(months),
+      ...(entry.assets ? { assets: entry.assets } : {}),
+    });
   }
   const lastYearEnd = yearly.length > 0 ? state.log.filter((e) => e.type === 'year_summary').at(-1)!.month : 0;
   if (state.month > lastYearEnd) {

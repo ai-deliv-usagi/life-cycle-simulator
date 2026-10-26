@@ -21,11 +21,11 @@ const byId = (id: string): EventDef => {
 };
 
 describe('events.json', () => {
-  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ21・キャリア9・お金11・健康8・社会2 + 再就職・再雇用)', () => {
+  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ24・キャリア13・お金13・健康12・社会2 + 再就職・再雇用)', () => {
     expect(validateData(defaultData)).toEqual([]);
     const count: Record<string, number> = {};
     for (const e of defaultData.events) count[e.category] = (count[e.category] ?? 0) + 1;
-    expect(count).toEqual({ life: 21, career: 9, money: 11, health: 8, social: 2, system: 2 });
+    expect(count).toEqual({ life: 24, career: 13, money: 13, health: 12, social: 2, system: 2 });
   });
 });
 
@@ -164,9 +164,11 @@ describe('発生と選択', () => {
     expect(s.character.married).toBe(true);
     expect(s.character.spouse).not.toBeNull();
     expect(s.flags.partner).toBe(false);
-    expect(s.assets.cash).toBe(-2_000_000);
+    expect(s.assets.cash).toBe(0); // 貯金がないので式代はローンになる
+    expect(s.assets.loan).toBe(2_000_000);
     expect(s.values.relation).toBe(-2);
     expect(s.log.at(-1)).toMatchObject({ type: 'choice', text: 'プロポーズのチャンス: 「結婚する」' });
+    expect(s.log.some((e) => e.id === 'auto_loan')).toBe(true);
   });
 
   it('outcomes は確率で分岐し、結果をログに書く', () => {

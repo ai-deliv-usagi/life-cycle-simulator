@@ -2,7 +2,7 @@
 // stepMonth / resolveChoice が複製した state を直接更新する。
 import { defaultData } from '../data/index';
 import { recordEventCash } from './ledger';
-import { changeJob, isEmployed, monthlyGrossPay, takeLoan } from './money';
+import { changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
 import type {
   Choice,
@@ -64,6 +64,7 @@ export function conditionsMet(cond: EventConditions | undefined, state: GameStat
   }
   if (cond.region && !cond.region.includes(state.character.region)) return false;
   if (cond.jobNotIn?.includes(state.character.job)) return false;
+  if (cond.jobIn && !cond.jobIn.includes(state.character.job)) return false;
   return true;
 }
 
@@ -78,6 +79,7 @@ function modApplies(mod: ProbMod, state: GameState): boolean {
   if ('age' in mod) return inRange(ageYears(state), mod.above, mod.below);
   if ('work' in mod) return isEmployed(state) && mod.work.includes(state.policy.work);
   if ('healthCare' in mod) return mod.healthCare.includes(state.policy.health);
+  if ('spending' in mod) return mod.spending.includes(state.policy.spending);
   return mod.region.includes(state.character.region);
 }
 
@@ -196,7 +198,10 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
     const family = data.family.find((f) => f.tier === state.character.familyTier);
     a.cash += family?.inheritance ?? 0;
   }
-  recordEventCash(state, a.cash - cashBefore); // 職業の変更(退職金)より前の、イベント自体のお金の出入り
+  coverWithLoan(state, cashBefore - a.cash, data); // 貯金で払えない大きな出費はローンにする
+  // 職業の変更(退職金)より前の、イベント自体のお金の出入り。ローンにした分は、毎月の返済として支出に入る
+  recordEventCash(state, a.cash - cashBefore);
+  if (effects.debt) a.debt += effects.debt;
   if (effects.job) changeJob(state, pickJob(state, effects.job, rng, data), data);
   for (const [key, delta] of Object.entries(effects.stats ?? {}) as [keyof Stats, number][]) {
     state.stats[key] = clampStat(state.stats[key] + delta);

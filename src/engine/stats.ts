@@ -47,6 +47,10 @@ export function updateStats(state: GameState, data: GameData = defaultData): voi
   if (highStress) dHealth += s.highStressHealth;
   if (age >= 60) dHealth += s.age60Health;
   else if (age >= 40) dHealth += s.age40Health;
+  for (const [key, t] of Object.entries(balance.timers)) {
+    const v = state.flags[key];
+    if ('health' in t && typeof v === 'number' && v > 0) dHealth += t.health; // 大病を治療しないまま など
+  }
 
   // 体質: 減るときだけ (1.5 − 体質/100) 倍
   if (dHealth < 0) dHealth *= 1.5 - c.constitution / 100;

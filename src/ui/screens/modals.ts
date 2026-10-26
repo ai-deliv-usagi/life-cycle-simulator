@@ -1,8 +1,9 @@
 // イベント・選択結果・年間サマリー・方針変更のモーダル
-import { availableChoices, gameData, ledgerTotals, type GameState, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
+import { availableChoices, gameData, getMonthlyView, ledgerTotals, type GameState, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
+import { assetMixChart, assetMixPoints } from '../charts';
 import { h, openModal } from '../dom';
-import { ageMonthLabel, healthWord, manYen, signedManYen, signedPercent } from '../format';
-import { balanceSheet, ledgerTable, liabilitiesAndNet } from '../finance';
+import { ageMonthLabel, calendarMonth, healthWord, manYen, signedManYen, signedPercent } from '../format';
+import { balanceSheet, ledgerTable, liabilitiesAndNet, monthIncomeTable, yearIncomeTable } from '../finance';
 import { policyForm } from '../policyForm';
 
 const CHOICE_RESULT_MS = 1200;
@@ -57,6 +58,21 @@ export function choiceResultModal(state: GameState): Promise<void> {
   });
 }
 
+/** 年末の金融資産の内訳グラフ。モーダルを開いたあとに描き、戻り値で片づける */
+function assetMixSection(state: GameState): { el: HTMLElement | null; draw: () => () => void } {
+  const points = assetMixPoints(state.log);
+  if (points.length === 0) return { el: null, draw: () => () => {} };
+  const canvas = h('canvas', { 'aria-label': '金融資産の内訳の推移グラフ' });
+  const el = h('div', { class: 'asset-mix' }, h('h3', {}, '金融資産の内訳(年末)'), h('div', { class: 'chart-box' }, canvas));
+  return {
+    el,
+    draw: () => {
+      const chart = assetMixChart(canvas, points);
+      return () => chart.destroy();
+    },
+  };
+}
+
 /** 年間サマリーに出す「収入・支出・収支」の3行 */
 function yearBalanceRows(l: YearLedger): HTMLElement[] {
   const t = ledgerTotals(l);
@@ -81,12 +97,15 @@ export function yearSummaryModal(state: GameState, info: YearSummaryInfo, autoCl
   const age = Math.floor(state.ageMonths / 12);
   const years = state.month / 12;
   const diff = info.financial - info.previousFinancial;
+  const mix = assetMixSection(state);
   return new Promise((resolve) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let close = () => {};
+    let destroyChart = () => {};
     const done = () => {
       if (timer) clearTimeout(timer);
       close();
+      destroyChart();
       resolve();
     };
     const content = h(
@@ -121,9 +140,11 @@ export function yearSummaryModal(state: GameState, info: YearSummaryInfo, autoCl
             balanceSheet(state),
           )
         : null,
+      mix.el,
       h('button', { class: 'btn primary', onclick: done }, '次の年へ'),
     );
     close = openModal(content);
+    destroyChart = mix.draw();
     if (autoClose) timer = setTimeout(done, SUMMARY_AUTO_CLOSE_MS);
   });
 }
@@ -183,6 +204,7 @@ export function assetsModal(state: GameState): Promise<void> {
   const total = rows.reduce((s, r) => s + r.value, 0);
   const investedTotal = inv ? inv.index + inv.stocks + inv.speculative : undefined;
   const investedValue = a.index + a.stocks + a.speculative;
+  const mix = assetMixSection(state);
 
   const gainCell = (value: number, principal: number | undefined) => {
     if (principal === undefined) return h('td', { class: 'muted' }, '—');
@@ -231,6 +253,7 @@ export function assetsModal(state: GameState): Promise<void> {
         ),
       ),
       liabilitiesAndNet(state),
+      mix.el,
       state.ledger ? h('details', { class: 'summary-details' }, h('summary', {}, '今年のここまでの収支'), ledgerTable(state.ledger)) : null,
       inv === undefined ? h('p', { class: 'muted small' }, '古いセーブデータのため、元本と損益は表示できない。') : null,
       h('p', { class: 'muted small' }, '元本はつぎ込んだ金額。損益は今の残高との差。'),
@@ -246,6 +269,52 @@ export function assetsModal(state: GameState): Promise<void> {
         '閉じる',
       ),
     );
-    close = openModal(content, { dismissible: true });
+    let destroyChart = () => {};
+    close = openModal(content, {
+      dismissible: true,
+      onClose: () => {
+        destroyChart();
+        resolve(); // 外側をクリックして閉じたときも再開できるように
+      },
+    });
+    destroyChart = mix.draw();
+  });
+}
+
+/** 今年のここまでの収入。年が明けた直後でまだ何もなければ、去年1年間の分を出す */
+function yearIncome(state: GameState): HTMLElement[] {
+  const current = state.ledger && ledgerTotals(state.ledger).income > 0 ? state.ledger : undefined;
+  if (current) return [h('h3', {}, '今年のここまでの収入'), yearIncomeTable(current)];
+  if (state.lastLedger) return [h('h3', {}, '去年1年間の収入'), yearIncomeTable(state.lastLedger)];
+  return [];
+}
+
+/** 収入の内訳: 今月の分と、今年のここまでの分 */
+export function incomeModal(state: GameState): Promise<void> {
+  const v = getMonthlyView(state);
+  return new Promise((resolve) => {
+    let close = () => {};
+    const content = h(
+      'div',
+      { class: 'income-modal' },
+      h('h2', {}, '収入の内訳'),
+      v.annualGross > 0 ? h('p', { class: 'muted small' }, `本人の額面年収(ボーナス込み) ${manYen(v.annualGross)}`) : null,
+      h('h3', {}, `今月(${calendarMonth(state.month)}月)の手取り`),
+      monthIncomeTable(v.income),
+      ...yearIncome(state),
+      h('p', { class: 'muted small' }, 'ボーナスは6月と12月に入る。配偶者の収入には、扶養に入れたことによる税金の軽減も含む。'),
+      h(
+        'button',
+        {
+          class: 'btn primary',
+          onclick: () => {
+            close();
+            resolve();
+          },
+        },
+        '閉じる',
+      ),
+    );
+    close = openModal(content, { dismissible: true, onClose: () => resolve() });
   });
 }

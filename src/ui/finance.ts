@@ -1,7 +1,7 @@
 // 収支表とバランスシート(年間サマリーと資産の画面で共通)
-import { ledgerTotals, type ExpenseKey, type GameState, type IncomeKey, type YearLedger } from '../engine/index';
+import { ledgerTotals, type ExpenseKey, type GameState, type IncomeKey, type MonthlyIncome, type YearLedger } from '../engine/index';
 import { h } from './dom';
-import { manYen, signedManYen } from './format';
+import { manYen, signedManYen, yen } from './format';
 
 const INCOME_LABELS: Record<IncomeKey, string> = {
   salary: '給料(手取り)',
@@ -66,6 +66,31 @@ export function ledgerTable(l: YearLedger): HTMLElement {
     l.returns !== undefined
       ? h('p', { class: 'muted small' }, '収支がマイナスでも、運用益がそれを上回れば金融資産は増える。')
       : null,
+  );
+}
+
+/** 今月の収入の内訳(0円の行は出さない) */
+export function monthIncomeTable(income: MonthlyIncome): HTMLElement {
+  const rows = (Object.keys(INCOME_LABELS) as IncomeKey[])
+    .flatMap((k) => (k !== 'severance' && income[k] > 0 ? [row(INCOME_LABELS[k], yen(income[k]))] : []));
+  return h(
+    'table',
+    { class: 'fin-table' },
+    h('tbody', {}, ...(rows.length > 0 ? rows : [row('収入', 'なし')]), row('合計', yen(income.total), 'total')),
+  );
+}
+
+/** 今年の収入の内訳(イベントの臨時収入と生活保護も含む) */
+export function yearIncomeTable(l: YearLedger): HTMLElement {
+  const rows = (Object.keys(INCOME_LABELS) as IncomeKey[])
+    .filter((k) => l.income[k] > 0)
+    .map((k) => row(INCOME_LABELS[k], manYen(l.income[k])));
+  if (l.eventIn > 0) rows.push(row('臨時収入(イベント)', manYen(l.eventIn)));
+  if ((l.welfare ?? 0) > 0) rows.push(row('生活保護', manYen(l.welfare ?? 0)));
+  return h(
+    'table',
+    { class: 'fin-table' },
+    h('tbody', {}, ...(rows.length > 0 ? rows : [row('収入', 'なし')]), row('合計', manYen(ledgerTotals(l).income), 'total')),
   );
 }
 

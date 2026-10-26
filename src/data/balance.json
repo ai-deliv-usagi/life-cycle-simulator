@@ -239,7 +239,19 @@
     },
     "unemploymentBenefit": {},
     "blacklist": {},
-    "rehire": {}
+    "rehire": {},
+    "illnessTreated": {
+      "deathMonthly": 0.001,
+      "health": 0
+    },
+    "illnessUntreated": {
+      "deathMonthly": 0.012,
+      "health": -0.3
+    },
+    "checkupNeglect": {
+      "deathMonthly": 0,
+      "health": 0
+    }
   },
   "studentLoan": {
     "interestFreeProb": 0.35,
@@ -276,7 +288,8 @@
     "minLimit": 2000000,
     "incomeShare": 0.5,
     "stress": 30,
-    "blacklistMonths": 84
+    "blacklistMonths": 84,
+    "graceMonths": 6
   },
   "result": {
     "netWorthLine": 25000000,
@@ -284,7 +297,9 @@
   },
   "loan": {
     "annualRate": 0.03,
-    "minCredit": 30
+    "minCredit": 30,
+    "autoMinAmount": 300000,
+    "autoMonths": 60
   },
   "rehire": {
     "months": 60,

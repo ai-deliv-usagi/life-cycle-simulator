@@ -4,7 +4,7 @@ import { rollDeath } from './death';
 import { applyChoice, drawEvent, fireEvent } from './events';
 import { cloneLedger, closeYear, recordMonth } from './ledger';
 import { computeHappiness, updateAdaptation } from './happiness';
-import { annualGross, applyMonthlyMoney, calcIncome, isRehired, retire } from './money';
+import { annualGross, applyMonthlyMoney, calcIncome, isRehired, retire, type MonthlyIncome } from './money';
 import { DEATH_CAUSE_LABELS } from './result';
 import type { Rng } from './rng';
 import { updateStats } from './stats';
@@ -101,6 +101,8 @@ export function stepMonth(state: GameState, rng: Rng, data: GameData = defaultDa
     closeYear(s);
     const age = Math.floor(s.ageMonths / 12);
     addLog(s, 'year_summary', `${age}歳(${s.month / 12}年目) 金融資産 ${manYen(financialAssets(s.assets))}`);
+    const { cash, index, stocks, speculative } = s.assets;
+    s.log.at(-1)!.assets = { cash, index, stocks, speculative }; // いま足したエントリなので直接書いてよい
   }
 
   s.rngState = rng.state;
@@ -117,7 +119,16 @@ export function resolveChoice(
   if (!state.pendingEvent) throw new Error('resolveChoice: 選択待ちのイベントがない');
   const s = cloneState(state);
   const ev = findById(data.events, s.pendingEvent!.eventId, 'event');
-  applyChoice(s, ev, choiceIndex, rng, data);
+  if (isYearEnd(s) && s.pendingEvent!.month === s.month && s.lastLedger) {
+    // 年の切れ目の月に起きたイベントは、締めたばかりの年の収支に入れる(年間サマリーの金融資産と合わせる)
+    const current = s.ledger;
+    s.ledger = cloneLedger(s.lastLedger);
+    applyChoice(s, ev, choiceIndex, rng, data);
+    s.lastLedger = s.ledger;
+    s.ledger = current;
+  } else {
+    applyChoice(s, ev, choiceIndex, rng, data);
+  }
   delete s.pendingEvent;
   s.rngState = rng.state;
   return s;
@@ -149,6 +160,7 @@ export interface MonthlyView {
   regionLabel: string;
   annualGross: number;
   householdNet: number; // 世帯の手取り(月)
+  income: MonthlyIncome; // その内訳
   financialAssets: number;
   debt: number;
   studentLoan: number;
@@ -162,12 +174,14 @@ export function getMonthlyView(state: GameState, data: GameData = defaultData): 
   const c = state.character;
   const jobName = c.job === 'none' ? '無職' : findById(data.jobs, c.job, 'job').label;
   const jobLabel = c.retired ? (isRehired(state) ? `再雇用(${jobName})` : '退職') : jobName;
+  const income = calcIncome(state, data);
   return {
     age: Math.floor(state.ageMonths / 12),
     jobLabel,
     regionLabel: findById(data.regions, c.region, 'region').label,
     annualGross: annualGross(state, data),
-    householdNet: calcIncome(state, data).total,
+    householdNet: income.total,
+    income,
     financialAssets: financialAssets(state.assets),
     debt: state.assets.debt,
     studentLoan: state.assets.studentLoan,
