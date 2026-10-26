@@ -1,11 +1,12 @@
 // タイトル画面
 import { LIFE_TYPE_LABELS } from '../../engine/index';
 import { h, mount } from '../dom';
-import { bigYen } from '../format';
+import { bigYen, LIFE_TYPE_ICONS } from '../format';
 import { freshSeed, type Nav } from '../nav';
 import { clearSave, loadGame, loadHistory } from '../storage';
 
 const HISTORY_SHOWN = 10;
+const HISTORY_FIRST = 3; // はじめに見せる件数。残りは「もっと見る」
 
 function continueSection(nav: Nav): HTMLElement | null {
   const save = loadGame();
@@ -27,24 +28,34 @@ function continueSection(nav: Nav): HTMLElement | null {
 }
 
 function historySection(): HTMLElement | null {
-  const history = loadHistory().slice(0, HISTORY_SHOWN);
-  if (history.length === 0) return null;
+  const all = loadHistory();
+  if (all.length === 0) return null;
+  const history = all.slice(0, HISTORY_SHOWN);
+  const item = (r: (typeof history)[number]) =>
+    h(
+      'li',
+      { class: 'history-item' },
+      h('span', { class: 'history-icon', 'aria-hidden': 'true' }, LIFE_TYPE_ICONS[r.lifeType] ?? ''),
+      h(
+        'span',
+        { class: 'history-main' },
+        h('span', { class: 'history-type' }, `${r.name}・${LIFE_TYPE_LABELS[r.lifeType]}`),
+        h('span', { class: 'muted small' }, `享年${r.ageAtDeath}歳 · ${bigYen(r.finalNetWorth)} · シード ${r.seed}`),
+      ),
+    );
+  // これまでの記録(いちばん長生き・いちばんの資産)
+  const longest = Math.max(...all.map((r) => r.ageAtDeath));
+  const richest = Math.max(...all.map((r) => r.finalNetWorth));
+  const rest = history.slice(HISTORY_FIRST);
   return h(
     'section',
     { class: 'card' },
-    h('h2', {}, '過去の人生'),
-    h(
-      'ol',
-      { class: 'history-list' },
-      ...history.map((r) =>
-        h(
-          'li',
-          {},
-          h('span', { class: 'history-type' }, LIFE_TYPE_LABELS[r.lifeType]),
-          h('span', { class: 'muted small' }, `${r.name}・享年${r.ageAtDeath}歳・${bigYen(r.finalNetWorth)}・幸福 ${r.lifetimeHappiness.toFixed(1)}・シード ${r.seed}`),
-        ),
-      ),
-    ),
+    h('h2', {}, '📜 過去の人生'),
+    h('p', { class: 'muted small' }, `${all.length}回の人生 · 最長 ${longest}歳 · 最高 ${bigYen(richest)}`),
+    h('ol', { class: 'history-list' }, ...history.slice(0, HISTORY_FIRST).map(item)),
+    rest.length > 0
+      ? h('details', { class: 'fine-tune' }, h('summary', {}, `もっと見る(${rest.length}件)`), h('ol', { class: 'history-list' }, ...rest.map(item)))
+      : null,
   );
 }
 
@@ -73,12 +84,12 @@ export function titleScreen(root: HTMLElement, nav: Nav): void {
       h('h1', { class: 'logo' }, '人生シミュレーター'),
       h('p', { class: 'lead' }, '生まれ・職業・価値観の違う一生を、お金と幸福度でたどる。正解の人生はない。'),
       continueSection(nav),
-      h('button', { class: 'btn primary big', onclick: () => nav.setup(freshSeed()) }, '新しい人生'),
+      h('button', { class: 'btn primary big', onclick: () => nav.setup(freshSeed()) }, '🎲 新しい人生'),
       h(
-        'section',
-        { class: 'card' },
-        h('h2', {}, 'シードで始める'),
-        h('p', { class: 'muted' }, '同じシードなら同じ生まれ・同じ運命。視聴者と同じ条件で遊べる。'),
+        'details',
+        { class: 'card seed-card' },
+        h('summary', {}, '🔢 シードを指定して始める'),
+        h('p', { class: 'muted small' }, '同じシードなら同じ生まれ・同じ運命。視聴者と同じ条件で遊べる。'),
         h(
           'form',
           {
