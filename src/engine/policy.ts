@@ -21,5 +21,12 @@ export function allocationOf(invest: InvestAllocation | Invest): InvestAllocatio
 }
 
 export function normalizePolicy(p: PolicyInput | Policy): Policy {
-  return { work: p.work, spending: p.spending, health: p.health, invest: allocationOf(p.invest), prepay: p.prepay ?? false };
+  return {
+    work: p.work,
+    spending: p.spending,
+    health: p.health,
+    invest: allocationOf(p.invest),
+    prepay: p.prepay ?? false,
+    education: p.education ?? 'public',
+  };
 }

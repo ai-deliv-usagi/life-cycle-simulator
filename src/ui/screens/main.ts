@@ -140,7 +140,9 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     const rank = RANK_LABELS[Number(state.flags.rank ?? 0)] ?? '';
     fields.job.textContent = rank && !c.retired ? `${v.jobLabel}(${rank})` : v.jobLabel;
     fields.region.textContent = regionLabel(c.region);
-    fields.family.textContent = c.married ? '既婚' : state.flags.partner === true ? '恋人あり' : '独身';
+    const kids = c.children ?? [];
+    const kidsLabel = kids.length > 0 ? `・子ども${kids.length}人(${kids.map((k) => `${Math.floor((state.month - k.birthMonth) / 12)}歳`).join('・')})` : '';
+    fields.family.textContent = (c.married ? '既婚' : state.flags.partner === true ? '恋人あり' : '独身') + kidsLabel;
     fields.netLabel.textContent = `${
       c.retired
         ? '年金・世帯の手取り(月)'

@@ -21,11 +21,11 @@ const byId = (id: string): EventDef => {
 };
 
 describe('events.json', () => {
-  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ25・キャリア13・お金13・健康12・社会2 + 再就職・再雇用)', () => {
+  it('検査を通り、カテゴリごとの数が仕様どおり(ライフ31・キャリア13・お金13・健康14・社会2 + 再就職・再雇用・出産)', () => {
     expect(validateData(defaultData)).toEqual([]);
     const count: Record<string, number> = {};
     for (const e of defaultData.events) count[e.category] = (count[e.category] ?? 0) + 1;
-    expect(count).toEqual({ life: 25, career: 13, money: 13, health: 12, social: 2, system: 2 });
+    expect(count).toEqual({ life: 31, career: 13, money: 13, health: 14, social: 2, system: 3 });
   });
 });
 
@@ -136,6 +136,15 @@ describe('確率', () => {
     const s = makeState();
     const seen = new Set(Array.from({ length: 50 }, () => drawEvent(s, rng, data)?.id));
     expect(seen).toEqual(new Set(['a', 'b']));
+  });
+
+  it('確率1のイベント(出産など)は、ほかのイベントより先に起こす', () => {
+    const ev = (id: string, p: number): EventDef => ({ id, category: 'life', title: id, text: '', conditions: {}, baseProb: p });
+    const data: GameData = { ...defaultData, events: [ev('a', 0.99), ev('b', 1)] };
+    const rng = createRng(3);
+    const s = makeState();
+    const seen = new Set(Array.from({ length: 50 }, () => drawEvent(s, rng, data)?.id));
+    expect(seen).toEqual(new Set(['b']));
   });
 });
 

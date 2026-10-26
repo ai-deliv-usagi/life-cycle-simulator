@@ -4,6 +4,7 @@ import {
   INVEST_KEYS,
   normalizePolicy,
   POLICY_LABELS,
+  type EducationPolicy,
   type Invest,
   type InvestAllocation,
   type HealthCare,
@@ -13,9 +14,9 @@ import {
   type WorkStyle,
 } from '../engine/index';
 import { h } from './dom';
-import { healthHelp, investHelp, spendingHelp, workHelp } from './policyHelp';
+import { educationHelp, healthHelp, investHelp, spendingHelp, workHelp } from './policyHelp';
 
-type ChoiceKey = 'work' | 'spending' | 'health';
+type ChoiceKey = 'work' | 'spending' | 'health' | 'education';
 
 const GROUPS: { key: ChoiceKey; label: string }[] = [
   { key: 'work', label: '働き方' },
@@ -39,6 +40,7 @@ const HELP: Record<ChoiceKey, (v: string) => string> = {
   work: (v) => workHelp(v as WorkStyle),
   spending: (v) => spendingHelp(v as Spending),
   health: (v) => healthHelp(v as HealthCare),
+  education: (v) => educationHelp(v as EducationPolicy),
 };
 
 function radioGroup<K extends ChoiceKey>(id: string, key: K, label: string, current: Policy): HTMLElement {
@@ -153,11 +155,12 @@ export function policyForm(initial: PolicyInput | Policy): { el: HTMLElement; ge
     allocationEditor(current),
     h('label', { class: 'check small' }, prepay, ' 繰上げ返済する(余ったお金で、先にローンと奨学金を返す)'),
     radioGroup(id, 'health', '健康', current),
+    radioGroup(id, 'education', '子どもの教育', current),
   );
   return { el, get: () => ({ ...current, invest: { ...current.invest } }) };
 }
 
 export function policySummary(p: Policy): string {
   const l = POLICY_LABELS;
-  return `働き方:${l.work[p.work]} / 支出:${l.spending[p.spending]} / 投資:${allocationLabel(p)}${p.prepay ? '(繰上げ返済)' : ''} / 健康:${l.health[p.health]}`;
+  return `働き方:${l.work[p.work]} / 支出:${l.spending[p.spending]} / 投資:${allocationLabel(p)}${p.prepay ? '(繰上げ返済)' : ''} / 健康:${l.health[p.health]} / 教育:${l.education[p.education]}`;
 }

@@ -10,6 +10,8 @@ const INCOME_LABELS: Record<IncomeKey, string> = {
   unemployment: '失業給付',
   spouse: '配偶者の収入',
   family: '実家からの仕送り',
+  childAllowance: '児童手当',
+  parentalLeave: '育休手当',
   severance: '退職金',
 };
 
@@ -21,6 +23,7 @@ const EXPENSE_LABELS: Record<ExpenseKey, string> = {
   parentSupport: '親への仕送り',
   studentLoan: '奨学金の返済',
   loan: 'ローンの返済',
+  children: '子どもの生活費・教育費',
 };
 
 function row(label: string, value: string, cls = ''): HTMLElement {

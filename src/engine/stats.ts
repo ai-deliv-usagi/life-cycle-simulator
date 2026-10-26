@@ -2,6 +2,7 @@
 // stepMonth が複製した state を直接更新する。
 import { defaultData } from '../data/index';
 import type { GameData, GameState, WorkStyle } from './types';
+import { childEffects } from './children';
 import { isRehired } from './money';
 import { ageYears, clamp, clampStat } from './util';
 
@@ -20,6 +21,7 @@ export function healthBaseline(state: GameState, data: GameData = defaultData): 
 export function effectiveWork(state: GameState): WorkStyle | null {
   if (state.character.retired) return isRehired(state) ? 'regular' : null;
   if (state.character.job === 'none') return 'regular';
+  if (typeof state.flags.parentalLeave === 'number' && state.flags.parentalLeave > 0) return 'regular'; // 育休中
   return state.policy.work;
 }
 
@@ -43,6 +45,7 @@ export function updateStats(state: GameState, data: GameData = defaultData): voi
     dSkill += w.skill;
   }
   if (c.retired && !isRehired(state)) dStress += s.retiredStress;
+  dStress += childEffects(state, data).stress; // 小さい子どもの世話
   if (!c.retired && c.job === 'none') dStress += balance.unemployedStress;
   if (highStress) dHealth += s.highStressHealth;
   if (age >= 60) dHealth += s.age60Health;

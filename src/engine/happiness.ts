@@ -1,5 +1,6 @@
 // 幸福度(SPEC.md「幸福度の計算と人生タイプ」、DESIGN.md §5.4)
 import { defaultData } from '../data/index';
+import { childEffects } from './children';
 import { calcExpenses, realLivingSpending } from './money';
 import { effectiveWork } from './stats';
 import type { GameData, GameState, HappinessPart, Values } from './types';
@@ -52,11 +53,13 @@ export function happinessParts(state: GameState, data: GameData = defaultData): 
   const work = effectiveWork(state);
   let freeTime = work ? balance.work[work].freeTime : balance.retiredFreeTime;
   if (state.flags.hasCar !== true) freeTime += findById(data.regions, c.region, 'region').noCarFreeTime;
+  const kids = childEffects(state, data);
+  freeTime += kids.freeTime;
 
   return {
     living: livingSatisfaction(realLivingSpending(state, data), state.adaptedSpending, data),
     security: clampStat(security),
-    relations: clampStat(state.stats.relations + (c.married ? h.marriedRelationsBonus : 0)),
+    relations: clampStat(state.stats.relations + (c.married ? h.marriedRelationsBonus : 0) + kids.relations),
     freeTime: clampStat(freeTime),
     health: clampStat(state.stats.health),
     achievement: clampStat(h.skillAchievementShare * state.stats.skill + state.achievement),

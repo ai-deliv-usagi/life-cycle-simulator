@@ -15,6 +15,7 @@ export type WorkStyle = 'regular' | 'normal' | 'overtime' | 'grind'; // 定時/�
 export type Spending = 'frugal' | 'normal' | 'comfort' | 'lavish'; // 節約/普通/ゆとり/浪費
 export type Invest = 'deposit' | 'index' | 'stocks' | 'speculative'; // 預金/積立/個別株/信用・仮想通貨
 export type HealthCare = 'ignore' | 'normal' | 'active'; // 気にしない/普通/意識高め
+export type EducationPolicy = 'public' | 'private'; // 子どもの教育: 公立中心/私立中心(中学から私立)
 
 export type DeathCause = 'illness' | 'overwork' | 'accident' | 'old_age';
 export type HappinessPart = 'living' | 'security' | 'relations' | 'freeTime' | 'health' | 'achievement';
@@ -31,10 +32,15 @@ export interface Policy {
   invest: InvestAllocation;
   health: HealthCare;
   prepay: boolean; // 繰上げ返済する(投資に回す分で先にローンと奨学金を返す)
+  education: EducationPolicy; // 子どもの教育(第2弾。子どもがいるときだけ効く)
 }
 
 /** 古いセーブや簡単な指定のための入力形。invest に1つの資産名を渡すと100%扱い */
-export type PolicyInput = Omit<Policy, 'invest' | 'prepay'> & { invest: InvestAllocation | Invest; prepay?: boolean };
+export type PolicyInput = Omit<Policy, 'invest' | 'prepay' | 'education'> & {
+  invest: InvestAllocation | Invest;
+  prepay?: boolean;
+  education?: EducationPolicy;
+};
 
 export interface Values {
   risk: number; // -2 安定志向 .. +2 挑戦志向
@@ -90,6 +96,13 @@ export interface Character {
   loanPayment?: number; // ローンの毎月の返済額(複数のローンの合計)
   region: RegionId;
   spouse: SpouseType | null; // 未婚は null
+  children?: Child[]; // 第2弾。古いセーブにはない
+}
+
+/** 子ども。年齢は (state.month − birthMonth) / 12 */
+export interface Child {
+  birthMonth: number; // 生まれた月(開始からの経過月)
+  university: boolean; // 大学に進むか(生まれたときに決まる)。進まなければ高校卒業で独立
 }
 
 export type LogType = 'event' | 'choice' | 'policy' | 'year_summary' | 'death';
@@ -176,6 +189,9 @@ export interface EventConditions {
   region?: RegionId[];
   jobNotIn?: JobId[]; // この職業のときは起きない
   jobIn?: JobId[]; // この職業のときだけ起きる
+  spouseType?: SpouseType[]; // 配偶者がこのタイプのときだけ
+  childrenBelow?: number; // 子どもの人数がこれ未満
+  childAge?: [number, number]; // 子どもの誰かがこの年齢(歳、両端を含む)
 }
 
 export type ProbMod =
@@ -207,6 +223,8 @@ export interface Effects {
   loan?: { amount: number; months: number };
   /** カードローン・リボ払いの借金を増やす(現金は動かない) */
   debt?: number;
+  /** 子どもが生まれる */
+  addChild?: boolean;
 }
 
 export interface Outcome {
@@ -371,6 +389,10 @@ export interface Balance {
     unemploymentBenefit: Record<string, never>;
     blacklist: Record<string, never>; // 自己破産後、借りられず再破産もできない残り月数
     rehire: Record<string, never>; // 再雇用の残り月数
+    pregnant: Record<string, never>; // 出産までの残り月数(1になった月に生まれる)
+    parentalLeave: Record<string, never>; // 本人の育休の残り月数
+    spouseLeave: Record<string, never>; // 配偶者の育休の残り月数
+    fertilityCare: Record<string, never>; // 不妊治療の残り月数(妊娠しやすい)
     /** 大病の治療中・治療しないままの残り月数。その間は毎月 deathMonthly の死亡リスクと健康の増減がある */
     illnessTreated: { deathMonthly: number; health: number };
     illnessUntreated: { deathMonthly: number; health: number };
@@ -389,6 +411,23 @@ export interface Balance {
   bonus: { months: number[]; startCalendarMonth: number };
   rehire: { months: number; payRate: number };
   result: { netWorthLine: number; happinessLine: number };
+  children: ChildrenBalance;
+}
+
+/** 子ども(第2弾)。金額は1人あたりの月額 */
+export interface ChildrenBalance {
+  max: number;
+  universityProb: number;
+  /** 子どもの費用のうち、親の生活費を削ってまかなう割合(残りは貯金が減る) */
+  livingOffset: number;
+  /** 年齢の段階。until 歳になるまで。education は教育方針ごとの学校・塾などの費用 */
+  stages: { until: number; label: string; living: number; education: Record<EducationPolicy, number> }[];
+  /** 児童手当: under3 は3歳未満、それ以外は高校生(18歳)まで。3人目からは third */
+  allowance: { under3: number; school: number; third: number; until: number };
+  /** 育休: months ヶ月。最初の firstMonths は額面月給の firstRate、残りは laterRate(非課税)。配偶者は手取りに spouse* を掛ける */
+  parentalLeave: { months: number; firstMonths: number; firstRate: number; laterRate: number; spouseFirstRate: number; spouseLaterRate: number };
+  /** 幸福度とストレス: 人間関係 +perChild(上限 relationsMax)、youngUntil 歳未満の子1人ごとに自由時間 freeTimePerYoung、babyUntil 歳未満の子1人ごとにストレス stressPerBaby/月 */
+  happiness: { relationsPerChild: number; relationsMax: number; youngUntil: number; freeTimePerYoung: number; babyUntil: number; stressPerBaby: number };
 }
 
 export interface GameData {
