@@ -201,7 +201,8 @@
     "conditions": {
       "flags": {
         "married": true
-      }
+      },
+      "ageMax": 50
     },
     "baseProb": 0.003,
     "good": false,
@@ -2715,7 +2716,8 @@
       "ageMin": 60,
       "flags": {
         "married": true
-      }
+      },
+      "ageMax": 69
     },
     "baseProb": 0.001,
     "good": false,
@@ -2762,6 +2764,34 @@
         }
       }
     ]
+  },
+  {
+    "id": "spouse_death",
+    "category": "life",
+    "title": "配偶者との死別",
+    "text": "長年連れ添った配偶者が亡くなった。",
+    "conditions": {
+      "ageMin": 50,
+      "flags": {
+        "married": true
+      }
+    },
+    "baseProb": 0,
+    "probFrom": "spouseMortality",
+    "good": false,
+    "once": true,
+    "effects": {
+      "setFlags": {
+        "married": false,
+        "widowed": true
+      },
+      "stats": {
+        "relations": -20,
+        "stress": 25,
+        "health": -5
+      },
+      "achievement": -5
+    }
   },
   {
     "id": "silver_job",

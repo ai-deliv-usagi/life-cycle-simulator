@@ -111,7 +111,9 @@ export function pensionMonthly(state: GameState, data: GameData = defaultData): 
   const { balance } = data;
   const basic = basicPension(state, data) * (c.married ? balance.pension.spouseBasicMul : 1);
   const spouseEmployee = c.married && c.spouse ? balance.spouse.types[c.spouse].employeePension : 0;
-  return basic + employeePension(state, data) + spouseEmployee;
+  // 配偶者と死別したら遺族厚生年金。自分の厚生年金と多いほうを受け取る
+  const own = Math.max(employeePension(state, data), num(state, 'survivorPension', 0));
+  return basic + own + spouseEmployee;
 }
 
 /** 退職金(勤続年数で按分)。バイト・無職は0 */

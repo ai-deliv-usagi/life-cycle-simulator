@@ -1,6 +1,7 @@
 // イベントの条件判定・確率・抽選・効果適用(SPEC.md「イベント」、DESIGN.md §7)
 // stepMonth / resolveChoice が複製した state を直接更新する。
 import { defaultData } from '../data/index';
+import { baseAnnualMortality } from './death';
 import { recordEventCash } from './ledger';
 import { changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
@@ -101,6 +102,7 @@ export function eventProb(ev: EventDef, state: GameState, data: GameData = defau
     const job = state.character.job;
     p = job === 'none' ? 0 : findById(data.jobs, job, 'job').layoffRate;
   }
+  if (ev.probFrom === 'spouseMortality') p = baseAnnualMortality(ageYears(state), data) / 12;
   for (const mod of ev.probMods ?? []) if (modApplies(mod, state)) p *= mod.mul;
   const e = data.balance.events;
   const luck = state.character.luck / 100;
@@ -208,6 +210,12 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
     state.stats[key] = clampStat(state.stats[key] + delta);
   }
   if (effects.achievement) state.achievement = clamp(state.achievement + effects.achievement, 0, 100);
+  const spouse = state.character.spouse;
+  if (effects.setFlags?.widowed === true && state.character.married && spouse) {
+    // 死別: 配偶者の厚生年金の一部が遺族年金として残る(配偶者がいなくなる前に計算する)
+    const p = data.balance.spouse.types[spouse].employeePension * data.balance.pension.survivorRate;
+    state.flags.survivorPension = roundYen(p);
+  }
   applyFlags(state, effects.setFlags, (_, v) => v, rng, data);
   applyFlags(state, effects.addFlags, (old, v) => (typeof old === 'number' ? old : 0) + v, rng, data);
   applyFlags(state, effects.mulFlags, (old, v) => (typeof old === 'number' ? old : 1) * v, rng, data);
