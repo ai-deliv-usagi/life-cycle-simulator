@@ -145,6 +145,7 @@
     "basicYears": 40,
     "employeeRate": 0.005481,
     "spouseBasicMul": 2,
+    "survivorRate": 0.75,
     "retireAge": 65
   },
   "severanceYears": 38,

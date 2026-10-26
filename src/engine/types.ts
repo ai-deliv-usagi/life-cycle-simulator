@@ -233,7 +233,7 @@ export interface EventDef {
   good?: boolean; // true=運で確率UP、false=運で確率DOWN、省略=運の影響なし
   conditions: EventConditions;
   baseProb: number;
-  probFrom?: 'layoffRate';
+  probFrom?: 'layoffRate' | 'spouseMortality'; // リストラ率 / 配偶者の死亡率(本人と同い年として基本死亡率から)
   probMods?: ProbMod[];
   once?: boolean;
   cooldownMonths?: number;
@@ -306,7 +306,8 @@ export interface Balance {
     stocks: { mu: number; sigma: number };
     speculative: { mu: number; sigma: number; crashProb: number; crashPct: number };
   };
-  pension: { basicFull: number; basicYears: number; employeeRate: number; spouseBasicMul: number; retireAge: number };
+  /** survivorRate: 遺族厚生年金 = 亡くなった配偶者の厚生年金 × この割合(自分の厚生年金と多いほう) */
+  pension: { basicFull: number; basicYears: number; employeeRate: number; spouseBasicMul: number; survivorRate: number; retireAge: number };
   severanceYears: number;
   stats: {
     age40Health: number;
