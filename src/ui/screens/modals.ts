@@ -8,7 +8,9 @@ import {
   HAPPINESS_PART_LABELS,
   happinessFace,
   healthWord,
+  logTitle,
   manYen,
+  moneyLabel,
   signedManYen,
   signedPercent,
   STAT_EFFECTS,
@@ -157,7 +159,19 @@ export function yearSummaryModal(state: GameState, info: YearSummaryInfo, autoCl
         ...(state.lastLedger ? yearBalanceRows(state.lastLedger) : []),
       ),
       info.events.length > 0
-        ? h('ul', { class: 'summary-events' }, ...info.events.map((e) => h('li', {}, e.text.split(':')[0] ?? e.text)))
+        ? h(
+            'ul',
+            { class: 'summary-events' },
+            ...info.events.map((e) =>
+              h(
+                'li',
+                {},
+                h('span', { class: 'muted small' }, `${calendarMonth(e.month)}月 `),
+                logTitle(e.text),
+                e.money ? h('span', { class: `log-money ${e.money > 0 ? 'up' : 'down'}` }, moneyLabel(e.money)) : '',
+              ),
+            ),
+          )
         : h('p', { class: 'muted' }, '大きな出来事のない1年だった。'),
       state.lastLedger
         ? h(
@@ -601,7 +615,7 @@ export function happinessModal(state: GameState): Promise<void> {
 }
 
 /** 設定(年間サマリーを自動で閉じる など) */
-export function settingsModal(settings: { autoCloseSummary: boolean }): Promise<void> {
+export function settingsModal(settings: { autoCloseSummary: boolean; pauseOnImportant: boolean }): Promise<void> {
   return new Promise((resolve) => {
     let close = () => {};
     const autoClose = h('input', {
@@ -611,11 +625,19 @@ export function settingsModal(settings: { autoCloseSummary: boolean }): Promise<
         settings.autoCloseSummary = (e.target as HTMLInputElement).checked;
       },
     });
+    const pause = h('input', {
+      type: 'checkbox',
+      checked: settings.pauseOnImportant,
+      onchange: (e: Event) => {
+        settings.pauseOnImportant = (e.target as HTMLInputElement).checked;
+      },
+    });
     const content = h(
       'div',
       { class: 'settings-modal' },
       h('h2', {}, '設定'),
       h('label', { class: 'check' }, autoClose, ' 年間サマリーを自動で閉じる'),
+      h('label', { class: 'check' }, pause, ' 大事な出来事(入院・リストラ・家族の死など)で一時停止する'),
       h(
         'button',
         {

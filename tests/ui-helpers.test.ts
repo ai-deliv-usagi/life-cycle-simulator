@@ -60,6 +60,6 @@ describe('これから', () => {
     const owner = setAge(makeState({ job: 'sales' }), 35);
     owner.assets.cash = 5_000_000;
     applyChoice(owner, byId('startup_chance'), 0, flatRng);
-    expect(upcoming(owner)[0]!.label).toBe('事業承継(65歳)');
+    expect(upcoming(owner)[0]!.label).toBe('引退を考え始める(65歳)');
   });
 });

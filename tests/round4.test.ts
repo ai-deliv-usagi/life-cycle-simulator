@@ -52,16 +52,16 @@ describe('同窓会', () => {
 });
 
 describe('支出の方針で変わる出費', () => {
-  it('買い物・旅行などは、節約0.6倍・普通1倍・ゆとり1.3倍・浪費1.8倍。ログに使った額が出る', () => {
+  it('買い物・旅行などは、節約0.6倍・普通1倍・ゆとり1.3倍・浪費1.8倍。ログの money に使った額が出る', () => {
     const cost = (spending: 'frugal' | 'normal' | 'comfort' | 'lavish') => {
       const s = setAge(makeState({ initialCash: 1_000_000 }, { spending }), 30); // 貯金があるのでローンにならない
       applyChoice(s, byId('travel'), 0, flatRng);
-      return { cash: s.assets.cash - 1_000_000, text: s.log.at(-1)!.text };
+      return { cash: s.assets.cash - 1_000_000, log: s.log.at(-1)! };
     };
     expect(cost('frugal').cash).toBe(-240_000);
     expect(cost('normal').cash).toBe(-400_000);
     expect(cost('lavish').cash).toBe(-720_000);
-    expect(cost('lavish').text).toBe('旅行のチャンス: 「海外旅行に行く」(72万円)');
+    expect(cost('lavish').log).toMatchObject({ text: '旅行のチャンス: 「海外旅行に行く」', money: -720_000 });
   });
 
   it('出費のない選択肢や、方針で変わらないイベントはそのまま', () => {
@@ -113,5 +113,15 @@ describe('昇進は55歳まで', () => {
     const ev = byId('promotion');
     expect(eventProb(ev, setAge(makeState({ job: 'sales' }), 54))).toBeGreaterThan(0);
     expect(eventProb(ev, setAge(makeState({ job: 'sales' }), 56))).toBe(0);
+  });
+});
+
+describe('ログのお金の増減', () => {
+  it('イベントや選択でお金が動いたら、ログに純資産の増減が付く(動かなければ付かない)', () => {
+    const s = setAge(makeState({ initialCash: 1_000_000 }), 30);
+    applyChoice(s, byId('travel'), 0, flatRng);
+    expect(s.log.at(-1)!.money).toBe(-400_000);
+    applyChoice(s, byId('travel'), 2, flatRng);
+    expect(s.log.at(-1)!.money).toBeUndefined();
   });
 });

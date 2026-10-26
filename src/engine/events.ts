@@ -7,7 +7,7 @@ import { scaleNisaPrincipal } from './nisa';
 import { businessValue, hasBusiness, startBusiness } from './business';
 import { buyHome, homePrice, ownsHome } from './housing';
 import { recordEventCash } from './ledger';
-import { annualGross, changeEmployer, changeJob, coverWithLoan, isEmployed, monthlyGrossPay, takeLoan } from './money';
+import { annualGross, changeEmployer, changeJob, coverWithLoan, retire, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
 import type {
   Choice,
@@ -23,7 +23,7 @@ import type {
   Stats,
   Values,
 } from './types';
-import { addLog, ageYears, clamp, clampStat, clampValue, financialAssets, findById, roundYen } from './util';
+import { addLog, ageYears, clamp, clampStat, clampValue, financialAssets, findById, netWorth, roundYen } from './util';
 
 // ---- フラグ(married は character.married に読み替える) ----
 
@@ -197,8 +197,15 @@ export function fireEvent(state: GameState, ev: EventDef, rng: Rng, data: GameDa
     addLog(state, 'event', `${ev.title}: ${ev.text}`, ev.id);
     return;
   }
+  const before = netWorth(state.assets);
   if (ev.effects) applyEffects(state, scaled(ev, ev.effects, state, data), rng, data);
   addLog(state, 'event', `${ev.title}: ${ev.text}`, ev.id);
+  withMoney(state, netWorth(state.assets) - before);
+}
+
+/** いま足したログに、純資産の増減を付ける(0なら付けない) */
+function withMoney(state: GameState, money: number): void {
+  if (money !== 0) state.log.at(-1)!.money = roundYen(money);
 }
 
 /** 表示する選択肢(条件を満たすもの)。index は events.json での位置 */
@@ -219,7 +226,7 @@ export function applyChoice(
   const entry = availableChoices(ev, state).find((c) => c.index === choiceIndex);
   if (!entry) throw new Error(`choice ${choiceIndex} is not available for ${ev.id}`);
   const { choice } = entry;
-  const cashBefore = state.assets.cash + state.assets.index + state.assets.stocks + state.assets.speculative - state.assets.debt;
+  const worthBefore = netWorth(state.assets); // 使った・得た額はログの money に残す
   if (choice.effects) applyEffects(state, scaled(ev, choice.effects, state, data), rng, data);
   let text = `${ev.title}: 「${choice.label}」`;
   if (choice.outcomes && choice.outcomes.length > 0) {
@@ -227,14 +234,12 @@ export function applyChoice(
     applyEffects(state, scaled(ev, outcome.effects, state, data), rng, data);
     text += ` → ${outcome.text}`;
   }
-  // 支出の方針で金額が変わるイベントは、いくら使ったかをログに残す
-  const spent = cashBefore - (state.assets.cash + state.assets.index + state.assets.stocks + state.assets.speculative - state.assets.debt);
-  if (ev.scaleBySpending && spent > 0) text += `(${Math.round(spent / 10_000).toLocaleString('ja-JP')}万円)`;
   const step = data.balance.events.valueShiftStep;
   for (const [axis, shift] of Object.entries(choice.valueShift ?? {}) as [keyof Values, number][]) {
     state.values[axis] = clampValue(state.values[axis] + Math.sign(shift) * step);
   }
   addLog(state, 'choice', text, ev.id);
+  withMoney(state, netWorth(state.assets) - worthBefore);
 }
 
 function pickJob(state: GameState, target: NonNullable<Effects['job']>, rng: Rng, data: GameData): JobId {
@@ -285,6 +290,7 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
     startBusiness(state, effects.startBusiness, data);
   }
   if (effects.sellBusiness && state.business) changeJob(state, 'none', data); // 会社を売ったら無職(失業給付なし)
+  if (effects.retireOwner && state.business) retire(state, data); // 事業承継して引退(会社の価値の一部を受け取る)
   if (effects.businessLevel && state.business) state.business.level *= effects.businessLevel;
   if (effects.homeValue && state.assets.home) state.assets.home = roundYen(state.assets.home * effects.homeValue);
   for (const [key, delta] of Object.entries(effects.stats ?? {}) as [keyof Stats, number][]) {

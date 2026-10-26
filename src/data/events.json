@@ -1729,6 +1729,41 @@
     ]
   },
   {
+    "id": "owner_retirement",
+    "category": "career",
+    "title": "引退を考える",
+    "text": "社長を続けて長い。そろそろ後継者に会社を任せて、引退してもいい年齢だ。",
+    "conditions": {
+      "hasBusiness": true,
+      "ageMin": 65
+    },
+    "baseProb": 0.08,
+    "cooldownMonths": 12,
+    "choices": [
+      {
+        "label": "引退して会社を継がせる",
+        "effects": {
+          "retireOwner": true,
+          "stats": {
+            "stress": -15
+          },
+          "achievement": 5
+        }
+      },
+      {
+        "label": "まだ続ける",
+        "effects": {
+          "stats": {
+            "stress": 3
+          }
+        },
+        "valueShift": {
+          "work": 0.1
+        }
+      }
+    ]
+  },
+  {
     "id": "invest_jackpot",
     "category": "money",
     "title": "投資の大当たり",

@@ -143,6 +143,8 @@ export interface LogEntry {
   id?: string;
   text: string;
   snapshot: { netWorth: number; health: number; happiness: number };
+  /** イベント・選択でお金が動いたとき: 純資産の増減(円。出費はマイナス、ローンで払っても出費に数える) */
+  money?: number;
   /** 年間サマリーだけ: 年末の金融資産の内訳(円) */
   assets?: { cash: number; index: number; stocks: number; speculative: number };
 }
@@ -274,6 +276,8 @@ export interface Effects {
   businessLevel?: number;
   /** 会社を売る(会社の価値を受け取り、無職になる) */
   sellBusiness?: boolean;
+  /** 社長が引退して会社を事業承継する */
+  retireOwner?: boolean;
   /** 家を買う。値は頭金の割合(0ならフルローン) */
   buyHome?: number;
   /** 家の時価に掛ける(災害など) */
@@ -515,7 +519,8 @@ export interface BusinessBalance {
   maxLevel: number;
   closeCost: Record<BusinessScale, number>; // 廃業の整理費用(借入の返済など)
   valuationMonths: number; // 会社の価値 = 基準の役員報酬 × (level − breakEvenLevel) × この月数
-  successionShare: number; // 65歳で事業承継するとき受け取る割合
+  successionShare: number; // 事業承継するとき受け取る割合
+  retireAgeMax: number; // 社長に定年はないが、この年齢で必ず事業承継する
   /** 決算の伸び(対数・年率) ~ N(mu + 補正, sigma) */
   review: { mu: number; sigma: number; skillMul: number; luckMul: number; work: Record<WorkStyle, number>; recession: number };
 }

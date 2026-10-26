@@ -168,3 +168,31 @@ export const STAT_EFFECTS: Record<keyof typeof STAT_LABELS, { what: string; bad:
     good: '高いと恋人ができやすく、結婚式や同窓会のお誘いも増える',
   },
 };
+
+/** 「大事な出来事で止める」で再生を止める出来事(選択肢のないもの。選択肢つきはモーダルで止まる) */
+export const IMPORTANT_EVENTS: ReadonlySet<string> = new Set([
+  'parent_death',
+  'spouse_death',
+  'layoff',
+  'hospital',
+  'traffic_accident',
+  'elderly_crash',
+  'natural_disaster',
+  'recession',
+  'pregnancy',
+  'bankruptcy',
+  'home_sold',
+  'business_closed',
+  'business_succession',
+  'retirement',
+]);
+
+/** ログの文の「タイトル: 本文」からタイトルだけ */
+export function logTitle(text: string): string {
+  return text.split(':')[0] ?? text;
+}
+
+/** ログのお金の増減(「−12万円」)。動いていなければ空 */
+export function moneyLabel(money: number | undefined): string {
+  return money ? signedManYen(money) : '';
+}

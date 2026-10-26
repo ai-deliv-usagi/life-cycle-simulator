@@ -46,7 +46,7 @@ describe('大きな出費は自動でローン', () => {
     applyChoice(s, byId('revolving'), 0, flatRng);
     expect(s.assets.debt).toBe(720_000);
     expect(s.assets.cash).toBe(0);
-    expect(s.log.at(-1)!.text).toBe('リボ払いの誘い: 「リボ払いで欲しいものを買う」(72万円)');
+    expect(s.log.at(-1)).toMatchObject({ text: 'リボ払いの誘い: 「リボ払いで欲しいものを買う」', money: -720_000 });
     const t = makeState({}, { spending: 'comfort' });
     applyChoice(t, byId('revolving'), 0, flatRng);
     expect(t.assets.debt).toBe(520_000);
