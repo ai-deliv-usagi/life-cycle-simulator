@@ -364,7 +364,12 @@
         "taxBenefit": 5000,
         "employeePension": 0
       }
-    }
+    },
+    "payMulSd": 0.15,
+    "payMulMin": 0.6,
+    "payMulMax": 1.3,
+    "parttimeMax": 86000,
+    "payMulMean": 0.85
   },
   "bankruptcy": {
     "minLimit": 2000000,

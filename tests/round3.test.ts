@@ -19,10 +19,14 @@ describe('大きな出費は自動でローン', () => {
     const s = makeState();
     s.assets.cash = 500_000;
     s.assets.index = 200_000;
+    s.invested!.index = 200_000; // 損益なし(税金がかからない)
     applyEffects(s, { cash: -2_500_000 }, flatRng);
     expect(s.assets.loan).toBe(1_800_000);
-    expect(s.assets.cash).toBe(500_000 - 2_500_000 + 1_800_000);
-    expect(s.log.at(-1)).toMatchObject({ id: 'auto_loan' });
+    // 残りは積立をその場で取り崩して払う(預金がマイナスのまま残らない)
+    expect(s.assets.cash).toBe(0);
+    expect(s.assets.index).toBe(0);
+    expect(s.log.some((e) => e.id === 'auto_loan')).toBe(true);
+    expect(s.log.at(-1)).toMatchObject({ id: 'forced_sale' });
     // 臨時の出費は自分で払った分だけ。ローンにした分は毎月の返済として支出に入る
     expect(s.ledger!.eventOut).toBe(700_000);
     expect(s.ledger!.eventIn).toBe(0);

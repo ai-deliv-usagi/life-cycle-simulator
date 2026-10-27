@@ -84,6 +84,10 @@ export function loadGame(store: KV | null = defaultStorage()): LoadResult {
     if (data.version !== SAVE_VERSION || !looksLikeState(data.state)) return { status: 'broken' };
     // 古いセーブの方針(投資を1つだけ選ぶ形)を配分に直す
     const state = { ...data.state, policy: normalizePolicy(data.state.policy) };
+    // 結婚した月のない古いセーブは、今の月を結婚した月とみなす(結婚記念日がまた起きるように)
+    if (state.character.married && typeof state.flags.marriedSince !== 'number') {
+      state.flags = { ...state.flags, marriedSince: state.month };
+    }
     return { status: 'ok', state, savedAt: typeof data.savedAt === 'string' ? data.savedAt : '' };
   } catch {
     return { status: 'broken' };
