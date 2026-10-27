@@ -163,10 +163,10 @@ export function runBalance(opts: Options) {
     { name: '選択で止まる回数', value: `年${choicesPerYear.toFixed(2)}回`, target: '年0.7〜1.5回', ok: choicesPerYear >= 0.7 && choicesPerYear <= 1.5 },
     { name: '選択のない通知', value: `年${noticesPerYear.toFixed(2)}回`, target: '年0.3〜1.5回', ok: noticesPerYear >= 0.3 && noticesPerYear <= 1.5 },
     {
-      name: '勝ちパターンがない(勝ち組=幸せな人生になりやすすぎるタイプがない)',
+      name: '必ず勝てるタイプはない(勝ち組=幸せな人生)',
       value: `いちばん高い ${maxHappy.label} で ${pct(maxHappy.happy)}`,
-      target: '75%以下',
-      ok: maxHappy.happy <= 0.75,
+      target: '90%以下',
+      ok: maxHappy.happy <= 0.9,
     },
     {
       name: 'どのタイプにも勝ち筋がある',

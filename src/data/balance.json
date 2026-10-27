@@ -209,7 +209,7 @@
   },
   "happiness": {
     "minWeight": 0.2,
-    "marriedRelationsBonus": 10,
+    "marriedRelationsBonus": 15,
     "securityMonths": 36,
     "debtSecurityPenalty": 30,
     "livingAbsScale": 200000,
@@ -476,8 +476,8 @@
       "birthHealth": -5
     },
     "happiness": {
-      "relationsPerChild": 4,
-      "relationsMax": 8,
+      "relationsPerChild": 6,
+      "relationsMax": 12,
       "youngUntil": 12,
       "freeTimePerYoung": -8,
       "babyUntil": 6,

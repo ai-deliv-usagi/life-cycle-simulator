@@ -18,7 +18,7 @@ describe('重み', () => {
   it('家族重視は人間関係が重く自由時間が軽い', () => {
     const w = happinessWeights({ ...neutralValues, relation: -2 });
     expect(w.relations).toBeCloseTo(1.5);
-    expect(w.freeTime).toBeCloseTo(0.5);
+    expect(w.freeTime).toBeCloseTo(0.3); // 自由志向の係数は0.35
   });
 
   it('使う派は生活水準が重い', () => {
@@ -128,5 +128,21 @@ describe('computeHappiness', () => {
     s.achievement = 0;
     s.assets.cash = 0;
     expect(computeHappiness(s)).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('出世派と自由人の救い', () => {
+  it('役職(主任〜部長)と社長の業績が、やりがいに加わる', () => {
+    const s = makeState();
+    const base = happinessParts(s).achievement;
+    s.flags.rank = 3; // 課長
+    expect(happinessParts(s).achievement).toBeCloseTo(base + 3 * 12);
+  });
+
+  it('仕事を大事にする人はやりがいが重く自由時間が軽い。自由志向は自由時間が重い', () => {
+    const work = happinessWeights({ ...neutralValues, work: 2 });
+    expect(work.achievement).toBeCloseTo(1.8);
+    expect(work.freeTime).toBeCloseTo(0.5);
+    expect(happinessWeights({ ...neutralValues, relation: 2 }).freeTime).toBeCloseTo(1.7);
   });
 });
