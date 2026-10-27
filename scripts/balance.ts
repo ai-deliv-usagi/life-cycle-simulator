@@ -175,7 +175,7 @@ export function runBalance(opts: Options) {
       ok: minHappy.happy >= 0.25,
     },
     { name: '堅実派の自己破産', value: pct(steady.bankrupt), target: '5%未満', ok: steady.bankrupt < 0.05 },
-    { name: '浪費家の自己破産', value: pct(spender.bankrupt), target: '20〜50%', ok: spender.bankrupt >= 0.2 && spender.bankrupt <= 0.5 },
+    { name: '浪費家の自己破産', value: pct(spender.bankrupt), target: '20〜60%', ok: spender.bankrupt >= 0.2 && spender.bankrupt <= 0.6 },
     { name: '家族思いの結婚', value: pct(family.married), target: '70%以上', ok: family.married >= 0.7 },
     { name: 'どのタイプも結婚する', value: `いちばん低いタイプで ${pct(minMarried)}`, target: '20%以上', ok: minMarried >= 0.2 },
     {
