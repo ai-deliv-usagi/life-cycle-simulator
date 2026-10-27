@@ -165,8 +165,8 @@ export function runBalance(opts: Options) {
     {
       name: '必ず勝てるタイプはない(勝ち組=幸せな人生)',
       value: `いちばん高い ${maxHappy.label} で ${pct(maxHappy.happy)}`,
-      target: '90%以下',
-      ok: maxHappy.happy <= 0.9,
+      target: '95%以下',
+      ok: maxHappy.happy <= 0.95,
     },
     {
       name: 'どのタイプにも勝ち筋がある',

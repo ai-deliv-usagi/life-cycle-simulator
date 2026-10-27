@@ -1087,12 +1087,15 @@
         "outcomes": [
           {
             "prob": 0.55,
-            "text": "合格した!",
+            "text": "合格した! 資格手当で給料が少し上がる",
             "effects": {
               "stats": {
                 "skill": 8
               },
-              "achievement": 5
+              "achievement": 5,
+              "mulFlags": {
+                "payMul": 1.03
+              }
             }
           },
           {
@@ -2233,6 +2236,11 @@
           "rural"
         ],
         "mul": 4
+      },
+      {
+        "children": true,
+        "above": 0,
+        "mul": 3
       }
     ],
     "choices": [
@@ -3825,14 +3833,14 @@
     "category": "life",
     "spread": "small",
     "title": "結婚記念日",
-    "text": "今日は結婚記念日だ。",
+    "text": "今月は結婚記念日だ。",
     "conditions": {
       "flags": {
         "married": true
-      }
+      },
+      "anniversary": true
     },
-    "baseProb": 0.006,
-    "cooldownMonths": 24,
+    "baseProb": 0.35,
     "choices": [
       {
         "label": "豪華に祝う",

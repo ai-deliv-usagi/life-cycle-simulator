@@ -10,7 +10,7 @@ import { recordSeverance } from './ledger';
 import { buyInvestment, resetNisaYear, sellForCash } from './nisa';
 import { fixedInvestShares } from './policy';
 import type { Rng } from './rng';
-import type { GameData, GameState, Invest, JobDef, JobId, RegionDef } from './types';
+import type { Education, GameData, GameState, Invest, JobDef, JobId, RegionDef } from './types';
 import { addLog, ageYears, annuityPayment, clamp, clampStat, findById, roundYen } from './util';
 
 // ---- 参照 ----
@@ -45,19 +45,25 @@ export function isRehired(state: GameState): boolean {
 // ---- 収入 ----
 
 /** 額面年収(DESIGN.md §5.1)。無職・退職後は0 */
+/** 職業と学歴で決まる、その年齢の基準の年収(額面)。働き方・スキル・地域などを掛ける前 */
+function careerBaseGross(job: JobDef, education: Education, age: number, startAge: number, data: GameData): number {
+  const edu = findById(data.education, education, 'education');
+  const { peakAge, declineFrom, declinePerYear } = data.balance.salary;
+  const progress = clamp((age - startAge) / (peakAge - startAge), 0, 1);
+  const start = job.startPay * edu.startPayMul;
+  const peak = job.peakPay * edu.raiseMul;
+  const decline = 1 - declinePerYear * Math.max(0, age - declineFrom); // 役職定年
+  return (start + (peak - start) * progress) * decline;
+}
+
 export function annualGross(state: GameState, data: GameData = defaultData): number {
   const job = jobDef(state.character.job, data);
   if (!job || state.character.retired) return 0;
   if (job.id === 'owner') return ownerSalary(state, data) * 12; // 社長は会社の業績で決まる役員報酬
   const { balance } = data;
-  const edu = findById(data.education, state.character.education, 'education');
   const age = ageYears(state);
-  const { peakAge, skillBase, skillRange, declineFrom, declinePerYear } = balance.salary;
-  const progress = clamp((age - state.startAge) / (peakAge - state.startAge), 0, 1);
-  const start = job.startPay * edu.startPayMul;
-  const peak = job.peakPay * edu.raiseMul;
-  const decline = 1 - declinePerYear * Math.max(0, age - declineFrom); // 役職定年
-  const base = (start + (peak - start) * progress) * decline;
+  const { skillBase, skillRange } = balance.salary;
+  const base = careerBaseGross(job, state.character.education, age, state.startAge, data);
   const skillMul = skillBase + (skillRange * state.stats.skill) / 100;
   return roundYen(
     base *
@@ -107,6 +113,35 @@ export function basicPension(state: GameState, data: GameData = defaultData): nu
   return roundYen(p.basicFull * Math.min(1, years / p.basicYears));
 }
 
+/**
+ * 配偶者の毎月の手取り(ボーナスもならして含む)。共働きは職業・学歴の給料カーブ(本人と同い年)× 稼ぎの個人差、
+ * 扶養内パートは基準額 × 個人差(年103万円の壁まで)。結婚したときの引きがない古いセーブは基準額
+ */
+export function spouseMonthlyNet(state: GameState, data: GameData = defaultData): number {
+  const c = state.character;
+  if (!c.married || !c.spouse) return 0;
+  const s = data.balance.spouse;
+  const t = s.types[c.spouse];
+  const p = c.spouseProfile;
+  if (!p || c.spouse === 'homemaker') return t.monthlyNet;
+  if (c.spouse === 'parttime') return Math.min(s.parttimeMax, roundYen(t.monthlyNet * p.payMul));
+  const job = jobDef(p.job, data);
+  if (!job) return t.monthlyNet;
+  const gross = careerBaseGross(job, p.education, ageYears(state), state.startAge, data) * p.payMul * regionDef(state, data).payMul;
+  return roundYen((gross * takeHomeRate(gross, data)) / 12);
+}
+
+/** 共働きの配偶者の稼ぎが、基準(balance の monthlyNet)の何倍か。65歳で働き終えたときの額で見る */
+function spouseIncomeRatio(state: GameState, data: GameData): number {
+  const c = state.character;
+  const p = c.spouseProfile;
+  if (!p || c.spouse !== 'fulltime') return 1;
+  const job = jobDef(p.job, data);
+  if (!job) return 1;
+  const gross = careerBaseGross(job, p.education, data.balance.pension.retireAge - 1, state.startAge, data) * p.payMul;
+  return (gross * takeHomeRate(gross, data)) / 12 / data.balance.spouse.types.fulltime.monthlyNet;
+}
+
 /** 厚生年金(本人分、月額) */
 export function employeePension(state: GameState, data: GameData = defaultData): number {
   const c = state.character;
@@ -118,7 +153,9 @@ export function pensionMonthly(state: GameState, data: GameData = defaultData): 
   const c = state.character;
   const { balance } = data;
   const basic = basicPension(state, data) * (c.married ? balance.pension.spouseBasicMul : 1);
-  const spouseEmployee = c.married && c.spouse ? balance.spouse.types[c.spouse].employeePension : 0;
+  // 共働きの配偶者の厚生年金は、配偶者の稼ぎ(基準の手取りとの比)に合わせる
+  const spouseType = c.married && c.spouse ? balance.spouse.types[c.spouse] : undefined;
+  const spouseEmployee = spouseType && spouseType.employeePension > 0 ? roundYen(spouseType.employeePension * spouseIncomeRatio(state, data)) : 0;
   // 配偶者と死別したら遺族厚生年金。自分の厚生年金と多いほうを受け取る
   const own = Math.max(employeePension(state, data), num(state, 'survivorPension', 0));
   return basic + own + spouseEmployee;
@@ -173,9 +210,10 @@ export function calcIncome(state: GameState, data: GameData = defaultData): Mont
   let spouse = 0;
   if (c.married && c.spouse && ageYears(state) < balance.pension.retireAge) {
     const t = balance.spouse.types[c.spouse];
-    spouse = t.monthlyNet + (salary > 0 ? t.taxBenefit : 0); // 控除は本人に給与があるときだけ
+    const net = spouseMonthlyNet(state, data);
+    spouse = net + (salary > 0 ? t.taxBenefit : 0); // 控除は本人に給与があるときだけ
     const spouseLeave = parentalLeaveRate(num(state, 'spouseLeave', 0), true, data);
-    if (spouseLeave !== null) spouse = roundYen(t.monthlyNet * spouseLeave);
+    if (spouseLeave !== null) spouse = roundYen(net * spouseLeave);
   }
 
   const transfer = findFamily(state, data).monthlyTransfer;
@@ -504,20 +542,7 @@ export function applyMonthlyMoney(state: GameState, rng: Rng, data: GameData = d
   const returns = applyReturns(state, rng, data);
 
   // 5. 資金ショート。特定口座から先に売り、利益には税金がかかる(そのぶん多めに売る)
-  let investTax = 0;
-  if (a.cash < 0) {
-    const sold: string[] = [];
-    for (const key of ['index', 'stocks', 'speculative'] as const) {
-      if (a[key] <= 0) continue;
-      const sale = sellForCash(state, key, -a.cash, data);
-      a.cash += sale.gross - sale.tax;
-      investTax += sale.tax;
-      if (sale.gross > 0) sold.push(`${FORCED_SALE_LABELS[key]}を${Math.max(1, Math.round(sale.gross / 10_000)).toLocaleString('ja-JP')}万円`);
-      if (a.cash >= 0) break;
-    }
-    // 知らないうちに投資がなくなったように見えないよう、ログに残す
-    if (sold.length > 0) addLog(state, 'event', `投資の取り崩し: 預金が足りず、${sold.join('・')}売ってあてた`, 'forced_sale');
-  }
+  const investTax = coverWithInvestments(state, data);
   // 生活保護は「節約しても収入で暮らせない」ときの下限。それ以外の不足は借金になる。
   // 住宅ローンと固定資産税はボーナスで払う月もあるので、ここでは数えない(返せなければ借金が膨らみ、家を売る)
   const minimal = calcExpenses(state, data, true);
@@ -604,6 +629,27 @@ export function coverWithLoan(state: GameState, spent: number, data: GameData = 
     `ローンを組んだ: 貯金では足りず、${manYen(amount)}をローンにした(${cfg.autoMonths / 12}年で返済)`,
     'auto_loan',
   );
+}
+
+/**
+ * 預金がマイナスなら、投資(積立 → 個別株 → 信用・仮想通貨の順)を売ってあてる。特定口座の利益には税金がかかる。
+ * 払った税金を返す。知らないうちに投資がなくなったように見えないよう、ログに残す
+ */
+export function coverWithInvestments(state: GameState, data: GameData = defaultData): number {
+  const a = state.assets;
+  let tax = 0;
+  if (a.cash >= 0) return 0;
+  const sold: string[] = [];
+  for (const key of ['index', 'stocks', 'speculative'] as const) {
+    if (a[key] <= 0) continue;
+    const sale = sellForCash(state, key, -a.cash, data);
+    a.cash += sale.gross - sale.tax;
+    tax += sale.tax;
+    if (sale.gross > 0) sold.push(`${FORCED_SALE_LABELS[key]}を${Math.max(1, Math.round(sale.gross / 10_000)).toLocaleString('ja-JP')}万円`);
+    if (a.cash >= 0) break;
+  }
+  if (sold.length > 0) addLog(state, 'event', `投資の取り崩し: 預金が足りず、${sold.join('・')}売ってあてた`, 'forced_sale');
+  return tax;
 }
 
 /** 借りているものごとの年利(UI の表示用)。奨学金は借りた条件、無利子なら 0 */
