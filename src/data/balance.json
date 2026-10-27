@@ -64,7 +64,7 @@
       "income": 1.2,
       "freeTime": 35,
       "health": -0.3,
-      "stress": 1.5,
+      "stress": 1.0,
       "skill": 0.35,
       "death": 1.15
     },

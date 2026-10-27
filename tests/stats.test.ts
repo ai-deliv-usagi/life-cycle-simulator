@@ -24,7 +24,7 @@ describe('updateStats: 方針ごとの増減(体質50 → 減少は×1.0)', () =
   it.each([
     ['regular', 0, -1, 0.1],
     ['normal', -0.05, 0, 0.2],
-    ['overtime', -0.3, 1.5, 0.35],
+    ['overtime', -0.3, 1.0, 0.35],
     ['grind', -0.35, 1.8, 0.5],
   ] as const)('働き方 %s: 健康 %f / ストレス %f / スキル %f', (work, health, stress, skill) => {
     const d = deltas({ work, health: 'normal' });
