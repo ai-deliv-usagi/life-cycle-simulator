@@ -511,7 +511,8 @@ export interface Balance {
     /** 本人の性別ごとの、配偶者のタイプの確率(性別のない古いセーブは types の prob) */
     probByGender: Record<Gender, Record<SpouseType, number>>;
     types: Record<SpouseType, { prob: number; monthlyNet: number; taxBenefit: number; employeePension: number }>;
-    /** 稼ぎの個人差 N(1, payMulSd) を payMulMin〜payMulMax に。扶養内パートは月 parttimeMax まで(年103万円の壁) */
+    /** 稼ぎの個人差 N(payMulMean, payMulSd) を payMulMin〜payMulMax に(育児の時短や転職でキャリアが途切れることもあるので平均は1より低め)。扶養内パートは月 parttimeMax まで(年103万円の壁) */
+    payMulMean: number;
     payMulSd: number;
     payMulMin: number;
     payMulMax: number;

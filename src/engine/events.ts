@@ -48,7 +48,7 @@ function setMarried(state: GameState, married: boolean, rng: Rng, data: GameData
     c.spouseProfile = {
       job: c.spouse === 'parttime' ? 'parttime' : rng.pick(jobs).id,
       education: rng.weighted(data.education.map((e) => ({ item: e.id, weight: e.prob }))),
-      payMul: clamp(rng.normal(1, s.payMulSd), s.payMulMin, s.payMulMax),
+      payMul: clamp(rng.normal(s.payMulMean, s.payMulSd), s.payMulMin, s.payMulMax),
     };
     state.flags.marriedSince = state.month;
   }

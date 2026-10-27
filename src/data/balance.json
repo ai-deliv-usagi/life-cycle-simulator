@@ -366,9 +366,10 @@
       }
     },
     "payMulSd": 0.15,
-    "payMulMin": 0.7,
-    "payMulMax": 1.4,
-    "parttimeMax": 86000
+    "payMulMin": 0.6,
+    "payMulMax": 1.3,
+    "parttimeMax": 86000,
+    "payMulMean": 0.85
   },
   "bankruptcy": {
     "minLimit": 2000000,
