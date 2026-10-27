@@ -1,5 +1,5 @@
 // イベント・選択結果・年間サマリー・方針変更のモーダル
-import { availableChoices, choiceCost, gameData, businessValue, investmentOutlook, getMonthlyView, HAPPINESS_PARTS, happinessParts, happinessWeights, ledgerTotals, nisaRoom, nisaValue, type ChoiceCost, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
+import { availableChoices, choiceCost, gameData, businessValue, investmentOutlook, getMonthlyView, HAPPINESS_PARTS, happinessParts, happinessWeights, ledgerTotals, nisaRoom, nisaValue, type Choice, type ChoiceCost, type GameState, type InvestKey, type LogEntry, type Policy, type Stats, type YearLedger } from '../../engine/index';
 import { assetMixChart, assetMixPoints } from '../charts';
 import { append, clear, h, openModal } from '../dom';
 import {
@@ -19,6 +19,7 @@ import {
   signedPercent,
   STAT_EFFECTS,
   STAT_LABELS,
+  SKILL_GROWING_NOTE,
   STAT_LEVEL_LABELS,
   statLevel,
 } from '../format';
@@ -50,6 +51,7 @@ export function eventModal(state: GameState): Promise<number> {
         { class: 'choices' },
         ...availableChoices(ev, state).map(({ choice, index, blocked }) => {
           const hint = costHint(choiceCost(ev, choice, state), choice.label);
+          const effect = effectHint(choice);
           // 審査に通らないローンの選択肢は、理由を出して押せなくする
           return h(
             'button',
@@ -63,6 +65,7 @@ export function eventModal(state: GameState): Promise<number> {
             },
             h('span', {}, choice.label),
             hint ? h('span', { class: 'choice-hint small' }, hint) : null,
+            effect ? h('span', { class: 'choice-hint choice-effect small' }, effect) : null,
             blocked ? h('span', { class: 'choice-hint small down' }, blocked) : null,
           );
         }),
@@ -85,12 +88,41 @@ function costHint(cost: ChoiceCost, label: string): string {
   if (label.includes('円')) return '';
   // 金額が揺れる出来事は「約20〜60万円」のように幅で出す
   const amount = (yen: number) => {
+    if (yen < 10_000) return `約${(Math.round(yen / 100) * 100).toLocaleString('ja-JP')}円`; // 宝くじなど1万円未満は円で
     if (!cost.range) return `約${manYen(yen)}`;
     const [lo, hi] = cost.range.map((k) => Math.round((yen * k) / 10_000) * 10_000) as [number, number];
     return lo === hi ? `約${manYen(lo)}` : `約${Math.round(lo / 10_000).toLocaleString('ja-JP')}〜${manYen(hi)}`;
   };
   const parts = [cost.spend > 0 ? amount(cost.spend) : '', cost.borrow > 0 ? `借りる額 ${amount(cost.borrow)}(${annualRateLabel(cost.borrowRate ?? 0)})` : ''];
   return parts.filter(Boolean).join('・');
+}
+
+const EFFECT_STATS: [keyof Stats, string][] = [
+  ['health', '健康'],
+  ['stress', 'ストレス'],
+  ['skill', 'スキル'],
+  ['credit', '信用'],
+  ['relations', '人間関係'],
+];
+/** これより小さい変化は手がかりに出さない */
+const EFFECT_HINT_MIN = 3;
+
+/** お金以外に何が起きるかの手がかり(「ストレス↑ 人間関係↑」)。数値は出さず、向きだけ */
+function effectHint(choice: Choice): string {
+  const e = choice.effects ?? {};
+  const tags: string[] = [];
+  const arrow = (d: number) => (d > 0 ? '↑' : '↓');
+  for (const [key, label] of EFFECT_STATS) {
+    const d = e.stats?.[key] ?? 0;
+    if (Math.abs(d) >= EFFECT_HINT_MIN) tags.push(`${label}${arrow(d)}`);
+  }
+  if (Math.abs(e.achievement ?? 0) >= EFFECT_HINT_MIN) tags.push(`やりがい${arrow(e.achievement!)}`);
+  const leave = gameData.balance.children.parentalLeave;
+  const pct = (lo: number, hi: number) => `${Math.round(lo * 100)}〜${Math.round(hi * 100)}%`;
+  if (e.setFlags?.parentalLeave) tags.push(`育休中の給料は給付金(${pct(leave.laterRate, leave.firstRate)})`);
+  if (e.setFlags?.spouseLeave) tags.push(`配偶者の手取りは給付金(${pct(leave.spouseLaterRate, leave.spouseFirstRate)})`);
+  if (choice.outcomes && choice.outcomes.length > 1) tags.push('結果は運次第');
+  return tags.join(' ');
 }
 
 /** 選んだ結果(ログの最後の choice)を少しだけ見せる */
@@ -617,7 +649,7 @@ export function incomeModal(state: GameState): Promise<void> {
 /** 幸福度の内訳: 6つの要素の満たされ具合と、価値観による重み */
 export function happinessModal(state: GameState): Promise<void> {
   const parts = happinessParts(state);
-  const weights = happinessWeights(state.values);
+  const weights = happinessWeights(state.values, undefined, state.ageMonths);
   return new Promise((resolve) => {
     let close = () => {};
     const rows = HAPPINESS_PARTS.map((p) => {
@@ -628,14 +660,15 @@ export function happinessModal(state: GameState): Promise<void> {
         { class: 'bar bar-wide-label' },
         h('span', { class: 'bar-label' }, HAPPINESS_PART_LABELS[p], mark ? h('span', { class: 'weight-tag small' }, mark) : ''),
         h('div', { class: 'bar-track' }, h('div', { class: 'bar-fill', style: `width:${Math.round(parts[p])}%` })),
-        h('span', { class: 'bar-word muted small' }, happinessPartWord(parts[p])),
+        // 健康はステータスと同じ言葉で(同じ値なので、言い方がずれないように)
+        h('span', { class: 'bar-word muted small' }, p === 'health' ? STAT_LEVEL_LABELS[statLevel('health', parts[p])] : happinessPartWord(parts[p])),
       );
     });
     const content = h(
       'div',
       { class: 'happiness-modal' },
-      h('h2', {}, `今月の幸福度 ${happinessFace(state.happinessHistory.at(-1) ?? 0)} ${happinessWord(state.happinessHistory.at(-1) ?? 0)}`),
-      h('p', { class: 'muted small' }, '6つの要素の重み付き平均。どれを重視するかは価値観で変わる(「重視」は重みが大きく、「軽め」は小さい要素)。'),
+      h('h2', {}, `今月の幸福度 ${happinessFace(getMonthlyView(state).happiness)} ${happinessWord(getMonthlyView(state).happiness)}`),
+      h('p', { class: 'muted small' }, '6つの要素の重み付き平均。どれを重視するかは価値観で変わる(「重視」は重みが大きく、「軽め」は小さい要素)。若いうちは、お金の安心とやりがいは軽め。'),
       h('div', { class: 'card bars' }, ...rows),
       h(
         'button',
@@ -694,9 +727,9 @@ export function settingsModal(settings: { autoCloseSummary: boolean; pauseOnImpo
 }
 
 /** ステータスの説明: 何を表すか、下がる(ストレスは上がる)と何が起きるか */
-export function statModal(key: keyof typeof STAT_EFFECTS, value: number): Promise<void> {
+export function statModal(key: keyof typeof STAT_EFFECTS, value: number, ageMonths?: number): Promise<void> {
   const e = STAT_EFFECTS[key];
-  const level = statLevel(key, value);
+  const level = statLevel(key, value, ageMonths);
   return new Promise((resolve) => {
     let close = () => {};
     const content = h(
@@ -704,6 +737,7 @@ export function statModal(key: keyof typeof STAT_EFFECTS, value: number): Promis
       { class: 'stat-modal' },
       h('h2', {}, `${STAT_LABELS[key]}: ${STAT_LEVEL_LABELS[level]}(${Math.round(value)})`),
       h('p', {}, e.what),
+      level === 'growing' ? h('p', {}, SKILL_GROWING_NOTE) : null,
       h('p', { class: level === 'caution' || level === 'danger' ? 'down' : '' }, e.bad),
       h('p', { class: 'muted' }, e.good),
       h(

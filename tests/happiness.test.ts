@@ -100,11 +100,27 @@ describe('各要素', () => {
 });
 
 describe('computeHappiness', () => {
-  it('重み付き平均で、中立なら要素の単純平均', () => {
+  it('重み付き平均で、中立なら要素の単純平均(35歳以上)', () => {
     const s = makeState();
+    s.ageMonths = 40 * 12;
     const parts = happinessParts(s);
     const avg = HAPPINESS_PARTS.reduce((a, p) => a + parts[p], 0) / HAPPINESS_PARTS.length;
     expect(computeHappiness(s)).toBeCloseTo(avg);
+  });
+
+  it('若いうちは「お金の安心」「やりがい」が軽い(22歳で3割、35歳で元どおり)', () => {
+    const v = { risk: 0, relation: 0, spending: 0, work: 0 };
+    expect(happinessWeights(v, undefined, 22 * 12).security).toBeCloseTo(0.3);
+    expect(happinessWeights(v, undefined, 22 * 12).achievement).toBeCloseTo(0.3);
+    expect(happinessWeights(v, undefined, 22 * 12).health).toBe(1);
+    expect(happinessWeights(v, undefined, 28.5 * 12).security).toBeCloseTo(0.65);
+    expect(happinessWeights(v, undefined, 35 * 12).security).toBe(1);
+    // 貯金もやりがいもない新卒でも、ほかが普通なら「とてもつらい」にはならない
+    const s = makeState();
+    s.ageMonths = 22 * 12;
+    const young = computeHappiness(s);
+    s.ageMonths = 40 * 12;
+    expect(young).toBeGreaterThan(computeHappiness(s));
   });
 
   it('同じ状態でも価値観で幸福度が変わる(正解の人生はない)', () => {

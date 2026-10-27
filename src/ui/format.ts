@@ -83,9 +83,9 @@ export function calendarMonth(month: number): number {
   return ((3 + month) % 12) + 1;
 }
 
-/** 「22歳4月」(ログや年表用) */
+/** 「22歳(4月)」(ログや年表用)。月は暦の月なので、誕生日をまたいでも年齢と混ざらないようにかっこに入れる */
 export function ageMonthLabel(ageMonths: number, month: number): string {
-  return `${Math.floor(ageMonths / 12)}歳${calendarMonth(month)}月`;
+  return `${Math.floor(ageMonths / 12)}歳(${calendarMonth(month)}月)`;
 }
 
 /** 何年目か(開始の月を1年目の4月とする) */
@@ -109,18 +109,31 @@ export function signedPercent(ratio: number): string {
   return `${ratio >= 0 ? '+' : '−'}${Math.abs(ratio * 100).toFixed(1)}%`;
 }
 
-export type StatLevel = 'good' | 'normal' | 'caution' | 'danger';
+export type StatLevel = 'good' | 'normal' | 'growing' | 'caution' | 'danger';
 
-/** ステータスの状態(ストレスは高いほど悪い)。閾値は UI の定数 */
-export function statLevel(key: keyof typeof STAT_LABELS, value: number): StatLevel {
+/** スキルは新卒のうちは低くて当たり前。この年齢までは、低くても警告せず「伸びしろ」と出す(だんだん普通の基準に近づける) */
+const SKILL_GROWING_FROM = 22;
+const SKILL_GROWING_UNTIL = 35;
+
+/** ステータスの状態(ストレスは高いほど悪い)。閾値は UI の定数。ageMonths を渡すと、若いうちのスキルは基準をゆるめる */
+export function statLevel(key: keyof typeof STAT_LABELS, value: number, ageMonths?: number): StatLevel {
   const v = key === 'stress' ? 100 - value : value;
   if (v >= 70) return 'good';
   if (v >= 40) return 'normal';
-  if (v >= 20) return 'caution';
+  // 若いほど基準を下げる(22歳で0、35歳で普通の基準)
+  const f =
+    key === 'skill' && ageMonths !== undefined
+      ? Math.min(1, Math.max(0, (ageMonths / 12 - SKILL_GROWING_FROM) / (SKILL_GROWING_UNTIL - SKILL_GROWING_FROM)))
+      : 1;
+  if (v >= 40 * f) return 'growing';
+  if (v >= 20 * f) return 'caution';
   return 'danger';
 }
 
-export const STAT_LEVEL_LABELS: Record<StatLevel, string> = { good: '良好', normal: '普通', caution: '注意', danger: '危険' };
+export const STAT_LEVEL_LABELS: Record<StatLevel, string> = { good: '良好', normal: '普通', growing: '伸びしろ', caution: '注意', danger: '危険' };
+
+/** 「伸びしろ」のときの説明 */
+export const SKILL_GROWING_NOTE = '社会人になりたてのうちは低くて当たり前。働くほど上がっていく';
 
 export const HAPPINESS_PART_LABELS = {
   living: '生活の満足',

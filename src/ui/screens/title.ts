@@ -84,6 +84,25 @@ function achievementsSection(): HTMLElement | null {
   );
 }
 
+/** 遊び方。はじめての人には開いて見せ、遊んだことがある人には閉じておく */
+function howToSection(): HTMLElement {
+  const firstTime = loadHistory().length === 0;
+  return h(
+    'details',
+    { class: 'card seed-card how-to', ...(firstTime ? { open: true } : {}) },
+    h('summary', {}, '🕹️ 遊び方'),
+    h(
+      'ol',
+      { class: 'how-to-list' },
+      h('li', {}, '生まれ(性別・学歴・仕事・住む場所・実家)はガチャ。気に入らなければ引き直せる'),
+      h('li', {}, '「あなたのタイプ」で何に幸せを感じるかを、「方針」で働き方とお金の使い方を決める'),
+      h('li', {}, '1ターン=1ヶ月。「次へ」で1ヶ月、▶で自動で進む。人生の分かれ道では選択肢が出る'),
+      h('li', {}, '方針は途中でいつでも変えられる。亡くなったら一生をふり返る'),
+      h('li', {}, '幸せな一生なら「勝ち組」。お金が多いだけでは勝ち組にならないし、少なくても幸せなら勝ち組'),
+    ),
+  );
+}
+
 export function titleScreen(root: HTMLElement, nav: Nav): void {
   const seedInput = h('input', {
     type: 'number',
@@ -110,11 +129,12 @@ export function titleScreen(root: HTMLElement, nav: Nav): void {
       h('p', { class: 'lead' }, '生まれ・職業・価値観の違う一生を、お金と幸福度でたどる。正解の人生はない。'),
       continueSection(nav),
       h('button', { class: 'btn primary big', onclick: () => nav.setup(freshSeed()) }, '🎲 新しい人生'),
+      howToSection(),
       h(
         'details',
         { class: 'card seed-card' },
-        h('summary', {}, '🔢 シードを指定して始める'),
-        h('p', { class: 'muted small' }, '同じシードなら同じ生まれ・同じ運命。視聴者と同じ条件で遊べる。'),
+        h('summary', {}, '🔢 人生の番号(シード)を指定して始める'),
+        h('p', { class: 'muted small' }, '人生には番号(シード)がついていて、同じ番号なら同じ生まれ・同じ運命になる。友だちや視聴者と同じ条件で遊べる。'),
         h(
           'form',
           {

@@ -70,3 +70,9 @@ export function annuityPayment(principal: number, annualRate: number, months: nu
   const r = annualRate / 12;
   return roundYen((principal * r) / (1 - (1 + r) ** -months));
 }
+
+/** ログの文に入れる金額(「816万円」。1万円未満は円) */
+export function yenText(yen: number): string {
+  if (Math.abs(yen) < 10_000) return `${Math.round(yen).toLocaleString('ja-JP')}円`;
+  return `${Math.round(yen / 10_000).toLocaleString('ja-JP')}万円`;
+}

@@ -107,10 +107,11 @@ describe('年金と退職金', () => {
     expect(income.pension).toBe(Math.round(66_000 * 0.9));
   });
 
-  it('退職金は勤続年数/38年で按分、上限は満額、バイトは0', () => {
+  it('退職金は勤続が長いほど伸びる((勤続年数/38年)^1.3)、上限は満額、自己都合は8割、バイトは0', () => {
     const s = makeState({ job: 'sales' });
     s.character.jobYears = 19;
-    expect(severancePay(s)).toBe(7_500_000);
+    expect(severancePay(s)).toBe(6_091_893);
+    expect(severancePay(s, undefined, true)).toBe(4_873_514);
     s.character.jobYears = 50;
     expect(severancePay(s)).toBe(15_000_000);
     const p = makeState({ job: 'parttime' });
@@ -133,7 +134,7 @@ describe('転職・リストラ・失業給付', () => {
     s.character.jobYears = 3.8;
     s.flags.payMul = 1.2;
     changeJob(s, 'office');
-    expect(s.assets.cash).toBe(1_500_000);
+    expect(s.assets.cash).toBe(601_425); // 1,500万 × 0.1^1.3 × 自己都合0.8
     expect(s.character).toMatchObject({ job: 'office', jobYears: 0, previousJob: 'sales' });
     expect(s.flags.payMul).toBe(1);
   });

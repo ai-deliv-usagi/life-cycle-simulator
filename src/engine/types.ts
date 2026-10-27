@@ -227,7 +227,7 @@ export interface EventConditions {
   minInvested?: number; // index+stocks+speculative の下限(円)
   minFinancial?: number; // 金融資産(預金+投資)の下限(円)。お金がないと起きない詐欺など
   maxFinancial?: number; // 金融資産の上限(円)。お金があれば使わないリボ払いなど
-  anniversary?: boolean; // 結婚した月と同じ月(結婚して1年以上)。結婚記念日
+  anniversary?: number[]; // 結婚して何年目の記念日か(この年数のときの、結婚した月と同じ月)。節目の結婚記念日
   region?: RegionId[];
   jobNotIn?: JobId[]; // この職業のときは起きない
   jobIn?: JobId[]; // この職業のときだけ起きる
@@ -411,6 +411,8 @@ export interface Balance {
   /** survivorRate: 遺族厚生年金 = 亡くなった配偶者の厚生年金 × この割合(自分の厚生年金と多いほう) */
   pension: { basicFull: number; basicYears: number; employeeRate: number; spouseBasicMul: number; survivorRate: number; retireAge: number };
   severanceYears: number;
+  severanceCurve: number; // 退職金の伸び方: (勤続年数 ÷ severanceYears) のこの乗
+  severanceVoluntaryRate: number; // 自己都合(転職・起業)の退職金の割合
   stats: {
     age40Health: number;
     age60Health: number;
@@ -468,6 +470,8 @@ export interface Balance {
     rankAchievement: number; // 役職1段(主任〜部長)あたりの達成感
     businessAchievement: number; // 社長の業績1あたりの達成感(businessAchievementMaxLevel まで)
     businessAchievementMaxLevel: number;
+    /** 若いうちは貯金ややりがいがなくて当たり前: parts の重みに minFactor(fromAge)→1(toAge)を掛ける */
+    youth: { fromAge: number; toAge: number; minFactor: number; parts: HappinessPart[] };
     /** 重み w = base + Σ 係数 × 価値観(最小 minWeight) */
     weights: Record<HappinessPart, { base: number } & Partial<Record<keyof Values, number>>>;
   };

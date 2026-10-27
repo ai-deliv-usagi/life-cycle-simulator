@@ -25,7 +25,7 @@ import type {
   Stats,
   Values,
 } from './types';
-import { addLog, ageYears, clamp, clampStat, clampValue, financialAssets, findById, netWorth, roundYen } from './util';
+import { addLog, ageYears, clamp, clampStat, clampValue, financialAssets, findById, netWorth, roundYen, yenText } from './util';
 
 // ---- フラグ(married は character.married に読み替える) ----
 
@@ -88,7 +88,7 @@ export function conditionsMet(cond: EventConditions | undefined, state: GameStat
   if (cond.anniversary) {
     const since = state.flags.marriedSince;
     const months = typeof since === 'number' ? state.month - since : 0;
-    if (!state.character.married || months < 12 || months % 12 !== 0) return false;
+    if (!state.character.married || months < 12 || months % 12 !== 0 || !cond.anniversary.includes(months / 12)) return false;
   }
   if (cond.region && !cond.region.includes(state.character.region)) return false;
   if (cond.jobNotIn?.includes(state.character.job)) return false;
@@ -299,12 +299,33 @@ export function fireEvent(state: GameState, ev: EventDef, rng: Rng, data: GameDa
     return;
   }
   const before = netWorth(state.assets);
+  const severanceBefore = severanceSoFar(state);
   if (ev.effects) {
     const e = scaled(ev, ev.effects, state, data);
     applyEffects(state, capMedical(ev, applySpread(e, drawSpread(ev, [e], rng, data)), state, data), rng, data);
   }
-  addLog(state, 'event', `${ev.title}: ${ev.text}`, ev.id);
+  addLog(state, 'event', `${ev.title}: ${ev.text}${moneyNotes(state, severanceBefore, [ev.effects], data)}`, ev.id);
   withMoney(state, netWorth(state.assets) - before);
+}
+
+function severanceSoFar(state: GameState): number {
+  return state.ledger?.income.severance ?? 0;
+}
+
+/** ログの文に添える、大きなお金が動いた理由(退職金・遺産)。何もなければ空 */
+function moneyNotes(state: GameState, severanceBefore: number, effects: (Effects | undefined)[], data: GameData): string {
+  const notes: string[] = [];
+  const severance = severanceSoFar(state) - severanceBefore;
+  if (severance > 0) notes.push(`退職金 ${yenText(severance)}を受け取った`);
+  if (effects.some((e) => e?.inheritance)) {
+    const amount = inheritanceAmount(state, data);
+    notes.push(amount > 0 ? `遺産 ${yenText(amount)}を相続した` : '遺産はなかった');
+  }
+  return notes.length > 0 ? `(${notes.join('、')})` : '';
+}
+
+function inheritanceAmount(state: GameState, data: GameData): number {
+  return data.family.find((f) => f.tier === state.character.familyTier)?.inheritance ?? 0;
 }
 
 /** いま足したログに、純資産の増減を付ける(0なら付けない) */
@@ -354,6 +375,8 @@ export function applyChoice(
   if (!entry) throw new Error(`choice ${choiceIndex} is not available for ${ev.id}`);
   const { choice } = entry;
   const worthBefore = netWorth(state.assets); // 使った・得た額はログの money に残す
+  const severanceBefore = severanceSoFar(state);
+  const applied: (Effects | undefined)[] = [choice.effects];
   // 金額の倍率は選択肢と結果で共通に1回だけ引く
   const effects = scaled(ev, choice.effects ?? {}, state, data);
   const k = drawSpread(ev, [effects, ...(choice.outcomes ?? []).map((o) => o.effects)], rng, data, choice.label);
@@ -361,6 +384,7 @@ export function applyChoice(
   let text = `${ev.title}: 「${choice.label}」`;
   if (choice.outcomes && choice.outcomes.length > 0) {
     const outcome = rng.weighted(choice.outcomes.map((o) => ({ item: o, weight: o.prob })));
+    applied.push(outcome.effects);
     applyEffects(state, capMedical(ev, applySpread(scaled(ev, outcome.effects, state, data), k), state, data), rng, data);
     text += ` → ${outcome.text}`;
   }
@@ -368,7 +392,7 @@ export function applyChoice(
   for (const [axis, shift] of Object.entries(choice.valueShift ?? {}) as [keyof Values, number][]) {
     state.values[axis] = clampValue(state.values[axis] + Math.sign(shift) * step);
   }
-  addLog(state, 'choice', text, ev.id);
+  addLog(state, 'choice', text + moneyNotes(state, severanceBefore, applied, data), ev.id);
   withMoney(state, netWorth(state.assets) - worthBefore);
 }
 
@@ -402,10 +426,7 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   }
   if (effects.startBusiness) a.cash -= data.balance.business.capital[effects.startBusiness];
   if (effects.sellBusiness && state.business) a.cash += businessValue(state, data);
-  if (effects.inheritance) {
-    const family = data.family.find((f) => f.tier === state.character.familyTier);
-    a.cash += family?.inheritance ?? 0;
-  }
+  if (effects.inheritance) a.cash += inheritanceAmount(state, data);
   // 家の頭金と諸費用(現金で払う分)も、足りなければ下のローンでまかなう
   if (effects.buyHome !== undefined && !ownsHome(state)) buyHome(state, effects.buyHome, annualGross(state, data), data);
   // 貯金で払えない大きな出費はローンにする(起業の元手は収入の基準を見ない創業融資)

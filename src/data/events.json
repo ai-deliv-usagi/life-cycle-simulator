@@ -373,7 +373,7 @@
     "id": "parent_death",
     "category": "life",
     "title": "親が亡くなる",
-    "text": "親が息を引き取った。遺産を相続した。",
+    "text": "親が息を引き取った。",
     "conditions": {
       "ageMin": 40,
       "flags": {
@@ -3833,14 +3833,14 @@
     "category": "life",
     "spread": "small",
     "title": "結婚記念日",
-    "text": "今月は結婚記念日だ。",
+    "text": "今月は節目の結婚記念日だ。",
     "conditions": {
       "flags": {
         "married": true
       },
-      "anniversary": true
+      "anniversary": [1, 5, 10, 15, 20, 25, 30, 40, 50]
     },
-    "baseProb": 0.35,
+    "baseProb": 1,
     "choices": [
       {
         "label": "豪華に祝う",
