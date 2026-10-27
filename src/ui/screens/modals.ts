@@ -1,5 +1,5 @@
 // イベント・選択結果・年間サマリー・方針変更のモーダル
-import { availableChoices, choiceCost, gameData, businessValue, getMonthlyView, HAPPINESS_PARTS, happinessParts, happinessWeights, ledgerTotals, nisaRoom, nisaValue, type ChoiceCost, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
+import { availableChoices, choiceCost, gameData, businessValue, investmentOutlook, getMonthlyView, HAPPINESS_PARTS, happinessParts, happinessWeights, ledgerTotals, nisaRoom, nisaValue, type ChoiceCost, type GameState, type InvestKey, type LogEntry, type Policy, type YearLedger } from '../../engine/index';
 import { assetMixChart, assetMixPoints } from '../charts';
 import { append, clear, h, openModal } from '../dom';
 import {
@@ -404,14 +404,23 @@ function buyForm(state: GameState, key: InvestKey, label: string, buy: (amount: 
   });
 }
 
-/** 預金と投資の想定利回り(平均)と振れ幅 */
-function expectedYields(): string {
-  const c = gameData.balance.assets;
-  const swing = (sigma: number) => (sigma > 0 ? `、振れ幅 ±${Math.round(sigma * 100)}%` : '');
-  return [
-    `預金 ${annualRateLabel(c.cash.mu)}`,
-    ...INVEST_ROWS.map((r) => `${r.label} ${annualRateLabel(c[r.key].mu)}${swing(c[r.key].sigma)}`),
-  ].join(' / ') + `(信用・仮想通貨はまれに暴落して −${Math.round(Math.abs(c.speculative.crashPct) * 100)}%)`;
+/** 投資を10年持ったときの目安(ふつうの結果・増える割合・半分以下になる割合)。平均の利回りだけだと、振れ幅の大きい投資を良く見せてしまう */
+const OUTLOOK_YEARS = 10;
+function outlookTable(): HTMLElement {
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  return h(
+    'table',
+    { class: 'fin-table outlook-table' },
+    h('thead', {}, h('tr', {}, h('th', {}, `${OUTLOOK_YEARS}年持つと`), h('th', {}, 'ふつうは'), h('th', {}, '増える'), h('th', {}, '半分以下'))),
+    h(
+      'tbody',
+      {},
+      ...INVEST_ROWS.map((r) => {
+        const o = investmentOutlook(r.key, OUTLOOK_YEARS);
+        return h('tr', {}, h('th', {}, r.label), h('td', {}, `${o.median.toFixed(1)}倍`), h('td', {}, pct(o.upShare)), h('td', {}, pct(o.halfShare)));
+      }),
+    ),
+  );
 }
 
 function assetsContent(
@@ -547,7 +556,13 @@ function assetsContent(
     state.ledger ? h('details', { class: 'summary-details' }, h('summary', {}, '今年のここまでの収支'), ledgerTable(state.ledger)) : null,
     inv === undefined ? h('p', { class: 'muted small' }, '古いセーブデータのため、元本と損益は表示できない。') : null,
     h('p', { class: 'muted small' }, '元本はつぎ込んだ金額。損益は今の残高との差(%は元本に対する損益率)。'),
-    h('p', { class: 'muted small' }, `想定利回り(年の平均): ${expectedYields()}。年ごとの振れ幅が大きいほど、損をする年も多い。`),
+    h('h3', {}, '投資の見通し'),
+    outlookTable(),
+    h(
+      'p',
+      { class: 'muted small' },
+      `預金の利息は${annualRateLabel(gameData.balance.assets.cash.mu)}。値動きの大きい投資ほど、平均では増えても、ふつうの結果は増えにくい(一部の大当たりが平均を押し上げる)。信用・仮想通貨はまれに暴落する。`,
+    ),
     h('button', { class: 'btn primary', onclick: close }, '閉じる'),
   ]);
   return mix;

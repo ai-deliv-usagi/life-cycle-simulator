@@ -110,8 +110,13 @@ describe('育休', () => {
     expect(availableChoices(ev, s).map((c) => c.choice.label)).toEqual([
       '自分が育休を取る(1年)',
       '配偶者が育休を取る(1年)',
+      '二人とも育休を取る(1年)',
       '育休は取らない',
     ]);
+    const both = family([]);
+    both.flags.pregnant = 1;
+    applyChoice(both, ev, 2, flatRng);
+    expect(both.flags).toMatchObject({ parentalLeave: 12, spouseLeave: 12 });
     s.character.spouse = 'homemaker';
     expect(availableChoices(ev, s).map((c) => c.choice.label)).toEqual(['自分が育休を取る(1年)', '育休は取らない']);
     applyChoice(s, ev, 0, flatRng);

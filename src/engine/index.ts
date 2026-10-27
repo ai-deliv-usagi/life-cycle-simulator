@@ -6,7 +6,7 @@ export { computeResult, DEATH_CAUSE_LABELS, LIFE_TYPE_LABELS } from './result';
 export { createRng, deriveSeed, type Rng } from './rng';
 export { createGame, rollCharacter } from './setup';
 export type { MonthlyIncome } from './money';
-export { debtRates } from './money';
+export { debtRates, investmentOutlook } from './money';
 export { emptyLedger, ledgerTotals, type ExpenseKey, type IncomeKey, type YearLedger } from './ledger';
 export { allocationOf, INVEST_KEYS, normalizePolicy } from './policy';
 export { nisaRoom, nisaValue } from './nisa';

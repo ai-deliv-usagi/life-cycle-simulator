@@ -575,7 +575,7 @@
     "cooldownMonths": 60,
     "choices": [
       {
-        "label": "都会へ出る",
+        "label": "大都市へ出る",
         "effects": {
           "region": "metro",
           "cash": -400000,
@@ -594,7 +594,23 @@
         }
       },
       {
-        "label": "地方へ移る",
+        "label": "地方都市へ移る",
+        "effects": {
+          "region": "city",
+          "cash": -300000,
+          "stats": {
+            "stress": -3
+          }
+        },
+        "conditions": {
+          "region": [
+            "metro",
+            "rural"
+          ]
+        }
+      },
+      {
+        "label": "田舎へ移る",
         "effects": {
           "region": "rural",
           "cash": -300000,
@@ -4870,6 +4886,32 @@
           "spouseType": [
             "fulltime"
           ]
+        }
+      },
+      {
+        "label": "二人とも育休を取る(1年)",
+        "effects": {
+          "addChild": true,
+          "cash": -100000,
+          "stats": {
+            "relations": 8,
+            "stress": 3
+          },
+          "achievement": 10,
+          "setFlags": {
+            "parentalLeave": 12,
+            "spouseLeave": 12,
+            "postpartum": 24
+          }
+        },
+        "conditions": {
+          "employed": true,
+          "spouseType": [
+            "fulltime"
+          ]
+        },
+        "valueShift": {
+          "relation": -0.1
         }
       },
       {
