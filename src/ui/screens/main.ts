@@ -312,7 +312,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     const kids = c.children ?? [];
     const kidsLabel = kids.length > 0 ? ` · ${'👶'.repeat(Math.min(kids.length, 3))} ${kids.map((k) => `${Math.floor((state.month - k.birthMonth) / 12)}歳`).join('・')}` : '';
     fields.family.textContent =
-      (c.married ? '💍 既婚' : state.flags.partner === true ? '💕 恋人あり' : '独身') + kidsLabel + (state.home ? ' · 🏠 持ち家' : '');
+      (c.married ? `💍 既婚${marriedYears(state)}` : state.flags.partner === true ? '💕 恋人あり' : '独身') + kidsLabel + (state.home ? ' · 🏠 持ち家' : '');
     fields.netLabel.textContent = `💴 ${
       c.retired
         ? '年金・世帯の手取り(月)'
@@ -444,6 +444,14 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
   );
 
   render(initial, true);
+}
+
+/** 「(8年)」。結婚して1年未満と、結婚した月のない古いセーブは出さない */
+function marriedYears(state: GameState): string {
+  const since = state.flags.marriedSince;
+  if (typeof since !== 'number') return '';
+  const years = Math.floor((state.month - since) / 12);
+  return years >= 1 ? `(${years}年)` : '';
 }
 
 function sumAssets(a: NonNullable<LogEntry['assets']>): number {

@@ -128,6 +128,8 @@ export interface Character {
   loanPayment?: number; // ローンの毎月の返済額(複数のローンの合計)
   region: RegionId;
   spouse: SpouseType | null; // 未婚は null
+  /** 配偶者の職業・学歴・稼ぎの個人差(結婚したときに引く。画面には出さない)。古いセーブにはない */
+  spouseProfile?: { job: JobId; education: Education; payMul: number };
   children?: Child[]; // 第2弾。古いセーブにはない
 }
 
@@ -225,6 +227,7 @@ export interface EventConditions {
   minInvested?: number; // index+stocks+speculative の下限(円)
   minFinancial?: number; // 金融資産(預金+投資)の下限(円)。お金がないと起きない詐欺など
   maxFinancial?: number; // 金融資産の上限(円)。お金があれば使わないリボ払いなど
+  anniversary?: boolean; // 結婚した月と同じ月(結婚して1年以上)。結婚記念日
   region?: RegionId[];
   jobNotIn?: JobId[]; // この職業のときは起きない
   jobIn?: JobId[]; // この職業のときだけ起きる
@@ -249,6 +252,7 @@ export type ProbMod =
   | { spending: Spending[]; mul: number }
   | { partnerYears: true; above?: number; below?: number; mul: number } // 恋人と付き合っている年数
   | { financial: true; above?: number; below?: number; mul: number } // 金融資産(円)
+  | { children: true; above?: number; below?: number; mul: number } // 子どもの数
   | { region: RegionId[]; mul: number };
 
 export type LuxuryItem = 'car' | 'brand' | 'furniture';
@@ -507,6 +511,11 @@ export interface Balance {
     /** 本人の性別ごとの、配偶者のタイプの確率(性別のない古いセーブは types の prob) */
     probByGender: Record<Gender, Record<SpouseType, number>>;
     types: Record<SpouseType, { prob: number; monthlyNet: number; taxBenefit: number; employeePension: number }>;
+    /** 稼ぎの個人差 N(1, payMulSd) を payMulMin〜payMulMax に。扶養内パートは月 parttimeMax まで(年103万円の壁) */
+    payMulSd: number;
+    payMulMin: number;
+    payMulMax: number;
+    parttimeMax: number;
   };
   /** graceMonths: 借金が上限を超えた状態がこの月数続いたら自己破産 */
   bankruptcy: { minLimit: number; incomeShare: number; stress: number; blacklistMonths: number; graceMonths: number };

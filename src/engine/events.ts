@@ -6,8 +6,8 @@ import { baseAnnualMortality, genderFactor } from './death';
 import { scaleNisaPrincipal } from './nisa';
 import { businessValue, hasBusiness, startBusiness } from './business';
 import { buyHome, homePrice, mortgageRejection, ownsHome } from './housing';
-import { recordEventCash } from './ledger';
-import { annualGross, changeEmployer, changeJob, coverWithLoan, loanRejection, retire, isEmployed, monthlyGrossPay, takeLoan } from './money';
+import { recordEventCash, recordInvestTax } from './ledger';
+import { annualGross, changeEmployer, changeJob, coverWithInvestments, coverWithLoan, loanRejection, retire, isEmployed, monthlyGrossPay, takeLoan } from './money';
 import type { Rng } from './rng';
 import type {
   Choice,
@@ -42,8 +42,20 @@ function setMarried(state: GameState, married: boolean, rng: Rng, data: GameData
     c.spouse = rng.weighted(
       (Object.keys(types) as SpouseType[]).map((t) => ({ item: t, weight: byGender ? byGender[t] : types[t].prob })),
     );
+    // 配偶者の職業・学歴・稼ぎの個人差を裏で引く(職業は初期ガチャと同じく等確率。共働きは会社員の仕事から)
+    const s = data.balance.spouse;
+    const jobs = data.jobs.filter((j) => j.id !== 'parttime');
+    c.spouseProfile = {
+      job: c.spouse === 'parttime' ? 'parttime' : rng.pick(jobs).id,
+      education: rng.weighted(data.education.map((e) => ({ item: e.id, weight: e.prob }))),
+      payMul: clamp(rng.normal(1, s.payMulSd), s.payMulMin, s.payMulMax),
+    };
+    state.flags.marriedSince = state.month;
   }
-  if (!married) c.spouse = null;
+  if (!married) {
+    c.spouse = null;
+    delete c.spouseProfile;
+  }
   c.married = married;
 }
 
@@ -73,6 +85,11 @@ export function conditionsMet(cond: EventConditions | undefined, state: GameStat
   }
   if (cond.minFinancial !== undefined && financialAssets(state.assets) < cond.minFinancial) return false;
   if (cond.maxFinancial !== undefined && financialAssets(state.assets) >= cond.maxFinancial) return false;
+  if (cond.anniversary) {
+    const since = state.flags.marriedSince;
+    const months = typeof since === 'number' ? state.month - since : 0;
+    if (!state.character.married || months < 12 || months % 12 !== 0) return false;
+  }
   if (cond.region && !cond.region.includes(state.character.region)) return false;
   if (cond.jobNotIn?.includes(state.character.job)) return false;
   if (cond.jobIn && !cond.jobIn.includes(state.character.job)) return false;
@@ -104,6 +121,7 @@ function modApplies(mod: ProbMod, state: GameState): boolean {
   if ('healthCare' in mod) return mod.healthCare.includes(state.policy.health);
   if ('spending' in mod) return mod.spending.includes(state.policy.spending);
   if ('financial' in mod) return inRange(financialAssets(state.assets), mod.above, mod.below);
+  if ('children' in mod) return inRange(childrenOf(state).length, mod.above, mod.below);
   if ('partnerYears' in mod) {
     const since = state.flags.partnerSince;
     return state.flags.partner === true && typeof since === 'number' && inRange((state.month - since) / 12, mod.above, mod.below);
@@ -394,6 +412,8 @@ export function applyEffects(state: GameState, effects: Effects, rng: Rng, data:
   coverWithLoan(state, cashBefore - a.cash, data, { incomeCheck: !effects.startBusiness });
   // 職業の変更(退職金)より前の、イベント自体のお金の出入り。ローンにした分は、毎月の返済として支出に入る
   recordEventCash(state, a.cash - cashBefore);
+  // 家の頭金のように預金だけでは足りない出費は、その場で投資を取り崩して払う(月末まで預金がマイナスにならないように)
+  recordInvestTax(state, coverWithInvestments(state, data));
   if (effects.debt) a.debt += effects.debt;
   if (effects.addChild) addChild(state, rng, data);
   if (effects.job) changeJob(state, pickJob(state, effects.job, rng, data), data);
