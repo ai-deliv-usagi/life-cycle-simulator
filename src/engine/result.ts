@@ -4,8 +4,8 @@ import type { DeathCause, GameData, GameState, LifeResult, LifeType } from './ty
 import { netWorth } from './util';
 
 export const LIFE_TYPE_LABELS: Record<LifeType, string> = {
-  winner: '勝ち組人生',
-  poor_happy: '貧乏だけど幸せ型',
+  winner: '豊かな勝ち組',
+  poor_happy: '身軽な勝ち組',
   rich_unhappy: '金持ち不幸型',
   hardship: '苦労人型',
 };

@@ -5,10 +5,10 @@ import { addLog } from '../src/engine/util';
 import { makeState } from './helpers';
 
 describe('lifeType', () => {
-  it('平均幸福度52・最終資産2,500万円で4象限に分ける', () => {
-    expect(lifeType(52, 25_000_000)).toBe('winner');
-    expect(lifeType(52, 24_999_999)).toBe('poor_happy');
-    expect(lifeType(51.9, 25_000_000)).toBe('rich_unhappy');
+  it('平均幸福度54・最終資産2,500万円で4象限に分ける', () => {
+    expect(lifeType(54, 25_000_000)).toBe('winner');
+    expect(lifeType(54, 24_999_999)).toBe('poor_happy');
+    expect(lifeType(53.9, 25_000_000)).toBe('rich_unhappy');
     expect(lifeType(40, -1_000_000)).toBe('hardship');
   });
 });

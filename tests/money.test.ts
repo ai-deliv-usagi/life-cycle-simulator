@@ -193,7 +193,7 @@ describe('支出', () => {
 
   it('生活費 = 最低限の生活費 + 残りの手取り × 割合 × 支出方針(地域係数は最低限の分だけ、物価は全体)', () => {
     expect(calcExpenses(makeState()).living).toBe(living(net));
-    expect(calcExpenses(makeState({}, { spending: 'lavish' })).living).toBe(living(net, 1.2));
+    expect(calcExpenses(makeState({}, { spending: 'lavish' })).living).toBe(living(net, 1.12));
     const metro = makeState({ region: 'metro' });
     expect(calcExpenses(metro).living).toBe(living(calcIncome(metro).total, 1, { region: 1.15 }));
     const married = makeState();
@@ -224,9 +224,10 @@ describe('支出', () => {
     const s = makeState({ hasCar: true, familyTier: 1 }, { health: 'active' });
     s.flags.parentSupport = 10;
     const e = calcExpenses(s);
-    expect(e).toMatchObject({ car: 25_000, health: 15_000, remittance: 20_000, parentSupport: 30_000 });
-    expect(e.living).toBe(living(net - 90_000));
-    expect(e.total).toBe(e.living + 90_000);
+    const health = Math.min(15_000, Math.round(calcIncome(s).total * 0.05)); // 健康の出費は手取りの5%まで
+    expect(e).toMatchObject({ car: 25_000, health, remittance: 20_000, parentSupport: 30_000 });
+    expect(e.living).toBe(living(net - 75_000 - health));
+    expect(e.total).toBe(e.living + 75_000 + health);
     s.flags.parentAlive = false;
     expect(calcExpenses(s).remittance).toBe(0);
     expect(calcExpenses(makeState({ hasCar: true, region: 'metro' })).car).toBe(40_000);
@@ -244,13 +245,13 @@ describe('支出', () => {
   it('自己破産後のブラックリスト期間は支出方針に関係なく節約', () => {
     const s = makeState({}, { spending: 'lavish' });
     s.flags.blacklist = 10;
-    expect(calcExpenses(s).living).toBe(living(net, 0.8));
+    expect(calcExpenses(s).living).toBe(living(net, 0.85));
   });
 
   it('生活保護中は支出方針に関係なく節約', () => {
     const s = makeState({}, { spending: 'lavish' });
     s.flags.welfare = true;
-    expect(calcExpenses(s).living).toBe(living(net, 0.8));
+    expect(calcExpenses(s).living).toBe(living(net, 0.85));
   });
 });
 
@@ -314,9 +315,11 @@ describe('月次の適用', () => {
     expect(p.character.pensionMonths).toBe(0);
   });
 
-  /** 浪費で毎月赤字になる人(手取りはあるので生活保護にはならない) */
+  /** 浪費と物価高(1.1倍)で毎月赤字になる人(手取りはあるので生活保護にはならない) */
   function overspender() {
-    return makeState({}, { spending: 'lavish' });
+    const s = makeState({}, { spending: 'lavish' });
+    s.flags.priceLevel = 1.1;
+    return s;
   }
 
   it('資金ショートは index → stocks → speculative の順に売り、足りなければ借金', () => {
@@ -443,6 +446,7 @@ describe('元本(運用成績の表示用)', () => {
 
   it('資金ショートで売ると、売った割合だけ元本も減る。特定口座の利益には税金がかかるので、そのぶん多めに売る', () => {
     const s = makeState({}, { spending: 'lavish' });
+    s.flags.priceLevel = 1.1; // 赤字にする
     s.assets.stocks = 1_000_000;
     s.invested!.stocks = 800_000;
     const deficit = calcExpenses(s).total - calcIncome(s).total;

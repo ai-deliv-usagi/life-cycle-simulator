@@ -35,7 +35,7 @@ export const VALUE_PRESETS: ValuePreset[] = [
     label: '出世派',
     description: '挑戦志向で、仕事のやりがいを重視する',
     values: { risk: 1, relation: 1, spending: 0, work: 2 },
-    policy: 'hustle',
+    policy: 'ambitious',
   },
   {
     id: 'spender',
@@ -79,6 +79,12 @@ export const POLICY_PRESETS: PolicyPreset[] = [
     label: 'バランス',
     description: 'ほどほどに働き、稼ぎに見合った暮らしで積立',
     policy: { work: 'normal', spending: 'normal', invest: INDEX_MAIN, health: 'normal' },
+  },
+  {
+    id: 'ambitious',
+    label: 'バリバリ',
+    description: '残業して稼ぎ、出世を目指す。暮らしにはゆとりを、健康もほどほどに',
+    policy: { work: 'overtime', spending: 'comfort', invest: BALANCED, health: 'normal' },
   },
   {
     id: 'hustle',

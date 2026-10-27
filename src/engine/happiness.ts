@@ -39,6 +39,14 @@ export function livingSatisfaction(spending: number, adapted: number, data: Game
   return clampStat(abs + rel);
 }
 
+/** 仕事で積み上げたもの: 役職(主任〜部長)と、社長なら会社の業績。仕事に生きる人の救いになる */
+function careerAchievement(state: GameState, data: GameData): number {
+  const h = data.balance.happiness;
+  const rank = typeof state.flags.rank === 'number' ? state.flags.rank : 0;
+  const business = state.business ? Math.min(state.business.level, h.businessAchievementMaxLevel) * h.businessAchievement : 0;
+  return rank * h.rankAchievement + business;
+}
+
 /** 各要素の満たされ具合(0〜100) */
 export function happinessParts(state: GameState, data: GameData = defaultData): HappinessBreakdown {
   const { balance } = data;
@@ -62,7 +70,7 @@ export function happinessParts(state: GameState, data: GameData = defaultData): 
     relations: clampStat(state.stats.relations + (c.married ? h.marriedRelationsBonus : 0) + kids.relations),
     freeTime: clampStat(freeTime),
     health: clampStat(state.stats.health),
-    achievement: clampStat(h.skillAchievementShare * state.stats.skill + state.achievement),
+    achievement: clampStat(h.skillAchievementShare * state.stats.skill + state.achievement + careerAchievement(state, data)),
   };
 }
 

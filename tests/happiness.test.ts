@@ -18,7 +18,7 @@ describe('重み', () => {
   it('家族重視は人間関係が重く自由時間が軽い', () => {
     const w = happinessWeights({ ...neutralValues, relation: -2 });
     expect(w.relations).toBeCloseTo(1.5);
-    expect(w.freeTime).toBeCloseTo(0.5);
+    expect(w.freeTime).toBeCloseTo(0.3); // 自由志向の係数は0.35
   });
 
   it('使う派は生活水準が重い', () => {
@@ -26,8 +26,8 @@ describe('重み', () => {
   });
 
   it('重みは最小0.2', () => {
-    const w = happinessWeights({ risk: 2, relation: 0, spending: 2, work: 0 });
-    expect(w.security).toBeCloseTo(0.2);
+    const w = happinessWeights({ risk: 0, relation: -2, spending: 0, work: 2 });
+    expect(w.freeTime).toBeCloseTo(0.2);
     const v = happinessWeights({ risk: -2, relation: 0, spending: 0, work: -2 });
     expect(v.achievement).toBeCloseTo(0.2);
   });
@@ -52,20 +52,20 @@ describe('生活水準(頭打ちと慣れ)', () => {
     expect(justAfter - before).toBeGreaterThan(3);
     for (let i = 0; i < 72; i++) updateAdaptation(s);
     const adapted = happinessParts(s).living;
-    expect(adapted).toBeLessThan(justAfter - 2); // 慣れて戻る
+    expect(adapted).toBeLessThan(justAfter - 1.5); // 慣れて戻る
     expect(adapted).toBeGreaterThan(before); // 絶対額の分は残る
     s.policy.spending = 'normal';
-    expect(happinessParts(s).living).toBeLessThan(before - 2); // 下げると元より下がる
+    expect(happinessParts(s).living).toBeLessThan(before - 1.5); // 下げると元より下がる
   });
 });
 
 describe('各要素', () => {
-  it('安心: 金融資産が生活費24ヶ月分で100、借金で−30、生活保護中は0', () => {
+  it('安心: 金融資産が生活費36ヶ月分で100、借金で−30、生活保護中は0', () => {
     const s = makeState();
-    const months24 = calcExpenses(s).total * 24;
-    s.assets.cash = months24;
+    const months36 = calcExpenses(s).total * 36;
+    s.assets.cash = months36;
     expect(happinessParts(s).security).toBeCloseTo(100);
-    s.assets.cash = months24 / 2;
+    s.assets.cash = months36 / 2;
     expect(happinessParts(s).security).toBeCloseTo(50);
     s.assets.debt = 1;
     expect(happinessParts(s).security).toBeCloseTo(20);
@@ -88,8 +88,8 @@ describe('各要素', () => {
     const r = makeState({}, { work: 'grind' });
     r.character.retired = true;
     expect(happinessParts(r).freeTime).toBe(90);
-    expect(happinessParts(makeState({ region: 'rural', hasCar: false })).freeTime).toBe(65);
-    expect(happinessParts(makeState({ region: 'rural', hasCar: true })).freeTime).toBe(80);
+    expect(happinessParts(makeState({ region: 'rural', hasCar: false })).freeTime).toBe(55); // 定時は70
+    expect(happinessParts(makeState({ region: 'rural', hasCar: true })).freeTime).toBe(70);
   });
 
   it('達成感 = 0.5×スキル + achievement', () => {
@@ -128,5 +128,21 @@ describe('computeHappiness', () => {
     s.achievement = 0;
     s.assets.cash = 0;
     expect(computeHappiness(s)).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('出世派と自由人の救い', () => {
+  it('役職(主任〜部長)と社長の業績が、やりがいに加わる', () => {
+    const s = makeState();
+    const base = happinessParts(s).achievement;
+    s.flags.rank = 3; // 課長
+    expect(happinessParts(s).achievement).toBeCloseTo(base + 3 * 12);
+  });
+
+  it('仕事を大事にする人はやりがいが重く自由時間が軽い。自由志向は自由時間が重い', () => {
+    const work = happinessWeights({ ...neutralValues, work: 2 });
+    expect(work.achievement).toBeCloseTo(1.8);
+    expect(work.freeTime).toBeCloseTo(0.5);
+    expect(happinessWeights({ ...neutralValues, relation: 2 }).freeTime).toBeCloseTo(1.7);
   });
 });

@@ -42,12 +42,12 @@ describe('死亡率', () => {
     expect(healthFactor(0, defaultData, 95)).toBeCloseTo(2 ** (50 / 15));
   });
 
-  it('行動補正: 残業多め1.15、激務1.5、ストレス70以上でさらに1.2。退職後は働き方の補正なし', () => {
+  it('行動補正: 残業多め1.15、激務1.25、ストレス70以上でさらに1.2。退職後は働き方の補正なし', () => {
     expect(behaviorFactor(makeState({}, { work: 'normal' }))).toBe(1);
     expect(behaviorFactor(makeState({}, { work: 'overtime' }))).toBeCloseTo(1.15);
     const g = makeState({}, { work: 'grind' });
     g.stats.stress = 70;
-    expect(behaviorFactor(g)).toBeCloseTo(1.8);
+    expect(behaviorFactor(g)).toBeCloseTo(1.25 * 1.2);
     g.character.retired = true;
     expect(behaviorFactor(g)).toBeCloseTo(1.2);
   });
@@ -56,7 +56,7 @@ describe('死亡率', () => {
     const s = setAge(makeState({}, { work: 'grind' }), 50);
     s.stats.health = 25;
     s.stats.stress = 30;
-    expect(monthlyDeathProb(s)).toBeCloseTo((baseAnnualMortality(50) / 12) * 2 ** (25 / 15) * 1.5, 10);
+    expect(monthlyDeathProb(s)).toBeCloseTo((baseAnnualMortality(50) / 12) * 2 ** (25 / 15) * 1.25, 10);
   });
 
   it('120歳で必ず老衰', () => {
@@ -121,9 +121,11 @@ describe('寿命のバランス(イベントなし)', () => {
     expect(life).toBeLessThan(89);
   });
 
-  it('激務は普通より5歳以上短く、健康意識高めは長い', () => {
+  it('激務で健康を気にしない(出世派の方針)は普通より5〜12歳短く、健康意識高めは長い', () => {
     const normal = expectedLifespan({ work: 'normal', health: 'normal' });
-    expect(normal - expectedLifespan({ work: 'grind', health: 'normal' })).toBeGreaterThan(5);
+    const hustle = normal - expectedLifespan({ work: 'grind', health: 'ignore' });
+    expect(hustle).toBeGreaterThan(5);
+    expect(hustle).toBeLessThan(12);
     expect(expectedLifespan({ work: 'normal', health: 'active' })).toBeGreaterThan(normal);
   });
 });

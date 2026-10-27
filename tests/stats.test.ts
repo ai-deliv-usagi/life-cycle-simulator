@@ -24,8 +24,8 @@ describe('updateStats: 方針ごとの増減(体質50 → 減少は×1.0)', () =
   it.each([
     ['regular', 0, -1, 0.1],
     ['normal', -0.05, 0, 0.2],
-    ['overtime', -0.3, 1.5, 0.35],
-    ['grind', -0.6, 3, 0.5],
+    ['overtime', -0.3, 1.0, 0.35],
+    ['grind', -0.35, 1.8, 0.5],
   ] as const)('働き方 %s: 健康 %f / ストレス %f / スキル %f', (work, health, stress, skill) => {
     const d = deltas({ work, health: 'normal' });
     expect(d.health).toBeCloseTo(health);
@@ -36,7 +36,7 @@ describe('updateStats: 方針ごとの増減(体質50 → 減少は×1.0)', () =
   it.each([
     ['ignore', -0.1, 0],
     ['normal', 0, 0],
-    ['active', 0.3, -0.5],
+    ['active', 0.3, -0.3],
   ] as const)('健康方針 %s: 健康 %f / ストレス %f(定時と合算)', (health, dh, ds) => {
     const d = deltas({ work: 'regular', health });
     expect(d.health).toBeCloseTo(dh);
@@ -49,7 +49,7 @@ describe('updateStats: 方針ごとの増減(体質50 → 減少は×1.0)', () =
 
   it('体質が低いほど減り方が大きい(体質20 → ×1.3)', () => {
     const d = deltas({ work: 'grind', health: 'normal' }, (s) => (s.character.constitution = 20));
-    expect(d.health).toBeCloseTo(-0.6 * 1.3);
+    expect(d.health).toBeCloseTo(-0.35 * 1.3);
   });
 
   it('退職後: 働き方の影響なし、ストレス−1、スキル変化0', () => {
