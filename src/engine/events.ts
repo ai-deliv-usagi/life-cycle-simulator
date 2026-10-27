@@ -234,6 +234,14 @@ function applySpread(e: Effects, k: number): Effects {
   };
 }
 
+/** 高額療養費: 収入が少ない人・引退後は、医療の出来事の自己負担に上限がある */
+function capMedical(ev: EventDef, e: Effects, state: GameState, data: GameData): Effects {
+  const cap = data.balance.medicalCap;
+  if (!ev.medical || e.cash === undefined || e.cash >= -cap.perEvent) return e;
+  if (!state.character.retired && annualGross(state, data) >= cap.incomeBelow) return e;
+  return { ...e, cash: -cap.perEvent };
+}
+
 export interface ChoiceCost {
   spend: number; // 今払うお金の目安(円)。確率で決まる結果(outcomes)は含めない
   borrow: number; // ローン・リボなどで借りる額
@@ -244,14 +252,16 @@ export interface ChoiceCost {
 
 /** 選択肢を選ぶといくら出ていくかの目安(UIの表示用。支出の方針による増減も含める) */
 export function choiceCost(ev: EventDef, choice: Choice, state: GameState, data: GameData = defaultData): ChoiceCost {
-  const e = scaled(ev, choice.effects ?? {}, state, data);
+  const raw = scaled(ev, choice.effects ?? {}, state, data);
+  const e = capMedical(ev, raw, state, data);
+  const capped = e !== raw;
   let spend = Math.max(0, -(e.cash ?? 0));
   if (e.cashMonthsOfPay && e.cashMonthsOfPay < 0) spend += roundYen(-monthlyGrossPay(state, data) * e.cashMonthsOfPay);
   if (e.startBusiness) spend += data.balance.business.capital[e.startBusiness];
   let borrow = (e.loan?.amount ?? 0) + (e.debt ?? 0);
   // リボ(カードローン)のほうが金利が高いので、混ざるときはそちらを出す
   const borrowRate = e.debt ? data.balance.debtAnnualRate : e.loan ? data.balance.loan.annualRate : undefined;
-  const range = spend > 0 || borrow > 0 ? spreadRange(ev, data, choice.label) : null;
+  const range = !capped && (spend > 0 || borrow > 0) ? spreadRange(ev, data, choice.label) : null;
   if (e.buyHome === undefined) {
     return { spend, borrow, ...(borrowRate !== undefined ? { borrowRate } : {}), ...(range ? { range } : {}) };
   }
@@ -273,7 +283,7 @@ export function fireEvent(state: GameState, ev: EventDef, rng: Rng, data: GameDa
   const before = netWorth(state.assets);
   if (ev.effects) {
     const e = scaled(ev, ev.effects, state, data);
-    applyEffects(state, applySpread(e, drawSpread(ev, [e], rng, data)), rng, data);
+    applyEffects(state, capMedical(ev, applySpread(e, drawSpread(ev, [e], rng, data)), state, data), rng, data);
   }
   addLog(state, 'event', `${ev.title}: ${ev.text}`, ev.id);
   withMoney(state, netWorth(state.assets) - before);
@@ -329,11 +339,11 @@ export function applyChoice(
   // 金額の倍率は選択肢と結果で共通に1回だけ引く
   const effects = scaled(ev, choice.effects ?? {}, state, data);
   const k = drawSpread(ev, [effects, ...(choice.outcomes ?? []).map((o) => o.effects)], rng, data, choice.label);
-  if (choice.effects) applyEffects(state, applySpread(effects, k), rng, data);
+  if (choice.effects) applyEffects(state, capMedical(ev, applySpread(effects, k), state, data), rng, data);
   let text = `${ev.title}: 「${choice.label}」`;
   if (choice.outcomes && choice.outcomes.length > 0) {
     const outcome = rng.weighted(choice.outcomes.map((o) => ({ item: o, weight: o.prob })));
-    applyEffects(state, applySpread(scaled(ev, outcome.effects, state, data), k), rng, data);
+    applyEffects(state, capMedical(ev, applySpread(scaled(ev, outcome.effects, state, data), k), state, data), rng, data);
     text += ` → ${outcome.text}`;
   }
   const step = data.balance.events.valueShiftStep;

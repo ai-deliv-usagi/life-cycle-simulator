@@ -91,6 +91,7 @@ describe('値動きと売却', () => {
 
   it('資金ショートでは特定口座から先に売る', () => {
     const s = makeState({}, { spending: 'lavish' });
+    s.flags.priceLevel = 1.1; // 赤字にする
     buyInvestment(s, 'index', 500_000); // NISA
     s.nisa!.year.tsumitate = 1_200_000;
     s.nisa!.year.growth = 2_400_000;

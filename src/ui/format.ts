@@ -253,7 +253,7 @@ export const CATEGORY_ICONS: Record<string, string> = {
   system: '📌',
 };
 
-export const LIFE_TYPE_ICONS: Record<string, string> = { winner: '🏆', poor_happy: '🙂', rich_unhappy: '💸', hardship: '😩' };
+export const LIFE_TYPE_ICONS: Record<string, string> = { winner: '🏆', poor_happy: '🍃', rich_unhappy: '💸', hardship: '😩' };
 
 export function genderIcon(gender: 'male' | 'female' | undefined): string {
   return gender === 'female' ? '👩' : gender === 'male' ? '👨' : '🧑';

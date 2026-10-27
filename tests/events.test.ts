@@ -152,7 +152,7 @@ describe('発生と選択', () => {
   it('選択肢なしのイベントは効果を即適用してログに残す', () => {
     const s = makeState();
     fireEvent(s, byId('traffic_accident'), flatRng);
-    expect(s.assets.cash).toBe(-200_000);
+    expect(s.assets.cash).toBe(-100_000); // 年収370万円未満なので高額療養費で10万円まで
     expect(s.pendingEvent).toBeUndefined();
     expect(s.log.at(-1)).toMatchObject({ type: 'event', id: 'traffic_accident' });
     expect(s.eventHistory.traffic_accident).toEqual({ count: 1, lastMonth: 0 });

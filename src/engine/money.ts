@@ -220,7 +220,8 @@ function obligations(state: GameState, data: GameData, welfare: boolean) {
   return {
     // 生活保護中は車を持てず(手放す)、医療費は医療扶助でかからない
     car: bool(state, 'hasCar') && !welfare ? region.carMonthlyCost : 0,
-    health: welfare ? 0 : balance.healthCare[state.policy.health].cost,
+    // 健康のための出費は、手取りの healthCostMaxShare まで(収入が少なければ、歩く・自炊など安く済ませる)
+    health: welfare ? 0 : Math.min(balance.healthCare[state.policy.health].cost, roundYen(calcIncome(state, data).total * balance.healthCostMaxShare)),
     remittance: transfer < 0 && bool(state, 'parentAlive') ? -transfer : 0,
     parentSupport: num(state, 'parentSupport', 0) > 0 ? balance.timers.parentSupport.monthlyCost : 0,
     studentLoan: studentLoanPayment(state).payment,

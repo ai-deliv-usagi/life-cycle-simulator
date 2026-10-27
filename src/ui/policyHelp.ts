@@ -9,7 +9,7 @@ const WORK: Record<WorkStyle, string> = {
 };
 
 const SPENDING: Record<Spending, string> = {
-  frugal: 'お金は貯まりやすいが、暮らしの満足は低め',
+  frugal: 'お金は貯まりやすいが、暮らしの満足は低め。付き合いも減りがち',
   normal: '稼ぎに見合った暮らし。そこそこ貯まる',
   comfort: '暮らしの満足は上がるが、あまり貯まらない',
   lavish: '満足度は高いが、若いうちは借金になりやすい',

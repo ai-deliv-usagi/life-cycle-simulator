@@ -317,6 +317,8 @@ export interface EventDef {
   category: EventCategory;
   /** 金額の揺れ方。省略するとカテゴリで決まる(balance.events.spreadByCategory) */
   spread?: CostSpread;
+  /** 医療費。収入が少ない人・引退後は高額療養費で自己負担に上限がある(balance.medicalCap) */
+  medical?: boolean;
   title: string;
   text: string;
   good?: boolean; // true=運で確率UP、false=運で確率DOWN、省略=運の影響なし
@@ -384,8 +386,10 @@ export interface Balance {
   salary: { peakAge: number; skillBase: number; skillRange: number; declineFrom: number; declinePerYear: number };
   takeHome: { bands: { below: number | null; rate: number }[]; pension: number };
   work: Record<WorkStyle, { income: number; freeTime: number; health: number; stress: number; skill: number; death: number }>;
-  spending: Record<Spending, { living: number; stress: number }>;
+  /** relations: 毎月の人間関係の増減(節約は付き合いが減る) */
+  spending: Record<Spending, { living: number; stress: number; relations: number }>;
   healthCare: Record<HealthCare, { cost: number; health: number; stress: number }>;
+  healthCostMaxShare: number; // 健康のための出費は手取りのこの割合まで
   /** 基本生活費 = single/married の固定分 + incomeShare × 世帯の手取り */
   living: { single: number; married: number; incomeShare: number; bonusSpendShare: number };
   retiredFreeTime: number;
@@ -456,7 +460,10 @@ export interface Balance {
     livingRelMax: number;
     livingRelSlope: number;
     adaptMonths: number;
-    skillAchievementShare: number; // 達成感 = スキル × この値 + achievement
+    skillAchievementShare: number; // 達成感 = スキル × この値 + achievement + 役職・会社の業績の分
+    rankAchievement: number; // 役職1段(主任〜部長)あたりの達成感
+    businessAchievement: number; // 社長の業績1あたりの達成感(businessAchievementMaxLevel まで)
+    businessAchievementMaxLevel: number;
     /** 重み w = base + Σ 係数 × 価値観(最小 minWeight) */
     weights: Record<HappinessPart, { base: number } & Partial<Record<keyof Values, number>>>;
   };
@@ -471,6 +478,8 @@ export interface Balance {
     spread: Record<CostSpread, { sigma: number; min: number; max: number }>;
     spreadByCategory: Record<EventCategory, CostSpread>;
   };
+  /** 高額療養費: 額面年収が incomeBelow 未満か引退後なら、医療の出来事1回の自己負担は perEvent まで */
+  medicalCap: { incomeBelow: number; perEvent: number };
   /** 高級品の値段 = 金融資産 × share × spendingCostMul を min〜max に収め、priceStep 円単位に丸める */
   luxury: Record<LuxuryItem, { share: number; min: number; max: number; loanMonths: number }> & { priceStep: number };
   /** 毎月 −1 する数値フラグと、その間の効果 */

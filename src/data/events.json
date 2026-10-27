@@ -142,6 +142,24 @@
         }
       },
       {
+        "label": "入籍だけする(式は挙げない)",
+        "effects": {
+          "cash": -100000,
+          "stats": {
+            "relations": 10,
+            "stress": -3
+          },
+          "setFlags": {
+            "married": true,
+            "partner": false
+          },
+          "achievement": 5
+        },
+        "valueShift": {
+          "relation": -0.1
+        }
+      },
+      {
         "label": "まだ早い",
         "effects": {
           "stats": {
@@ -3051,6 +3069,7 @@
   {
     "id": "hospital",
     "category": "health",
+    "medical": true,
     "spread": "large",
     "title": "入院",
     "text": "体調を崩して入院することになった。",
@@ -3081,6 +3100,7 @@
   {
     "id": "traffic_accident",
     "category": "health",
+    "medical": true,
     "spread": "large",
     "title": "交通事故でけが",
     "text": "交通事故に巻き込まれてけがをした。",
@@ -3171,6 +3191,7 @@
   {
     "id": "serious_illness",
     "category": "health",
+    "medical": true,
     "spread": "large",
     "title": "大病",
     "text": "検査で大きな病気が見つかった。治療には長い入院と通院が必要だ。",
@@ -3287,6 +3308,7 @@
   {
     "id": "elderly_crash",
     "category": "health",
+    "medical": true,
     "spread": "large",
     "title": "運転中の事故",
     "text": "アクセルとブレーキを踏み間違えて事故を起こした。幸い大事には至らなかったが、免許を返納した。",
@@ -4441,6 +4463,7 @@
   {
     "id": "fall_fracture",
     "category": "health",
+    "medical": true,
     "spread": "large",
     "title": "転倒して骨折",
     "text": "家の中でつまずいて転び、足の骨を折ってしまった。",
