@@ -1,5 +1,5 @@
 // セーブと過去の人生(DESIGN.md §10)。localStorage を使うのは UI 層だけ
-import { computeResult, normalizePolicy, type DeathCause, type Education, type FamilyTier, type GameState, type JobId, type LifeType } from '../engine/index';
+import { computeResult, earnedAchievements, normalizePolicy, type DeathCause, type Education, type FamilyTier, type GameState, type JobId, type LifeType } from '../engine/index';
 
 export const SAVE_KEY = 'lifesim.save.v1';
 export const HISTORY_KEY = 'lifesim.history.v1';
@@ -18,6 +18,7 @@ export interface LifeRecord {
   finalNetWorth: number;
   lifetimeHappiness: number;
   lifeType: LifeType;
+  achievements?: string[]; // 取った実績の id(古い記録にはない)
 }
 
 type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -117,6 +118,7 @@ export function toLifeRecord(state: GameState, endedAt = new Date().toISOString(
     finalNetWorth: r.finalNetWorth,
     lifetimeHappiness: r.lifetimeHappiness,
     lifeType: r.lifeType,
+    achievements: earnedAchievements(state),
   };
 }
 
@@ -127,4 +129,9 @@ export function finishLife(state: GameState, store: KV | null = defaultStorage()
   const history = [record, ...loadHistory(store)].slice(0, HISTORY_LIMIT);
   write(store, HISTORY_KEY, JSON.stringify(history));
   return record;
+}
+
+/** これまでの人生で取った実績(重複なし) */
+export function earnedSoFar(history: readonly LifeRecord[]): Set<string> {
+  return new Set(history.flatMap((r) => r.achievements ?? []));
 }

@@ -1,5 +1,6 @@
 // 調整用データの読み込みと検査。engine の関数は data を省略するとこの defaultData を使う。
 import type {
+  AchievementDef,
   Balance,
   EducationDef,
   EventDef,
@@ -8,6 +9,7 @@ import type {
   JobDef,
   RegionDef,
 } from '../engine/types';
+import achievementsJson from './achievements.json';
 import balanceJson from './balance.json';
 import educationJson from './education.json';
 import eventsJson from './events.json';
@@ -17,6 +19,7 @@ import regionJson from './region.json';
 
 // JSON の型は string などに広がるので、ここで型を付けて validateData で中身を検査する
 export const defaultData: GameData = {
+  achievements: achievementsJson as AchievementDef[],
   education: educationJson as EducationDef[],
   jobs: jobsJson as JobDef[],
   family: familyJson as FamilyDef[],

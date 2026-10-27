@@ -16,3 +16,4 @@ export type * from './types';
 export { netWorth } from './util';
 export { monthsToRepay, upcoming, type Upcoming } from './upcoming';
 export { previewLife, summarizePreview, type PreviewLife, type PreviewSummary } from './preview';
+export { earnedAchievements, uncheckedAchievements } from './achievements';
