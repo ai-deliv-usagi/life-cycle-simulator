@@ -24,8 +24,8 @@ const HEALTH: Record<HealthCare, string> = {
 const INVEST: Record<Invest, string> = {
   deposit: '増えないが、減らない',
   index: 'ゆっくり着実に増えやすい',
-  stocks: '大きく増えることも、減ることもある',
-  speculative: '一発逆転もあるが、暴落で大きく失うことも',
+  stocks: '大きく増えることも、減ることもある。積立より当たり外れが大きい',
+  speculative: '一発逆転もあるが、長く持つと減ることのほうが多い',
 };
 
 const EDUCATION: Record<EducationPolicy, string> = {

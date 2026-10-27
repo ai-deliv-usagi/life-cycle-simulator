@@ -141,11 +141,11 @@
     },
     "stocks": {
       "mu": 0.06,
-      "sigma": 0.3
+      "sigma": 0.25
     },
     "speculative": {
       "mu": 0.06,
-      "sigma": 0.6,
+      "sigma": 0.4,
       "crashProb": 0.003,
       "crashPct": -0.6
     }

@@ -665,6 +665,40 @@ export function debtRates(state: GameState, data: GameData = defaultData): { car
 
 const FORCED_SALE_LABELS = { index: '積立', stocks: '個別株', speculative: '信用・仮想通貨' } as const;
 
+/** 標準正規分布の累積分布(Abramowitz–Stegun の近似) */
+function normalCdf(x: number): number {
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.3989423 * Math.exp((-x * x) / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return x > 0 ? 1 - p : p;
+}
+
+/**
+ * 投資を years 年持ったときの見通し(UI の表示用)。毎月の値動き N(mu/12, sigma/√12) の対数の平均と分散から近似する。
+ * 振れ幅が大きいほど、平均は同じでも、ふつうの結果(中央値)は下がる。信用・仮想通貨はまれな暴落も入れる
+ */
+export function investmentOutlook(
+  key: 'index' | 'stocks' | 'speculative',
+  years: number,
+  data: GameData = defaultData,
+): { median: number; upShare: number; halfShare: number } {
+  const c = data.balance.assets[key];
+  const n = years * 12;
+  const mu = c.mu / 12;
+  const sd = c.sigma / Math.sqrt(12);
+  let mean = n * (Math.log(1 + mu) - (sd * sd) / 2);
+  let variance = n * sd * sd;
+  if (key === 'speculative') {
+    const s = data.balance.assets.speculative;
+    const crashes = n * s.crashProb;
+    const drop = Math.log(1 + s.crashPct);
+    mean += crashes * drop;
+    variance += crashes * drop * drop;
+  }
+  const z = (x: number) => (x - mean) / Math.sqrt(variance);
+  return { median: Math.exp(mean), upShare: 1 - normalCdf(z(0)), halfShare: normalCdf(z(Math.log(0.5))) };
+}
+
 /** 運用リターン。乱数の消費を保有額によらず一定にして、方針を変えても乱数列がずれないようにする */
 /** 運用リターンを反映し、増えた額(減ったらマイナス。預金の利息を含む)を返す */
 export function applyReturns(state: GameState, rng: Rng, data: GameData = defaultData): number {

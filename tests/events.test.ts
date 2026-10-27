@@ -196,7 +196,11 @@ describe('発生と選択', () => {
   it('条件を満たさない選択肢は出ず、選ぶとエラー', () => {
     const metro = makeState({ region: 'metro' });
     const labels = availableChoices(byId('moving'), metro).map((c) => c.choice.label);
-    expect(labels).toEqual(['地方へ移る', '近場で住み替える', 'やめておく']);
+    expect(labels).toEqual(['地方都市へ移る', '田舎へ移る', '近場で住み替える', 'やめておく']);
+    const city = availableChoices(byId('moving'), makeState({ region: 'city' })).map((c) => c.choice.label);
+    expect(city).toEqual(['大都市へ出る', '田舎へ移る', '近場で住み替える', 'やめておく']);
+    const ruralLabels = availableChoices(byId('moving'), makeState({ region: 'rural' })).map((c) => c.choice.label);
+    expect(ruralLabels).toEqual(['大都市へ出る', '地方都市へ移る', '近場で住み替える', 'やめておく']);
     expect(() => applyChoice(metro, byId('moving'), 0, flatRng)).toThrow();
 
     const rural = makeState({ region: 'rural', hasCar: true });
