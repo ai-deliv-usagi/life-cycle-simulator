@@ -17,11 +17,11 @@ function marry(seed: number, age = 30): GameState {
 }
 
 describe('結婚記念日', () => {
-  it('結婚した月を覚え、毎年その月にだけ起きる', () => {
+  it('結婚した月を覚え、節目の年(1・5・10…周年)のその月にだけ起きる', () => {
     const s = marry(1);
     expect(s.flags.marriedSince).toBe(100);
     const ev = byId('anniversary');
-    for (const [month, ok] of [[100, false], [106, false], [112, true], [113, false], [124, true]] as const) {
+    for (const [month, ok] of [[100, false], [106, false], [112, true], [113, false], [124, false], [160, true], [220, true], [232, false]] as const) {
       s.month = month;
       expect(isEligible(ev, s)).toBe(ok);
     }

@@ -56,7 +56,7 @@ export interface MainScreenHooks {
 
 const SNACK_MS = 4000; // 大事な出来事はその倍
 const SNACK_MAX = 3;
-const LEVEL_ORDER = ['good', 'normal', 'caution', 'danger'] as const;
+const LEVEL_ORDER = ['good', 'normal', 'growing', 'caution', 'danger'] as const;
 const UPCOMING_MAX = 5;
 
 /** 選択肢のないイベントは、再生中だと気づきにくいので画面の下にスナックバーで出す */
@@ -120,7 +120,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
   const statWarning = h('p', { class: 'stat-warning small' });
   const upcomingList = h('ul', { class: 'upcoming-list' });
   const upcomingEmpty = h('p', { class: 'muted small' }, '先の予定はまだない。');
-  // 選択肢のない出来事のスナックバー(画面の下、操作ボタンの上に積む)
+  // 選択肢のない出来事のスナックバー(画面の上に、新しいものを上にして積む。下の操作ボタンや出来事の一覧に重ならないように)
   const snackbars = h('div', { class: 'snackbars', role: 'status', 'aria-live': 'polite' });
   const showSnack = (e: LogEntry, stopped: boolean) => {
     const money = moneyLabel(e.money);
@@ -133,8 +133,8 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       money ? h('span', { class: `snack-money ${e.money! > 0 ? 'up' : 'down'}` }, money) : '',
       stopped ? h('span', { class: 'snack-note' }, '大事な出来事なので一時停止しました') : '',
     );
-    snackbars.appendChild(item);
-    while (snackbars.children.length > SNACK_MAX) snackbars.firstElementChild!.remove();
+    snackbars.prepend(item);
+    while (snackbars.children.length > SNACK_MAX) snackbars.lastElementChild!.remove();
     setTimeout(() => item.remove(), important ? SNACK_MS * 2 : SNACK_MS);
   };
   let seenLog = initial.log.length;
@@ -184,6 +184,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     h(
       'main',
       { class: 'screen main-screen' },
+      snackbars,
       h(
         'header',
         { class: 'status-head' },
@@ -252,7 +253,7 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
             {
               class: 'bar bar-button',
               'aria-label': `${STAT_LABELS[k]}の説明を見る`,
-              onclick: () => void controller.whilePaused(() => statModal(k, controller.state.stats[k])),
+              onclick: () => void controller.whilePaused(() => statModal(k, controller.state.stats[k], controller.state.ageMonths)),
             },
             h('span', { class: 'bar-label' }, h('span', { 'aria-hidden': 'true' }, STAT_ICONS[k]), ' ', STAT_LABELS[k]),
             h('div', { class: 'bar-track' }, bars[k]),
@@ -265,7 +266,6 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
       h(
         'nav',
         { class: 'controls' },
-        snackbars,
         playBtn,
         h('div', { class: 'speeds' }, ...speedBtns),
         h('button', { class: 'btn', 'aria-label': '次のイベントまで進める', onclick: () => void controller.skipToEvent() }, '⏭ 次へ'),
@@ -358,13 +358,13 @@ export function mainScreen(root: HTMLElement, nav: Nav, initial: GameState, hook
     fields.policyBtn.textContent = preset ? preset.label : '方針';
     // いちばん悪いステータスが注意・危険なら、何が起きやすいかを1行で
     const worst = statKeys
-      .map((k) => ({ k, level: statLevel(k, state.stats[k]) }))
+      .map((k) => ({ k, level: statLevel(k, state.stats[k], state.ageMonths) }))
       .sort((x, y) => LEVEL_ORDER.indexOf(y.level) - LEVEL_ORDER.indexOf(x.level))[0]!;
     const warn = worst.level === 'caution' || worst.level === 'danger';
     statWarning.hidden = !warn;
     if (warn) statWarning.textContent = `${STAT_LABELS[worst.k]}が${STAT_LEVEL_LABELS[worst.level]}: ${STAT_EFFECTS[worst.k].bad}`;
     for (const k of statKeys) {
-      const level = statLevel(k, state.stats[k]);
+      const level = statLevel(k, state.stats[k], state.ageMonths);
       bars[k].style.width = `${state.stats[k]}%`;
       bars[k].className = `bar-fill level-${level}`;
       barWords[k].textContent = STAT_LEVEL_LABELS[level];

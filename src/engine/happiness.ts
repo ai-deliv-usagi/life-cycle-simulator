@@ -4,7 +4,7 @@ import { childEffects } from './children';
 import { calcExpenses, realLivingSpending } from './money';
 import { effectiveWork } from './stats';
 import type { GameData, GameState, HappinessPart, Values } from './types';
-import { clampStat, financialAssets, findById } from './util';
+import { clamp, clampStat, financialAssets, findById } from './util';
 
 export const HAPPINESS_PARTS: readonly HappinessPart[] = [
   'living',
@@ -17,15 +17,27 @@ export const HAPPINESS_PARTS: readonly HappinessPart[] = [
 
 export type HappinessBreakdown = Record<HappinessPart, number>;
 
-/** 価値観で決まる各要素の重み(最小 minWeight) */
-export function happinessWeights(values: Values, data: GameData = defaultData): HappinessBreakdown {
+/** 若さで軽くする重みの倍率(fromAge で minFactor、toAge で1) */
+export function youthFactor(ageMonths: number, data: GameData = defaultData): number {
+  const y = data.balance.happiness.youth;
+  const t = clamp((ageMonths / 12 - y.fromAge) / (y.toAge - y.fromAge), 0, 1);
+  return y.minFactor + (1 - y.minFactor) * t;
+}
+
+/**
+ * 価値観で決まる各要素の重み(最小 minWeight)。
+ * ageMonths を渡すと、若いうちは「お金の安心」「やりがい」を軽くする(新卒は貯金もやりがいもなくて当たり前)
+ */
+export function happinessWeights(values: Values, data: GameData = defaultData, ageMonths?: number): HappinessBreakdown {
   const h = data.balance.happiness;
+  const youth = ageMonths === undefined ? 1 : youthFactor(ageMonths, data);
   const out = {} as HappinessBreakdown;
   for (const part of HAPPINESS_PARTS) {
     const cfg = h.weights[part];
     let w = cfg.base;
     for (const axis of Object.keys(values) as (keyof Values)[]) w += (cfg[axis] ?? 0) * values[axis];
-    out[part] = Math.max(h.minWeight, w);
+    w = Math.max(h.minWeight, w);
+    out[part] = h.youth.parts.includes(part) ? w * youth : w;
   }
   return out;
 }
@@ -77,7 +89,7 @@ export function happinessParts(state: GameState, data: GameData = defaultData): 
 /** 今月の幸福度(0〜100)= 重み付き平均 */
 export function computeHappiness(state: GameState, data: GameData = defaultData): number {
   const parts = happinessParts(state, data);
-  const weights = happinessWeights(state.values, data);
+  const weights = happinessWeights(state.values, data, state.ageMonths);
   let sum = 0;
   let total = 0;
   for (const part of HAPPINESS_PARTS) {

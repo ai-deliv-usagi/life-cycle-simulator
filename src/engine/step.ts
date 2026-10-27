@@ -13,7 +13,7 @@ import type { Rng } from './rng';
 import { updateStats } from './stats';
 import { fixedInvestShares, INVEST_KEYS, normalizePolicy } from './policy';
 import type { GameData, GameState, Invest, Policy, PolicyInput } from './types';
-import { addLog, financialAssets, findById, netWorth } from './util';
+import { addLog, financialAssets, findById, netWorth, yenText } from './util';
 
 export const POLICY_LABELS = {
   work: { regular: '定時', normal: '普通', overtime: '残業多め', grind: '激務' },
@@ -77,13 +77,14 @@ export function stepMonth(state: GameState, rng: Rng, data: GameData = defaultDa
   const retireAge = owner ? balance.business.retireAgeMax : balance.pension.retireAge;
   if (!s.character.retired && s.ageMonths >= retireAge * 12) {
     const parttime = s.character.job === 'parttime';
-    retire(s, data);
+    const severance = retire(s, data);
     if (parttime) {
       // バイトに定年はない。年金をもらいながら、そのまま働き続ける
       s.flags.rehire = balance.rehire.parttimeMonths;
       addLog(s, 'event', `年金の受け取り開始: ${balance.pension.retireAge}歳になり年金をもらい始めた。バイトはこのまま続ける`, 'pension_start');
     } else {
-      addLog(s, 'event', `定年退職: ${balance.pension.retireAge}歳で退職した`, 'retirement');
+      addLog(s, 'event', `定年退職: ${balance.pension.retireAge}歳で退職した${severance > 0 ? `。退職金 ${yenText(severance)}を受け取った` : ''}`, 'retirement');
+      if (severance > 0) s.log.at(-1)!.money = severance;
     }
   }
 
@@ -283,6 +284,6 @@ export function getMonthlyView(state: GameState, data: GameData = defaultData): 
     studentLoan: state.assets.studentLoan,
     loan: state.assets.loan ?? 0,
     netWorth: netWorth(state.assets),
-    happiness: state.happinessHistory.at(-1) ?? 0,
+    happiness: state.happinessHistory.at(-1) ?? computeHappiness(state, data), // 始めた月はまだ記録がないので、今の状態から計算する
   };
 }

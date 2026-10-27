@@ -159,6 +159,8 @@
     "retireAge": 65
   },
   "severanceYears": 38,
+  "severanceCurve": 1.3,
+  "severanceVoluntaryRate": 0.8,
   "stats": {
     "age40Health": -0.05,
     "age60Health": -0.1,
@@ -248,7 +250,13 @@
     },
     "rankAchievement": 12,
     "businessAchievement": 10,
-    "businessAchievementMaxLevel": 3
+    "businessAchievementMaxLevel": 3,
+    "youth": {
+      "fromAge": 22,
+      "toAge": 35,
+      "minFactor": 0.3,
+      "parts": ["security", "achievement"]
+    }
   },
   "events": {
     "luckGoodBase": 0.8,

@@ -41,7 +41,7 @@ describe('年間の収支', () => {
     const s = makeState({ job: 'sales' });
     s.character.jobYears = 19;
     changeJob(s, 'office');
-    expect(s.ledger!.income.severance).toBe(7_500_000);
+    expect(s.ledger!.income.severance).toBe(4_873_514); // 1,500万 × (19/38)^1.3 × 自己都合0.8
     expect(s.ledger!.eventIn).toBe(0);
   });
 
@@ -49,7 +49,7 @@ describe('年間の収支', () => {
     const s = makeState({ job: 'sales' });
     s.character.jobYears = 19;
     applyChoice(s, byId('job_offer'), 0, createRng(1));
-    expect(s.ledger!.income.severance).toBe(7_500_000);
+    expect(s.ledger!.income.severance).toBe(4_873_514); // 1,500万 × (19/38)^1.3 × 自己都合0.8
     expect(s.ledger!.eventIn).toBe(0);
   });
 

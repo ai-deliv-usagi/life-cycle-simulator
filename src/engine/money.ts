@@ -161,11 +161,16 @@ export function pensionMonthly(state: GameState, data: GameData = defaultData): 
   return basic + own + spouseEmployee;
 }
 
-/** 退職金(勤続年数で按分)。バイト・無職は0 */
-export function severancePay(state: GameState, data: GameData = defaultData): number {
+/**
+ * 退職金。勤続が長いほど伸びる(勤続年数の割合の severanceCurve 乗)。
+ * 自分から辞める(転職・起業)ときは自己都合で減る(severanceVoluntaryRate)。バイト・無職は0
+ */
+export function severancePay(state: GameState, data: GameData = defaultData, voluntary = false): number {
   const job = jobDef(state.character.job, data);
   if (!job) return 0;
-  return roundYen(job.severance * Math.min(1, state.character.jobYears / data.balance.severanceYears));
+  const b = data.balance;
+  const share = Math.min(1, state.character.jobYears / b.severanceYears) ** b.severanceCurve;
+  return roundYen(job.severance * share * (voluntary ? b.severanceVoluntaryRate : 1));
 }
 
 export interface MonthlyIncome {
@@ -743,8 +748,8 @@ export function declareBankruptcy(state: GameState, data: GameData = defaultData
 
 // ---- 退職・転職 ----
 
-/** 65歳の退職。退職金を受け取る。社長は会社を事業承継して、会社の価値の一部を受け取る */
-export function retire(state: GameState, data: GameData = defaultData): void {
+/** 65歳の退職。退職金を受け取る(受け取った退職金を返す)。社長は会社を事業承継して、会社の価値の一部を受け取る */
+export function retire(state: GameState, data: GameData = defaultData): number {
   const severance = severancePay(state, data);
   state.assets.cash += severance;
   recordSeverance(state, severance);
@@ -758,11 +763,12 @@ export function retire(state: GameState, data: GameData = defaultData): void {
   state.character.retired = true;
   state.character.jobYears = 0;
   state.flags.unemploymentBenefit = 0;
+  return severance;
 }
 
 /** 同じ職業のまま別の会社に移る。按分した退職金を受け取り、勤続年数は0に戻る(給料の水準と役職は持っていく) */
 export function changeEmployer(state: GameState, data: GameData = defaultData): void {
-  const severance = severancePay(state, data);
+  const severance = severancePay(state, data, true);
   state.assets.cash += severance;
   recordSeverance(state, severance);
   state.character.jobYears = 0;
@@ -777,7 +783,7 @@ export function changeJob(state: GameState, newJob: JobId, data: GameData = defa
   if (newJob === c.job) return;
   const wasOwner = c.job === 'owner';
   if (wasOwner) endBusiness(state); // 社長を辞める = 会社をたたむ
-  const severance = severancePay(state, data);
+  const severance = severancePay(state, data, newJob !== 'none'); // 無職になる(リストラ)は会社都合、それ以外は自己都合
   state.assets.cash += severance;
   recordSeverance(state, severance);
   if (c.job !== 'none' && c.job !== 'owner') c.previousJob = c.job; // 再就職で「前職に戻る」のは会社員の仕事
